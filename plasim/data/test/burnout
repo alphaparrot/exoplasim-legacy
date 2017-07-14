@@ -6,7 +6,7 @@
 *        New: option <-g> writes Grads ctl for service plotting        *
 *            New: comments (#) are allowed in namelist file            *
 ************************************************************************
-*          Run started at Fri Jul 14 14:03:55 2017 local time          *
+*          Run started at Fri Jul 14 17:14:50 2017 local time          *
 ************************************************************************
 *                 Found PUMA/Planet Simulator data set                 *
 *                   Running on little endian machine                   *
@@ -108,6 +108,9 @@
 * Code   264 = wfn    net_water_flux                                   *
 * Code   265 = dqo3   ozone_concentration                              *
 * Code   266 = lwth   local_weathering                                 *
+* Code   267 = grnz   ground_geopotential                              *
+* Code   301 = icez   glacier_geopotential                             *
+* Code   302 = netz   net_geopotential                                 *
 * -------------------------------------------------------------------- *
 * Level    1 =       100.0000 hPa                                      *
 * Level    2 =       200.0000 hPa                                      *
@@ -120,34 +123,32 @@
 * Level    9 =       900.0000 hPa                                      *
 * Level   10 =      1000.0000 hPa                                      *
 * -------------------------------------------------------------------- *
-*  Input File: MOST.001                                                *
-* Output File: MOST.001.nc                                             *
+*  Input File: MOST.002                                                *
+* Output File: MOST.002.nc                                             *
 * -------------------------------------------------------------------- *
 * Vertical   Type = Pressure             [P]                           *
 * Horizontal Type = Gaussian Grid        [G]                           *
 * -------------------------------------------------------------------- *
-* Processed Month  1   Year    1  (Mean of  31 Terms)                  *
-* Processed Month  2   Year    1  (Mean of  28 Terms)                  *
-* Processed Month  3   Year    1  (Mean of  31 Terms)                  *
-* Processed Month  4   Year    1  (Mean of  30 Terms)                  *
-* Processed Month  5   Year    1  (Mean of  31 Terms)                  *
-* Processed Month  6   Year    1  (Mean of  30 Terms)                  *
-* Processed Month  7   Year    1  (Mean of  31 Terms)                  *
-* Processed Month  8   Year    1  (Mean of  31 Terms)                  *
-* Processed Month  9   Year    1  (Mean of  30 Terms)                  *
-* Processed Month 10   Year    1  (Mean of  31 Terms)                  *
-* Processed Month 11   Year    1  (Mean of  30 Terms)                  *
-* Processed Month 12   Year    1  (Mean of  31 Terms)                  *
+* Processed Month  1   Year    2  (Mean of  31 Terms)                  *
+* Processed Month  2   Year    2  (Mean of  28 Terms)                  *
+* Processed Month  3   Year    2  (Mean of  31 Terms)                  *
+* Processed Month  4   Year    2  (Mean of  30 Terms)                  *
+* Processed Month  5   Year    2  (Mean of  31 Terms)                  *
+* Processed Month  6   Year    2  (Mean of  30 Terms)                  *
+* Processed Month  7   Year    2  (Mean of  31 Terms)                  *
+* Processed Month  8   Year    2  (Mean of  31 Terms)                  *
+* Processed Month  9   Year    2  (Mean of  30 Terms)                  *
+* Processed Month 10   Year    2  (Mean of  31 Terms)                  *
+* Processed Month 11   Year    2  (Mean of  30 Terms)                  *
+* Processed Month 12   Year    2  (Mean of  31 Terms)                  *
 ************************************************************************
 *                        Using 365 day calendar                        *
 *                     Data interval =  24.00 hours                     *
 ************************************************************************
-* User     time:      2.703 seconds                                    *
-* System   time:      0.140 seconds                                    *
-* Total    time:      2.843 seconds                                    *
+* User     time:      2.267 seconds                                    *
+* System   time:      0.120 seconds                                    *
+* Total    time:      2.387 seconds                                    *
 * Memory  usage:      0.018 MBytes                                     *
-* Page reclaims:      44009 pages                                      *
-* Page   faults:          2 pages                                      *
-* Disk     read:        104 blocks                                     *
-* Disk    Write:      38256 blocks                                     *
+* Page reclaims:      48966 pages                                      *
+* Disk    Write:      38832 blocks                                     *
 ************************************************************************

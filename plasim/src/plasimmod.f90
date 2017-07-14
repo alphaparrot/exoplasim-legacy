@@ -191,6 +191,9 @@
       integer :: nspinit  = 0   ! switch for LnPs initialization
       integer :: nsponge  = 0   ! switch for top sponge layer
       integer :: nqspec   = 1   ! 1: spectral q   0: gridpoint q (semi-Langrangian)
+!>>> AYP -- NEEDED AS PART OF GLACIERMOD      
+      integer :: nglspec = 0
+!>>> AYP      
 
 !     ***********************
 !     * Global Real Scalars *

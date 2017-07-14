@@ -1,5 +1,5 @@
  &plasim_nl
- NOUTPUT     =     0
+ NOUTPUT     =     1
  NGUI        =     0
  N_START_YEAR=     1
  N_DAYS_PER_YEAR=   365

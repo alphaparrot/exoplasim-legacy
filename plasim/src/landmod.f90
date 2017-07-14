@@ -1,3 +1,6 @@
+
+#define limitwater 1
+
       module landmod
       use pumamod
 !
@@ -344,12 +347,25 @@
        call mpgetgp('dsnowt'  ,dsnowt  ,NHOR,     1)
        call mpgetgp('dsnowz'  ,dsnowz  ,NHOR,     1)
        call mpgetgp('dsoilt'  ,dsoilt  ,NHOR,NLSOIL)
-       call mpgetgp('dglac'   ,dglac   ,NHOR,     1)
        call mpgetgp('dz0clim' ,dz0clim ,NHOR,     1)
        call mpgetgp('dz0climo',dz0climo,NHOR,     1)
        call mpgetgp('dalbcl'  ,dalbcl  ,NHOR,    14)
 
        n_sea_points = ncountsea(dls)
+       
+#if limitwater == 1
+!	If you had created a restart file, but then need to change the soil water
+!	capacity later.
+       dwcl(:,:) = wsmax * drhsfull * drhsland
+       do jhor=1,NHOR
+          dwmax(jhor) = AMAX1(wsmax,0.0)
+          if (dsnow(jhor) .le. 0.) then
+             drhs(jhor) = 0.
+             if (dwmax(jhor) > 0.) &
+     &           drhs(jhor) = dwatc(jhor)/(drhsfull*dwmax(jhor))
+          endif
+       enddo
+#endif
 
       endif ! if (restart == 0)
 
@@ -484,7 +500,6 @@
       call mpputgp('dsnowt'  ,dsnowt  ,NHOR, 1)
       call mpputgp('dsnowz'  ,dsnowz  ,NHOR, 1)
       call mpputgp('dsoilt'  ,dsoilt  ,NHOR,NLSOIL)
-      call mpputgp('dglac'   ,dglac   ,NHOR, 1)
       call mpputgp('dz0clim' ,dz0clim ,NHOR, 1)
       call mpputgp('dz0climo',dz0climo,NHOR, 1)
       call mpputgp('dalbcl'  ,dalbcl  ,NHOR,14)

@@ -201,6 +201,7 @@ struct SelStruct *SelRes;
 struct SelStruct *SelOce;
 struct SelStruct *SelLsg;
 struct SelStruct *SelCarb;
+struct SelStruct *SelGlac;
 struct SelStruct *SelIce;
 struct SelStruct *SelAnn;
 struct SelStruct *SelPlanet[PLANETS];
@@ -328,6 +329,7 @@ int Oce;
 int Ice;
 int Lsg;
 int Carb;
+int Glac;
 int SimStart;
 int SimYears;
 int nreadsr;
@@ -618,6 +620,7 @@ void ChangeModel(int NewMo)
           SelOce->no   = 0;
           SelIce->no   = 0;
 	  SelCarb->no  = 0;
+	  SelGlac->no  = 0;
           if (SelLsg) SelLsg->no = 0;
           for (i=0 ; i < PLANETS ; ++i) SelPlanet[i]->no = 0;
        }
@@ -1027,6 +1030,7 @@ void InitNamelist(void)
    NL_i(PLASIM,"carbonmod","NSUPPLY",       0); // Introduce weathering supply limit
    NL_r(PLASIM,"carbonmod","WMAX",       80.9); // Maximum weathering in cm/year
    NL_r(PLASIM,"carbonmod","ZETA",        0.0); // Currently unused
+   NL_r(PLASIM,"glacier","GLACELIM",   2.0);
 
    // SAM
 
@@ -1338,7 +1342,21 @@ void InitSelections(void)
    Sel->no   = 1;
    SelCarb    = Sel;
    Sel->piv  = &Carb;
+
+   // Glacier Model
    
+   Sel = NewSel(Sel);
+   InitNextSelection(Sel,FixFontHeight,"Glaciers");
+   Sel->type = SEL_CHECK;
+   Sel->teco = BlackPix;
+   Sel->h    = FixFontHeight + 1;
+   Sel->w    = FixFontHeight + 1;
+   Sel->yt   = Sel->y + FixFontAscent + 1;
+   Sel->div  = Sel->iv   =  0;
+   Sel->no   = 1;
+   SelGlac    = Sel;
+   Sel->piv  = &Glac;
+     
    // LSG Ocean
 
    if (LsgEnabled)
@@ -1816,6 +1834,7 @@ int WriteRunScript(int model)
    fputs("   DATANAME=`printf '%s.%03d' $EXP $YEAR`\n",fp);
    fputs("   DIAGNAME=`printf '%s_DIAG.%03d' $EXP $YEAR`\n",fp);
    fputs("   RESTNAME=`printf '%s_REST.%03d' $EXP $YEAR`\n",fp);
+   fputs("   SNOWNAME=`printf '%s_SNOW.%03d' $EXP $YEAR`\n",fp);
    if (porm < 2)
    {
       fprintf(fp,"   ./%s\n",exec_name);
@@ -1855,6 +1874,7 @@ int WriteRunScript(int model)
               ShortModelName[model],ShortModelName[model],ShortModelName[model]);
       fprintf(fp,"   [ -e %s_status ] && mv %s_status $RESTNAME\n",
               ShortModelName[model],ShortModelName[model]);
+      fprintf(fp,"   [ -e restart_snow ] && mv restart_snow $SNOWNAME\n");
    }
    if (ngui) fputs("# ",fp); /* deactivate loop for GUI case */
    fputs("done\n",fp);
@@ -2062,6 +2082,14 @@ int Build(int model)
    }
    fprintf(fp," make_%s > makefile\n",shomo);
    fputs("make -e\n",fp);
+   if (nprec)
+   {
+      fputs("./most_snow_build8\n",fp);
+   }
+   else
+   {
+      fputs("./most_snow_build4\n",fp);
+   }
 
    fprintf(fp,"[ $? == 0 ] && cp %s.x ../bin/%s\n",shomo,exec_name);
 
@@ -3406,6 +3434,10 @@ void WriteNamelistFile(char *nl,  int instance)
       fprintf(fp," %-12s=%6d\n","NOCEAN",Oce);
       fprintf(fp," %-12s=%6d\n","NLSG"  ,Lsg);
    }
+   if (!strcmp(nl,"glacier"))
+   {
+      fprintf(fp," %-12s=%6d\n","NGLACIER",Glac);
+   }
    if (!strcmp(nl,"plasim"))
    {
       fprintf(fp," %-12s=%6d\n","NOUTPUT",noutput);
@@ -3462,6 +3494,7 @@ void WritePlasimNamelist(void)
       WriteNamelistFile("seamod"  ,imr);
       WriteNamelistFile("surfmod" ,imr);
       WriteNamelistFile("carbonmod",imr);
+      WriteNamelistFile("glacier"  ,imr);
    }
 }
 

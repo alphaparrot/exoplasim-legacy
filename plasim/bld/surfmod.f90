@@ -358,6 +358,8 @@
       endif
 
       call mpbci(nsurf)
+      
+      call glacierprep
 
 !     Aqua planet settings
 
@@ -381,6 +383,8 @@
          endif
          doro(:) = doro(:) * oroscale  ! Scale orography
 
+         if (nglspec .eq. 0) then
+         
 !        Compute spectral orography
 
          call gp2fc(doro,NLON,NLPP)
@@ -418,6 +422,8 @@
         endif ! (mypid == NROOT)
         call mpscsp(sp,spm,1)
 
+        endif
+        
 !*       adjust land sea mask  (workaround)
 
          dls(:)=AMAX1(dls(:),0.)
@@ -426,6 +432,7 @@
       endif ! (nrestart == 0)
 
                             call landini  ! land module
+                            call glacierini(noromax) !glacier module
       if (nveg > 0)         call vegini   ! vegetation module
       if (n_sea_points > 0) call seaini   ! sea module
 
@@ -440,6 +447,7 @@
       use surfmod
 
       if (naqua == 0)       call landstep
+                            call glacierstep
       if (n_sea_points > 0) call seastep
 
       return
@@ -453,6 +461,7 @@
       use surfmod
 
                             call landstop
+                            call glacierstop
       if (nveg > 0)         call vegstop
       if (n_sea_points > 0) call seastop
 

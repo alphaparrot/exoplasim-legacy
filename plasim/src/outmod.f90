@@ -174,6 +174,7 @@
       use pumamod
       use carbonmod
       use radmod
+      use glaciermod
 
 !     *********************
 !     * specific humidity *
@@ -464,6 +465,9 @@
 !     ***   S I M B A   ***
 !     *********************
 
+      
+      if (nveg > 0) call vegout
+
 !     ***********************
 !     * Ozone concentration *
 !     ***********************
@@ -472,14 +476,31 @@
          call writegp(40,dqo3(1,jlev),265,jlev)
       enddo
       
-      if (nveg > 0) call vegout
-
 !     ********************
 !     * local weathering *
 !     ********************
 
       aweathering(:) = aweathering(:)/real(naccuout)
       call writegp(40,aweathering,266,0)
+
+!     ********************
+!     * ground elevation *
+!     ********************
+
+      call writegp(40,groundoro,267,0)
+
+!     *********************
+!     * glacier elevation *
+!     *********************
+
+      call writegp(40,glacieroro,301,0)
+
+      
+!     *********************
+!     *    net elevation  *
+!     *********************
+      netoro(:) = groundoro(:) + glacieroro(:)
+      call writegp(40,netoro,302,0)
       
       return
       end

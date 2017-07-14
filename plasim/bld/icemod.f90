@@ -253,6 +253,7 @@
       real (kind=8) :: zgw(NLAT)
       real :: zgw2(NLON,NLAT)
 
+      logical :: lxsnow
 !
       namelist/icemod_nl/nout,nfluko,nperpetual_ice,ntspd,nprint,nprhor &
      &               ,nentropy,nice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
@@ -386,6 +387,13 @@
             call mpgetgp('xcliced' ,xcliced ,NHOR,14)
             call mpgetgp('xclsst'  ,xclsst  ,NHOR,14)
          endif ! (newsurf == 1)
+        
+!>> +++AYP   
+         if (mypid==NROOT) inquire(file='restart_xsnow',exist=lxsnow)
+         call mpbcl(lxsnow)
+         if (lxsnow) call readarray(xsnow,'restart_xsnow')
+!>> ---AYP         
+                  
       endif ! (nrestart == 0)
 !
 !     read flux correction
@@ -958,6 +966,8 @@
        deallocate(xaout)
       endif
 !
+      call finishup(xsnow,'newxsnow')
+!       
       return
       end subroutine icestop
 
