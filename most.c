@@ -200,6 +200,7 @@ struct SelStruct *SelMod;
 struct SelStruct *SelRes; 
 struct SelStruct *SelOce;
 struct SelStruct *SelLsg;
+struct SelStruct *SelCarb;
 struct SelStruct *SelIce;
 struct SelStruct *SelAnn;
 struct SelStruct *SelPlanet[PLANETS];
@@ -326,6 +327,7 @@ int BigEndian;
 int Oce;
 int Ice;
 int Lsg;
+int Carb;
 int SimStart;
 int SimYears;
 int nreadsr;
@@ -615,6 +617,7 @@ void ChangeModel(int NewMo)
        {
           SelOce->no   = 0;
           SelIce->no   = 0;
+	  SelCarb->no  = 0;
           if (SelLsg) SelLsg->no = 0;
           for (i=0 ; i < PLANETS ; ++i) SelPlanet[i]->no = 0;
        }
@@ -1015,6 +1018,15 @@ void InitNamelist(void)
    NL_i(PLASIM,"rainmod","NCLOUDS" ,  1);
    NL_i(PLASIM,"rainmod","NSTORAIN",  0);
    NL_r(PLASIM,"plasim" ,"SYNCSTR", 0.0);
+   NL_r(PLASIM,"carbonmod","VOLCANCO2",   1.0); // Fraction of Earth outgassing
+   NL_r(PLASIM,"carbonmod","KACT"     ,  0.09);
+   NL_r(PLASIM,"carbonmod","KRUN"     , 0.045); 
+   NL_r(PLASIM,"carbonmod","BETA"     ,   0.5); // pCO2 dependence
+   NL_i(PLASIM,"carbonmod","FREQUENCY",     4); // Times per day
+   NL_r(PLASIM,"carbonmod","PEARTH",    14.98); // Precipitation in cm
+   NL_i(PLASIM,"carbonmod","NSUPPLY",       0); // Introduce weathering supply limit
+   NL_r(PLASIM,"carbonmod","WMAX",       80.9); // Maximum weathering in cm/year
+   NL_r(PLASIM,"carbonmod","ZETA",        0.0); // Currently unused
 
    // SAM
 
@@ -1313,6 +1325,20 @@ void InitSelections(void)
    SelOce    = Sel;
    Sel->piv  = &Oce;
 
+   // Carbon-Silicate Cycle
+   
+   Sel = NewSel(Sel);
+   InitNextSelection(Sel,FixFontHeight,"Weathering");
+   Sel->type = SEL_CHECK;
+   Sel->teco = BlackPix;
+   Sel->h    = FixFontHeight + 1;
+   Sel->w    = FixFontHeight + 1;
+   Sel->yt   = Sel->y + FixFontAscent + 1;
+   Sel->div  = Sel->iv   =  0;
+   Sel->no   = 1;
+   SelCarb    = Sel;
+   Sel->piv  = &Carb;
+   
    // LSG Ocean
 
    if (LsgEnabled)
@@ -3392,6 +3418,10 @@ void WriteNamelistFile(char *nl,  int instance)
       fprintf(fp," %-12s=%6d\n","N_RUN_MONTHS",0);
       fprintf(fp," %-12s=%6d\n","N_RUN_DAYS",0);
    }
+   if (!strcmp(nl,"carbonmod"))
+   {
+      fprintf(fp," %-12s=%6d\n","NCARBON",Carb); 
+   }
    for (Sel = ComEnd->Next ; Sel ; Sel = Sel->Next)
    {
       if (Sel->Item && !strcasecmp(Sel->Item->list,nl))
@@ -3431,6 +3461,7 @@ void WritePlasimNamelist(void)
       WriteNamelistFile("rainmod" ,imr);
       WriteNamelistFile("seamod"  ,imr);
       WriteNamelistFile("surfmod" ,imr);
+      WriteNamelistFile("carbonmod",imr);
    }
 }
 

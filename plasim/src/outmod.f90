@@ -172,6 +172,8 @@
 
       subroutine outgp
       use pumamod
+      use carbonmod
+      use radmod
 
 !     *********************
 !     * specific humidity *
@@ -462,8 +464,23 @@
 !     ***   S I M B A   ***
 !     *********************
 
+!     ***********************
+!     * Ozone concentration *
+!     ***********************
+
+      do jlev = 1 , NLEV
+         call writegp(40,dqo3(1,jlev),265,jlev)
+      enddo
+      
       if (nveg > 0) call vegout
 
+!     ********************
+!     * local weathering *
+!     ********************
+
+      aweathering(:) = aweathering(:)/real(naccuout)
+      call writegp(40,aweathering,266,0)
+      
       return
       end
 
@@ -584,6 +601,7 @@
 
       subroutine outreset
       use pumamod
+      use carbonmod
 !
 !     reset accumulated arrays and counter
 !
@@ -611,7 +629,8 @@
       ats0(:)=0.
       atsami(:)=1.E10
       atsama(:)=0.
-
+      aweathering(:) = 0.
+      
       naccuout=0
 
 !     ************************************************
@@ -631,6 +650,7 @@
 
       subroutine outaccu
       use pumamod
+      use carbonmod
 !
 !     accumulate diagnostic arrays
 !
@@ -658,6 +678,7 @@
       ats0(:)=ats0(:)+dt(:,NLEP)
       atsami(:)=AMIN1(atsami(:),dtsa(:))
       atsama(:)=AMAX1(atsama(:),dtsa(:))
+      aweathering(:)=aweathering(:)+localweathering(:)
 
       naccuout=naccuout+1
 !

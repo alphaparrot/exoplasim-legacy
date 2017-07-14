@@ -5562,6 +5562,11 @@ void InitAll(void)
    All[262].Init("nbr"  ,"net_bottom_radiation"            ,"W m-2"    ,1); // Not standard
    All[263].Init("hfns" ,"surface_downward_heat_flux"      ,"W m-2"    ,1); // shortened
    All[264].Init("wfn"  ,"net_water_flux"                  ,"m s-1"    ,1); // Not standard
+   All[265].Init("dqo3" ,"ozone_concentration"             ,"unknown"  ,0); // Not standard (AYP)
+   All[266].Init("lwth" ,"local_weathering"                ,"W_earth"  ,1); // Not standard (AYP)
+//    All[267].Init("grnz" ,"ground_geopotential"             ,"m2 s-2"   ,1); // Not standard (AYP)
+//    All[301].Init("icez" ,"glacier_geopotential"            ,"m2 s-2"   ,1); // Not standard (AYP)
+//    All[302].Init("netz" ,"net_geopotential"                ,"m2 s-2"   ,1); // Not standard (AYP)
    All[273].Init("dpdx" ,"d(ps)/dx"                        ,"Pa m-1"   ,1); // Not standard
    All[274].Init("dpdy" ,"d(ps)/dy"                        ,"Pa m-1"   ,1); // Not standard
    All[277].Init("hlpr" ,"half_level_pressure"             ,"Pa"       ,0); // Not standard
