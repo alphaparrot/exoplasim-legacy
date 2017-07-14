@@ -427,10 +427,13 @@
       if (nglacier .eq. 1) then
       
       call finishup(dsnowz,'newdsnow')
+      call finishup(asndch,'restart_snow')
       
       where (persistflag(:)) dglac = 1.0
       
       endif
+      
+      call finishup(dls,'lsm')
       
       call mpputgp('groundsg',groundoro ,NHOR,1)
       call mpputgp('dglacsg' ,glacieroro,NHOR,1)
