@@ -70,7 +70,7 @@ def isflat(weatheringfile):
   r=f.read()
   f.close()
   r=r.split('\n')[1:-1]
-  if len(r) < 5+2:
+  if len(r) < 13+2:
     return False
   else:
     d=0
@@ -83,16 +83,16 @@ def isflat(weatheringfile):
       temps.append(float(r[n][1]))
       n+=1
     n=len(temps)-3
-    tt=np.arange(5)+1
+    tt=np.arange(13)+1
     linfits=[]
     while n<len(temps):
-      sample=temps[n-(5-1):n+1]
+      sample=temps[n-(13-1):n+1]
       linfit=np.polyfit(tt,sample,1)[0]
       linfits.append(abs(linfit))
       n+=1
     avglinfit = (linfits[-3]+linfits[-2]+linfits[-1])/3.0
     if avglinfit <= 0.05:
-      return np.mean(temps[-11:])
+      return np.mean(temps[-(13-2):])
     else:
       return False
   
@@ -150,7 +150,7 @@ if __name__=="__main__":
     #os.system("rm -f plasim_restart") #Uncomment for a fresh run when you haven't cleaned up beforehand
     os.system("rm -f Abort_Message")
     year=0
-    minyear=5
+    minyear=13
     relaxed=False
     while year < minyear or not relaxed:
       cyear+=1

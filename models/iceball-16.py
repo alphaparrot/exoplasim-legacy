@@ -70,7 +70,7 @@ def isflat(weatheringfile):
   r=f.read()
   f.close()
   r=r.split('\n')[1:-1]
-  if len(r) < 13+2:
+  if len(r) < 5+2:
     return False
   else:
     d=0
@@ -83,16 +83,16 @@ def isflat(weatheringfile):
       temps.append(float(r[n][1]))
       n+=1
     n=len(temps)-3
-    tt=np.arange(13)+1
+    tt=np.arange(5)+1
     linfits=[]
     while n<len(temps):
-      sample=temps[n-(13-1):n+1]
+      sample=temps[n-(5-1):n+1]
       linfit=np.polyfit(tt,sample,1)[0]
       linfits.append(abs(linfit))
       n+=1
     avglinfit = (linfits[-3]+linfits[-2]+linfits[-1])/3.0
     if avglinfit <= 0.05:
-      return np.mean(temps[-(13-2):])
+      return np.mean(temps[-(5-2):])
     else:
       return False
   
@@ -130,27 +130,60 @@ if __name__=="__main__":
   n=0
   eCO2s=[]
   etemps=[]
-  #changep(psurf*0.1)
-  #co2s=getndco2('weathering.pso')
-  #dco2=getdco2('weathering.pso')
-  #ct=getct('weathering.pso')
-  #eCO2s.append(co2s[1])
-  #etemps.append(ct)
-  #pCO2 = eCO2s[-1]
+  os.system("cp frozen_restart plasim_restart")
   psurf = p0 + pCO2
   changep(psurf*0.1)
-  os.system("rm -f plasim_restart")
+  changeCO2(pCO2/psurf*1e6) #Change pCO2 to CO2 ppmv
+  pk=0
+  while pk<4:
+    wf=open("weathering.pso","w")
+    wf.write("     CO2       AVG SURF T   WEATHERING    OUTGASSING      DpCO2       NEW CO2      OLR       LW Surf 1     LW Surf 2    Open Sea     >Freeze     Melt Mask   Avg Ice Thickness (m)\n")
+    wf.close()
+    EXP="MOST"
+    NCPU=16
+    #os.system("rm -f plasim_restart") #Uncomment for a fresh run when you haven't cleaned up beforehand
+    os.system("rm -f Abort_Message")
+    year=0
+    minyear=5
+    relaxed=False
+    while year < minyear or not relaxed:
+      cyear+=1
+      year+=1
+      dataname=EXP+"pk.%04d"%year
+      diagname=EXP+"_pkDIAG.%04d"%year
+      restname=EXP+"_pkREST.%03d"%year
+      snowname=EXP+"_pkSNOW_%1d"%(year%5)
+      os.system("mpiexec -np "+str(NCPU)+" most_plasim_t21_l10_p"+str(NCPU)+".x")
+      os.system("[ -e restart_dsnow ] && rm restart_dsnow")
+      os.system("[ -e restart_xsnow ] && rm restart_xsnow")
+      os.system("[ -e Abort_Message ] && exit 1")
+      os.system("[ -e plasim_output ] && mv plasim_output "+dataname)
+      os.system("[ -e plasim_diag ] && mv plasim_diag "+diagname)
+      os.system("[ -e plasim_status ] && cp plasim_status plasim_restart")
+      os.system("[ -e plasim_status ] && mv plasim_status "+restname)
+      os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
+      os.system("[ -e "+dataname+" ] && ./burn7.x -n <example.nl>burnout "+dataname+" "+dataname+".nc")
+      os.system("[ -e "+dataname+" ] && cp "+dataname+" "+EXP+"_OUT.%04d"%pk)
+      os.system("[ -e "+dataname+".nc ] && rm "+dataname)
+      relaxed=isflat("weathering.pso")
+    os.system("cp "+dataname+".nc "+EXP+"_pkOUT.%04d.nc"%n)
+    os.system("cp "+restname+" "+EXP+"_pkREST.%04d"%n)
+    os.system("cp "+snowname+" "+EXP+"_pkSNOW.%04d"%n)
+    os.system("mv weathering.pso weatheringpk"+str(pk)+".pso")
+    os.system("./buildice.x")
+    os.system("mv newdsnow restart_dsnow")
+    pk+=1
   while n<300:
     changeCO2(pCO2/psurf*1e6) #Change pCO2 to CO2 ppmv
     wf=open("weathering.pso","w")
     wf.write("     CO2       AVG SURF T   WEATHERING    OUTGASSING      DpCO2       NEW CO2      OLR       LW Surf 1     LW Surf 2    Open Sea     >Freeze     Melt Mask   Avg Ice Thickness (m)\n")
     wf.close()
     EXP="MOST"
-    NCPU=8
+    NCPU=16
     #os.system("rm -f plasim_restart") #Uncomment for a fresh run when you haven't cleaned up beforehand
     os.system("rm -f Abort_Message")
     year=0
-    minyear=13
+    minyear=5
     relaxed=False
     while year < minyear or not relaxed:
       cyear+=1

@@ -2085,10 +2085,12 @@ int Build(int model)
    if (nprec)
    {
       fputs("./most_snow_build8\n",fp);
+      fputs("./most_ice_build8\n",fp);
    }
    else
    {
       fputs("./most_snow_build4\n",fp);
+      fputs("./most_ice_build4\n",fp);
    }
 
    fprintf(fp,"[ $? == 0 ] && cp %s.x ../bin/%s\n",shomo,exec_name);
