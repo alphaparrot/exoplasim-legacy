@@ -158,7 +158,7 @@ if __name__=="__main__":
       dataname=EXP+".%04d"%year
       diagname=EXP+"_DIAG.%04d"%year
       restname=EXP+"_REST.%03d"%year
-      snowname=EXP+"_SNOW_%1d"%(year%3)
+      snowname=EXP+"_SNOW_%1d"%(year%5)
       os.system("mpiexec -np "+str(NCPU)+" most_plasim_t21_l10_p"+str(NCPU)+".x")
       os.system("[ -e restart_dsnow ] && rm restart_dsnow")
       os.system("[ -e restart_xsnow ] && rm restart_xsnow")
@@ -221,10 +221,12 @@ if __name__=="__main__":
     sfile1 = EXP+"_SNOW_0"
     sfile2 = EXP+"_SNOW_1"
     sfile3 = EXP+"_SNOW_2"
+    sfile4 = EXP+"_SNOW_3"
+    sfile5 = EXP+"_SNOW_4"
     os.system("cp newdsnow newdsnow_old")
     os.system("cp newxsnow newxsnow_old")
     deltat =  abs(pCO2-oldCO2)/(abs(dco2)+1.0e-14)
-    os.system("./newsnow.x "+sfile1+" "+sfile2+" "+sfile3+" "+str(deltat))
+    os.system("./newsnow.x "+sfile1+" "+sfile2+" "+sfile3+" "+sfile4+" "+sfile5+" "+str(deltat))
     maxdsnow = getmaxdsnow("newdsnow_old","newdsnow")
     if maxdsnow>255.0: #Cap elevation changes to 300 meters. 2 km elevation changes may break PlaSim
       fraction=255.0/maxdsnow
@@ -241,7 +243,7 @@ if __name__=="__main__":
       changeCO2(pCO2/psurf*1e6)
       os.system("cp newdsnow_old newdsnow")
       os.system("cp newxsnow_old newxsnow")
-      os.system("./newsnow.x "+sfile1+" "+sfile2+" "+sfile3+" "+str(deltat))
+      os.system("./newsnow.x "+sfile1+" "+sfile2+" "+sfile3+" "+sfile4+" "+sfile5+" "+str(deltat))
       f=open('cyclelog.txt','a')
       f.write('Adjusted to '+str(pCO2)+'ubars CO2 and '+str(psurf*0.1)+' Pa atmosphere. dco2 was '+str(dco2)+", end co2 was "+str(co2s[1])+". Rate of temperature change was "+str(dtdco2)+" K/bar. Maximum snow change was "+str(maxdsnow)+", so we capped at 85 meters.\n")
       f.close()
