@@ -216,7 +216,7 @@ if __name__=="__main__":
     changep(psurf*0.1)
     changeCO2(pCO2/psurf*1e6)
     f=open('cyclelog.txt','a')
-    f.write('Adjusted to '+str(pCO2)+'ubars CO2 and '+str(psurf*0.1)+' Pa atmosphere. dco2 was '+str(dco2)+", end co2 was "+str(co2s[1])+". Rate of temperature change was "+str(dtdco2)+" K/bar. Maximum snow change was "+str(maxdsnow)+".\n")
+    f.write('Adjusted to '+str(pCO2)+'ubars CO2 and '+str(psurf*0.1)+' Pa atmosphere. dco2 was '+str(dco2)+", end co2 was "+str(co2s[1])+". Maximum snow change was "+str(maxdsnow)+".\n")
     f.close()
     os.system("mv newdsnow restart_dsnow")
     os.system("mv newxsnow restart_xsnow")
