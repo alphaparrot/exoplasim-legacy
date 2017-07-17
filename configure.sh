@@ -20,9 +20,10 @@ if [ $MOST_F90 != "NO_F90" ] ; then
       DEBUG_F90_OPTS="-g -C -ftrap=common"
       echo > most_precision_options "MOST_PREC=-r8"
    elif [ $MOST_F90 = "ifort" ] ; then
-      MOST_F90_OPTS="-O3 -cpp -r8"
+      MOST_F90_OPTS="-O3 -cpp"
       DEBUG_F90_OPTS="-g -C -fpe0 -traceback"
       echo > most_precision_options "MOST_PREC=-r8"
+      PREC_OPTS="-r8"
    elif [ $MOST_F90 = "nagfor" ] ; then
       MOST_F90_OPTS="-O -kind=byte"
       DEBUG_F90_OPTS="-g -C -fpe0 -traceback -kind=byte"
@@ -37,11 +38,13 @@ if [ $MOST_F90 != "NO_F90" ] ; then
          MOST_F90_OPTS="-O3 -cpp -fcheck=all -ffixed-line-length-132 -ffpe-trap=invalid,zero,overflow -ffpe-summary=none -finit-real=zero"
          DEBUG_F90_OPTS="-g -O0 -ffpe-trap=invalid,zero,overflow -ffpe-summary=none -fcheck=all -finit-real=snan"
          echo > most_precision_options "MOST_PREC=-fdefault-real-8"
+         PREC_OPTS="-fdefault-real-8"
       # flags for gfortran version 4.5 - 4.8
       elif [ "$GFVER" -ge "405" ] ; then
          MOST_F90_OPTS="-O3 -cpp -fcheck=all -ffixed-line-length-132 -finit-real=zero -ffpe-trap=invalid,zero,overflow"
          DEBUG_F90_OPTS="-g -O0 -ffpe-trap=invalid,zero,overflow -fcheck=all -finit-real=snan"
          echo > most_precision_options "MOST_PREC=-fdefault-real-8"
+         PREC_OPTS="-fdefault-real-8"
       # flags for gfortran version 4.2, 4.3 and 4.4
       else
          MOST_F90_OPTS="-O3 -cpp -finit-real=zero"
@@ -55,6 +58,19 @@ if [ $MOST_F90 != "NO_F90" ] ; then
    echo >> most_compiler "MOST_F90_OPTS=$MOST_F90_OPTS"
    echo >> most_compiler "MPIMOD=mpimod_stub"
    echo  > most_debug_options "MOST_F90_OPTS=$DEBUG_F90_OPTS"
+   
+   echo  > plasim/bld/most_snow_build4 "#!/bin/bash"
+   echo >> plasim/bld/most_snow_build4 "$MOST_F90 $MOST_F90_OPTS newsnow.f90 -o ../bin/newsnow.x"
+   
+   echo  > plasim/bld/most_snow_build8 "#!/bin/bash"
+   echo >> plasim/bld/most_snow_build8 "$MOST_F90 $MOST_F90_OPTS $PREC_OPTS newsnow.f90 -o ../bin/newsnow.x"
+   
+   echo  > plasim/bld/most_ice_build4 "#!/bin/bash"
+   echo >> plasim/bld/most_ice_build4 "$MOST_F90 $MOST_F90_OPTS buildice.f90 -o ../bin/buildice.x"
+   
+   echo  > plasim/bld/most_ice_build8 "#!/bin/bash"
+   echo >> plasim/bld/most_ice_build8 "$MOST_F90 $MOST_F90_OPTS $PREC_OPTS buildice.f90 -o ../bin/buildice.x"
+   
 else
    echo "****************************************************"
    echo "* Sorry - didn't find any FORTRAN-90 compiler      *"
