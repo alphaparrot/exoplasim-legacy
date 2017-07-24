@@ -2086,11 +2086,15 @@ int Build(int model)
    {
       fputs("./most_snow_build8\n",fp);
       fputs("./most_ice_build8\n",fp);
+      system("chmod a+x plasim/bld/most_snow_build8");
+      system("chmod a+x plasim/bld/most_ice_build8");
    }
    else
    {
       fputs("./most_snow_build4\n",fp);
       fputs("./most_ice_build4\n",fp);
+      system("chmod a+x plasim/bld/most_snow_build4");
+      system("chmod a+x plasim/bld/most_ice_build4");
    }
 
    fprintf(fp,"[ $? == 0 ] && cp %s.x ../bin/%s\n",shomo,exec_name);

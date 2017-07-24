@@ -126,17 +126,18 @@ def getdco2(weatheringfile):
   return dco2
 
 def stableglac(snowhist):
-  linfit = np.polyfit(np.arange(7)+1,snowhist[-5:],1)[0]
+  linfit = np.polyfit(np.arange(5)+1,snowhist[-5:],1)[0]
   if abs(linfit) <= 5:
     return True
   else:
     return False
   
-def getsnowpack(dataname):
-  f2=open(dataname+".nc",'rb')
+def getsnowpack(restname):
+  f2=open(restname,'rb')
   r2=f2.read()
   f2.close()
-  dd2=np.array(struct.unpack('2048d',r2[4:-4])).reshape((32,64))
+  nsnow=r2.find('dsnowz')
+  dd2=np.array(struct.unpack('2048d',r2[nsnow+16:nsnow+16+2048*8])).reshape((32,64))
   snowpack = np.sum(dd2)
   return snowpack
   
@@ -249,7 +250,6 @@ if __name__=="__main__":
     dco2=getdco2('weathering.pso')
     etemps.append(ct)
     eCO2s.append(co2s[1])
-    os.system("mv weathering.pso weathering"+str(n)+".pso")
     oldCO2 = pCO2
     #Adjust pCO2
     if start:
@@ -296,7 +296,7 @@ if __name__=="__main__":
     os.system("cp newxsnow newxsnow_old")
     deltat =  abs(pCO2-oldCO2)/(abs(dco2)+1.0e-14)
     os.system("./newsnow.x "+sfile1+" "+sfile2+" "+sfile3+" "+sfile4+" "+sfile5+" "+str(deltat))
-    snowpack = getsnowpack(dataname)
+    snowpack = getsnowpack('plasim_restart')
     snowhist.append(snowpack/1000.0) #km
     maxdsnow = getmaxdsnow("newdsnow_old","newdsnow")
     if n>5: #start worrying about snowpack stability after 5 steps.
@@ -333,4 +333,5 @@ if __name__=="__main__":
         f.close()
       os.system("mv newdsnow restart_dsnow")
       os.system("mv newxsnow restart_xsnow")
+    os.system("mv weathering.pso weathering"+str(n)+".pso")
     n+=1

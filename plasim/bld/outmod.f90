@@ -644,7 +644,7 @@
       atauy(:)=0.
       aroff(:)=0.
       asmelt(:)=0.
-      asndch(:)=0.
+!       asndch(:)=0. !Let the net snow change keep accumulating
       aqvi(:)=0.
       atsa(:)=0.
       ats0(:)=0.

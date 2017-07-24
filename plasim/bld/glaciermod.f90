@@ -423,14 +423,21 @@
 
       subroutine glacierstop
       use glaciermod
-     
+
+      real :: rpersist(NHOR) = 0.0
+      
       if (nglacier .eq. 1) then
       
       call finishup(dsnowz,'newdsnow')
+      call finishup(asndch,'restart_snow')
       
       where (persistflag(:)) dglac = 1.0
+      where (persistflag(:)) rpersist = 1.0
       
       endif
+      
+      call finishup(dls,'lsm')
+      call finishup(rpersist,'persist')
       
       call mpputgp('groundsg',groundoro ,NHOR,1)
       call mpputgp('dglacsg' ,glacieroro,NHOR,1)
