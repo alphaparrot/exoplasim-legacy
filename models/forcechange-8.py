@@ -3,7 +3,9 @@ import os
 import math
 import struct
 
-#This version couples both a carbon cycle and a glacier model
+#This version will adjust pCO2, but makes no effort to model large changes, instead
+#using a constant maximum timestep of 500 years, rate-limited by ice change. This focuses
+#on modeling glacial response to external forcings like CO2 and orbital parameters.
 
 
 def getmaxdsnow(filename1,filename2):
@@ -124,10 +126,13 @@ def getdco2(weatheringfile):
 
 if __name__=="__main__":
   start=True
-  pCO2=330.0
+  pCO2=190.0 #Last Glacial Maximum
   p0 = 1010670.0
   cyear=0
   n=0
+  cl=open("cyclelog.txt","w")
+  cl.write("")
+  cl.close()
   eCO2s=[]
   etemps=[]
   #changep(psurf*0.1)
@@ -146,7 +151,7 @@ if __name__=="__main__":
     wf.write("     CO2       AVG SURF T   WEATHERING    OUTGASSING      DpCO2       NEW CO2      OLR       LW Surf 1     LW Surf 2    Open Sea     >Freeze     Melt Mask   Avg Ice Thickness (m)\n")
     wf.close()
     EXP="MOST"
-    NCPU=16
+    NCPU=8
     #os.system("rm -f plasim_restart") #Uncomment for a fresh run when you haven't cleaned up beforehand
     os.system("rm -f Abort_Message")
     year=0
@@ -182,41 +187,6 @@ if __name__=="__main__":
     eCO2s.append(co2s[1])
     os.system("mv weathering.pso weathering"+str(n)+".pso")
     oldCO2 = pCO2
-    if start:
-      pCO2=eCO2s[-1]
-      if np.sign(dco2) <= 0.0:
-	pCO2 = pCO2*0.9
-      else:
-	pCO2 = pCO2*1.1
-      start=False
-      dtdco2 = 0.
-    else:
-      direction=np.sign(dco2)
-      dtdco2 = abs((etemps[-1]-etemps[-2])/(eCO2s[-1]-eCO2s[-2]))
-      if ct < 255.0:
-	if ct > 235.0:
-	  if ct > 240.0:
-	    new_co2 = pCO2 + direction*min(0.5/(dtdco2+1.0e-14),2.5*pCO2) #Try to change equilibrium temperature by 0.5K
-	  else:
-	    new_co2 = pCO2 + direction*min(1.0/(dtdco2+1.0e-14),2.5*pCO2) #Try to change equilibrium temperature by 1.0K
-	else:
-	  new_co2 = pCO2 + direction*min(2.0/(dtdco2+1.0e-14),2.5*pCO2) #Try to change equilibrium temperature by 4.0K
-      else:
-	if ct < 273.0:
-	  if ct > 268.0:
-	    new_co2 = pCO2 + direction*min(1.0/(dtdco2+1.0e-14),2.5*pCO2) #Try to change equilibrium temperature by 1.0K
-	  else:
-	    new_co2 = pCO2 + direction*min(0.5/(dtdco2+1.0e-14),2.5*pCO2) #Try to change equilibrium temperature by 0.5K
-	else:
-	  new_co2 = pCO2 + direction*min(2.0/(dtdco2+1.0e-14),2.5*pCO2) #Try to change equilibrium temperature by 4.0K
-      pCO2 = new_co2
-    psurf = p0 + pCO2
-    f=open('cyclelog.txt','a')
-    f.write('Adjusted to '+str(pCO2)+'ubars CO2 and '+str(psurf*0.1)+' Pa atmosphere. dco2 was '+str(dco2)+", end co2 was "+str(co2s[1])+". Rate of temperature change was "+str(dtdco2)+" K/bar.\n")
-    f.close()
-    changep(psurf*0.1)
-    n+=1
-    changeCO2(pCO2/psurf*1e6) #Change pCO2 to CO2 ppmv
     #Adjust snowpack
     sfile1 = EXP+"_SNOW_0"
     sfile2 = EXP+"_SNOW_1"
@@ -225,28 +195,24 @@ if __name__=="__main__":
     sfile5 = EXP+"_SNOW_4"
     os.system("cp newdsnow newdsnow_old")
     os.system("cp newxsnow newxsnow_old")
-    deltat =  abs(pCO2-oldCO2)/(abs(dco2)+1.0e-14)
+    deltat = 100.0
     os.system("./newsnow.x "+sfile1+" "+sfile2+" "+sfile3+" "+sfile4+" "+sfile5+" "+str(deltat))
     maxdsnow = getmaxdsnow("newdsnow_old","newdsnow")
-    if maxdsnow>255.0: #Cap elevation changes to 300 meters. 2 km elevation changes may break PlaSim
-      fraction=255.0/maxdsnow
-      deltat*=fraction
-      if ((dco2<0.) and (dco2*deltat>0.)):
-	    f=open("cyclelog.txt","a")
-	    f.write("WARNING TIME TRAVEL ISN'T OKAY\n")
-	    f.close()
-	    break
-      new_co2 = oldCO2 + dco2*deltat
-      pCO2 = new_co2
-      psurf = p0+pCO2
-      changep(psurf*0.1)
-      changeCO2(pCO2/psurf*1e6)
-      os.system("cp newdsnow_old newdsnow")
-      os.system("cp newxsnow_old newxsnow")
-      os.system("./newsnow.x "+sfile1+" "+sfile2+" "+sfile3+" "+sfile4+" "+sfile5+" "+str(deltat))
-      f=open('cyclelog.txt','a')
-      f.write('Adjusted to '+str(pCO2)+'ubars CO2 and '+str(psurf*0.1)+' Pa atmosphere. dco2 was '+str(dco2)+", end co2 was "+str(co2s[1])+". Rate of temperature change was "+str(dtdco2)+" K/bar. Maximum snow change was "+str(maxdsnow)+", so we capped at 85 meters.\n")
-      f.close()
+    hmax = 300.0
+    rhoglac = 0.85
+    nudt = deltat*rhoglac*hmax/maxdsnow #maxdsnow/100 years = 300 meters/t years; solve for t
+    new_co2 = max(oldCO2 + dco2*nudt, 1.0e-7)
+    os.system("cp newdsnow_old newdsnow")
+    os.system("cp newxsnow_old newxsnow")
+    os.system("./newsnow.x "+sfile1+" "+sfile2+" "+sfile3+" "+sfile4+" "+sfile5+" "+str(nudt))
+    pCO2 = new_co2
+    psurf = p0+pCO2
+    changep(psurf*0.1)
+    changeCO2(pCO2/psurf*1e6)
+    f=open('cyclelog.txt','a')
+    f.write('Adjusted to '+str(pCO2)+'ubars CO2 and '+str(psurf*0.1)+' Pa atmosphere. dco2 was '+str(dco2)+", end co2 was "+str(co2s[1])+". Maximum snow change was "+str(maxdsnow)+".\n")
+    f.close()
     os.system("mv newdsnow restart_dsnow")
     os.system("mv newxsnow restart_xsnow")
+    n+=1
   #changeCO2(2.0e5)

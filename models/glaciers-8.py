@@ -125,7 +125,7 @@ def getdco2(weatheringfile):
   return dco2
 
 if __name__=="__main__":
-  start=False
+  start=True
   pCO2=190.0 #Last Glacial Maximum
   p0 = 1010670.0
   cyear=0
