@@ -143,7 +143,7 @@ if __name__=="__main__":
   while n<300:
     changeCO2(pCO2/psurf*1e6) #Change pCO2 to CO2 ppmv
     wf=open("weathering.pso","w")
-    wf.write("     CO2       AVG SURF T   WEATHERING    OUTGASSING      DpCO2       NEW CO2      OLR       LW Surf 1     LW Surf 2    Open Sea     >Freeze     Melt Mask   Avg Ice Thickness (m)\n")
+    wf.write("     CO2       AVG SURF T   WEATHERING    OUTGASSING      DpCO2       NEW CO2\n")
     wf.close()
     EXP="MOST"
     NCPU=16

@@ -12,7 +12,7 @@
       character(len=80) :: version = '07.14.2017 by Adiv'
 !
 !     Parameter   
-!
+!                          !Outgassing rates given in ubars/year
 #if realv == 1
       parameter(VEARTH=5.0e-2) ! Rate based on volcanic outgassing estimates from Gerlach 2011
 #else
@@ -41,6 +41,8 @@
       real :: PEARTH = 1.0 ! Annual precipitation on modern Earth that is relevant for weathering.
       real :: WMAX = 1.0 ! Maximum weathering rate for the supply-limited case, in ubar/yr
       real :: zeta = 0.0 !Dependence of max weathering on precipitation (not used)
+      
+      real :: psurf0 = 101100.0 !Mean sea-level pressure
 !
 !     global arrays
 !
@@ -96,6 +98,8 @@
       interval = int(ntspd/frequency)
       timeweight = (1.0 / (frequency*n_days_per_year))
       
+      psurf0 = psurf
+      
       call makeareas
       
       call mpbci(interval)
@@ -109,6 +113,7 @@
       call mpbcr(PEARTH)
       call mpbcr(WMAX)
       call mpbcr(nsupply)
+      call mpbcr(psurf0)
       
       end subroutine carbonini
       
@@ -284,14 +289,14 @@
          globalweath(:) = globalweath(:)*VEARTH*1000.0
          call writegtextarray(globalweath,NUGP,'annualweather')
          dpco2dt = ncarbon*VEARTH*(volcanco2 - avgweathering)
-         pco2 = co2*1e-6*psurf ! Pa
-         newco2 = (pco2 + dpco2dt*0.1)/(psurf+dpco2dt*0.1) ! ppv [Pa/Pa]
-         newpco2 = newco2*(psurf+dpco2dt*0.1)*1.e-5 ! Convert to bars (from Pa)
+         pco2 = co2*1e-6*psurf0 ! Pa
+         newco2 = (pco2 + dpco2dt*0.1)/(psurf0+dpco2dt*0.1) ! ppv [Pa/Pa]
+         newpco2 = newco2*(psurf0+dpco2dt*0.1)*1.e-5 ! Convert to bars (from Pa)
          open(unit=43,file="weathering.pso",position="append",status="unknown")
          write(43,'(1p8e13.5)') pco2*1e-5,globalavgt,avgweathering,volcanco2,dpco2dt*1e-6,newpco2
          close(43)
          co2 = newco2*1e6 ! ppmv
-         psurf = psurf + dpco2dt*0.1 ! Pa
+         psurf = psurf0 + dpco2dt*0.1 ! Pa
       endif
       call mpbcr(avgweathering)
       call mpbcr(dpco2dt)
