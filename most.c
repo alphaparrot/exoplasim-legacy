@@ -1026,7 +1026,7 @@ void InitNamelist(void)
    NL_r(PLASIM,"carbonmod","KRUN"     , 0.045); 
    NL_r(PLASIM,"carbonmod","BETA"     ,   0.5); // pCO2 dependence
    NL_i(PLASIM,"carbonmod","FREQUENCY",     4); // Times per day
-   NL_r(PLASIM,"carbonmod","PEARTH",    14.98); // Precipitation in cm
+   NL_r(PLASIM,"carbonmod","PEARTH",     79.0); // Precipitation in cm/year
    NL_i(PLASIM,"carbonmod","NSUPPLY",       0); // Introduce weathering supply limit
    NL_r(PLASIM,"carbonmod","WMAX",       80.9); // Maximum weathering in cm/year
    NL_r(PLASIM,"carbonmod","ZETA",        0.0); // Currently unused

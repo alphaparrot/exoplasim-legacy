@@ -39,6 +39,7 @@
       real :: frequency = 4.0 ! Number of times to compute weathering per day. Can be a float, i.e.
                               ! for once every 2 days, use frequency=0.5.
       real :: PEARTH = 1.0 ! Annual precipitation on modern Earth that is relevant for weathering.
+                           ! 79 cm/yr (Chen 2002 & Schneider 2014)
       real :: WMAX = 1.0 ! Maximum weathering rate for the supply-limited case, in ubar/yr
       real :: zeta = 0.0 !Dependence of max weathering on precipitation (not used)
       
@@ -69,7 +70,8 @@
       real :: timeweight = 0.0 ! Weight for computing annual averages
       real :: avgweathering = 0.0 ! Global annual average weathering rate
       real :: dpco2dt = 0.0 ! Change in pCO2 with respect to time. = (volcanco2 - avgweathering)*VEARTH
-      real :: tunefactor = 2.07 ! Tuning adjustment to make global average match.
+      real :: tune1 = 5.41 ! Tuning adjustment to make global average match for non-precip model.
+      real :: tune2 = 2.20 ! Tuning adjustment to make precip model match non-precip model.
 !
       end module carbonmod
       
@@ -168,10 +170,10 @@
                   pco2 = co2*dp(i)*1e-7 ! Convert ppmv to ubars (1e-6 for ppmv->ppv, and 1e-1 for Pa->ubars)
 #if precipweath == 1
                   localweathering(i) = ((pco2/CO2EARTH)**beta) * exp(kact*(tsurf(i)-288.0)) * &
-     &                                 (localprecip(i)/PEARTH)**0.65 * tunefactor
+     &                                 (localprecip(i)/PEARTH)**0.65 * tune1*tune2
 #else
                   localweathering(i) = ((pco2/CO2EARTH)**beta) * exp(kact*(tsurf(i)-288.0)) * &
-                                       (1+krun*(tsurf(i)-288.0))**0.65 * tunefactor
+                                       (1+krun*(tsurf(i)-288.0))**0.65 * tune1
 #endif
                   if (nsupply .eq. 1) then !Apply a weathering supply limit following Foley 2015
                      wmaxp = max((WMAX/VEARTH),2.0e-15)
