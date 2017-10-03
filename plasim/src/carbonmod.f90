@@ -38,7 +38,7 @@
       real :: beta = 0.5 ! pCO2 dependence
       real :: frequency = 4.0 ! Number of times to compute weathering per day. Can be a float, i.e.
                               ! for once every 2 days, use frequency=0.5.
-      real :: PEARTH = 1.0 ! Annual precipitation on modern Earth that is relevant for weathering.
+      real :: PEARTH = 79.0 ! Annual precipitation on modern Earth that is relevant for weathering.
                            ! 79 cm/yr (Chen 2002 & Schneider 2014)
       real :: WMAX = 1.0 ! Maximum weathering rate for the supply-limited case, in ubar/yr
       real :: zeta = 0.0 !Dependence of max weathering on precipitation (not used)
