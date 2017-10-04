@@ -50,7 +50,6 @@ if __name__=="__main__":
   minyear=13
   relaxed=False
   while year < minyear or not relaxed:
-    cyear+=1
     year+=1
     dataname=EXP+".%04d"%year
     diagname=EXP+"_DIAG.%04d"%year
