@@ -5571,6 +5571,7 @@ void InitAll(void)
    All[274].Init("dpdy" ,"d(ps)/dy"                        ,"Pa m-1"   ,1); // Not standard
    All[277].Init("hlpr" ,"half_level_pressure"             ,"Pa"       ,0); // Not standard
    All[278].Init("flpr" ,"full_level_pressure"             ,"Pa"       ,0); // Not standard
+   All[318].Init("czen" ,"cosine_solar_zenith_angle"       ,"nondimen" ,1); // Not standard (AYP)
    All[319].Init("wthpr","weatherable_precipitation"       ,"mm day-1" ,1); // Not standard (AYP)
    All[320].Init("mint" ,"minimum_temperature"             ,"K"        ,1); // Not standard (AYP)
    All[321].Init("maxt" ,"maximum_temperature"             ,"K"        ,1); // Not standard (AYP)

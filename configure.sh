@@ -57,6 +57,7 @@ if [ $MOST_F90 != "NO_F90" ] ; then
    echo  > most_compiler "MOST_F90=$MOST_F90"
    echo >> most_compiler "MOST_F90_OPTS=$MOST_F90_OPTS"
    echo >> most_compiler "MPIMOD=mpimod_stub"
+   echo >> most_compiler "UTILMOD=utilities_stub"
    echo  > most_debug_options "MOST_F90_OPTS=$DEBUG_F90_OPTS"
    
    echo  > plasim/bld/most_snow_build4 "#!/bin/bash"
@@ -177,6 +178,7 @@ if [ $MPI_F90 != "NO_F90" ] ; then
    echo >> most_compiler_mpi MOST_F90=$MPI_F90
    echo >> most_compiler_mpi "MOST_F90_OPTS=$MOST_F90_OPTS"
    echo >> most_compiler_mpi "MPIMOD=mpimod"
+   echo >> most_compiler_mpi "UTILMOD=utilities"
    echo "Found MPI FORTRAN-90 compiler at: $F90_PATH"
 else
    echo "********************************************"

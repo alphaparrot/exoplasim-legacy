@@ -4,27 +4,17 @@
       subroutine makeareas
       use carbonmod
       
-      real :: zdeglat(NLAT)
       real :: lat1(NLAT)
       real :: lat2(NLAT)
       
-      call mpgarn(zdeglat,deglat,NLPP)
-      
-      if (mypid == NROOT) then
-      
       lat1(1) = 0.5*PI
-      lat1(NLAT) = 0.5*(zdeglat(NLAT-1)+zdeglat(NLAT))*PI/180.0
-      lat2(1) = 0.5*(zdeglat(1)+zdeglat(2))*PI/180.0
+      lat1(NLAT) = 0.5*(deglat(NLAT-1)+deglat(NLAT))*PI/180.0
+      lat2(1) = 0.5*(deglat(1)+deglat(2))*PI/180.0
       lat2(NLAT) = -0.5*PI
       do jlat=2,NLAT-1
-         lat1(jlat) = 0.5*(zdeglat(jlat-1)+zdeglat(jlat))*PI/180.0
-         lat2(jlat) = 0.5*(zdeglat(jlat+1)+zdeglat(jlat))*PI/180.0
+         lat1(jlat) = 0.5*(deglat(jlat-1)+deglat(jlat))*PI/180.0
+         lat2(jlat) = 0.5*(deglat(jlat+1)+deglat(jlat))*PI/180.0
       enddo
-      
-      endif
-      
-      call mpscrn(lat1,NLPP)
-      call mpscrn(lat2,NLPP)
       
       do jlat=1,NLPP
          do jlon=1,NLON !0.5 for 2pi / 4pi, since we want the sum to be 1.
@@ -32,7 +22,6 @@
          enddo
       enddo    
             
-      return
       end subroutine makeareas
 
 !============ADDITIONAL MPIMOD UTILITIES===========================   
@@ -42,14 +31,7 @@
 !     =================
 
       subroutine mpgadn(pf,pp,n) ! gather double-precision values
-      use mpimod
-      
-      real (kind = 8) :: pf(*)
-      real (kind = 8) :: pp(*)
-      
-      call mpi_gather(pp,n,MPI_REAL8,&
-     &                pf,n,MPI_REAL8,NROOT,myworld,mpinfo)
-      
+
       return
       end subroutine mpgadn
       
@@ -58,13 +40,7 @@
 !     =================
 
       subroutine mpgarn(pf,pp,n) ! gather single-precision values
-      use mpimod
-      
-      real :: pf(*)
-      real :: pp(*)
-      
-      call mpi_gather(pp,n,mpi_rtype,&
-     &                pf,n,mpi_rtype,NROOT,myworld,mpinfo)
+
       
       return
       end subroutine mpgarn  
@@ -77,26 +53,14 @@
       use carbonmod
       
       real :: pf(NHOR)
-      real :: zf(NUGP)
-      real :: zzf(NUGP)
-      real :: da(NUGP)
-      
-
+     
       doutvar = 0.
       
-      call mpgagp(zf,pf,1)
-      call mpgagp(da,dglobe,1)
-      
-      zzf(:) = zf(:)
-      
-      if (mypid == NROOT) then
-      
       do i=1,NUGP
-         doutvar = doutvar + zzf(i)*da(i)
+         doutvar = doutvar + pf(i)*dglobe(i)
 
       enddo
       
-      endif
       
       return
       end subroutine write_short
@@ -122,31 +86,7 @@
       return
       end subroutine writegtextarray     
       
-     
-!--------------------------------------------------------------------72
-!
-!     Write a gridpoint array to an unformatted file
-
-      subroutine finishup(dd,fname)
-      use pumamod
-      
-      character (len=*) :: fname
-      real :: dd(NHOR)
-      real :: ddn(NUGP)
-      
-      
-      call mpgagp(ddn,dd,1)
-      
-      if (mypid==NROOT) then
-         open(93,file=fname,form='unformatted')
-         write(93) ddn(:)
-         close(93)
-      endif
-      
-      return
-      end subroutine finishup
-
-     
+ 
 !--------------------------------------------------------------------72
 !
 !     Write a gridpoint array to a text file
@@ -156,21 +96,37 @@
       
       character (len=*) :: fname
       real :: dd(NHOR)
-      real :: ddn(NUGP)
+ 
       
-      
-      call mpgagp(ddn,dd,1)
-      
-      if (mypid==NROOT) then
-         open(93,file=fname,status='unknown')
-         do i=1,nn
-           write(93) ddn(:)
-         enddo
-         close(93)
-      endif
+      open(93,file=fname,status='unknown')
+      do i=1,nn
+        write(93) dd(:)
+      enddo
+      close(93)
       
       return
       end subroutine finishuptext      
+      
+      
+!--------------------------------------------------------------------72
+!
+!     Write a gridpoint array to an unformatted file
+
+      subroutine finishup(dd,fname)
+      use pumamod
+      
+      character (len=*) :: fname
+      real :: dd(NHOR)
+      
+     
+
+      open(93,file=fname,form='unformatted')
+      write(93) dd(:)
+      close(93)
+
+      
+      return
+      end subroutine finishup
       
 !--------------------------------------------------------------------72
 !
@@ -181,16 +137,12 @@
       
       character (len=*) :: fname
       real :: dd(NSPP)
-      real :: ddn(NESP)
       
       
-      call mpgasp(ddn,dd,1)
-      
-      if (mypid==NROOT) then
-         open(93,file=fname,form='unformatted')
-         write(93) ddn(:)
-         close(93)
-      endif
+      open(93,file=fname,form='unformatted')
+      write(93) dd(:)
+      close(93)
+
       
       return
       end subroutine finishsp
@@ -203,14 +155,12 @@
       use pumamod
       
       character (len=*) :: fname
-      real ddn(NESP)
+      real :: dd(NESP)
       
-      if (mypid==NROOT) then
-         open(93,file=fname,form='unformatted')
-         write(93) ddn(:)
-         close(93)
-      endif
-      
+      open(93,file=fname,form='unformatted')
+      write(93) dd(:)
+      close(93)
+     
       return
       end subroutine finishfsp
            
@@ -223,15 +173,13 @@
       
       character (len=*) :: fname
       real :: dd(NLPP)
-      real :: ddn(NLAT)
+
+
       
-      call mpgarn(ddn,dd,NLPP)
-      
-      if (mypid==NROOT) then
-         open(93,file=fname,form='unformatted')
-         write(93) ddn(:)
-         close(93)
-      endif
+      open(93,file=fname,form='unformatted')
+      write(93) dd(:)
+      close(93)
+
       
       return
       end subroutine finishlat
@@ -246,15 +194,11 @@
       
       character (len=*) :: fname
       real :: dd(NHOR)
-      real :: ddn(NUGP)
       
-      if (mypid==NROOT) then
-         open(93,file=fname,form='unformatted')
-         read(93) ddn(:)
-         close(93)
-      endif
+      open(93,file=fname,form='unformatted')
+      read(93) dd(:)
+      close(93)
       
-      call mpscgp(ddn,dd,1)
       
       return
       end subroutine readarray      
