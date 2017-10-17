@@ -44,14 +44,12 @@
       integer :: nlwr    = 1      ! switch for lwr (1/0=yes/no)
       integer :: nswrcl  = 1      ! switch for computed cloud props.(1/0=y/n)
       integer :: nrscat  = 1      ! switch for rayleigh scat. (1/0=yes/no)
-      integer :: ndcycle = 0      ! switch for daily cycle of insolation
+      integer :: ndcycle = 1      ! switch for daily cycle of insolation
                                   !  0 = daily mean insolation)
       integer :: ncstsol = 0      ! switch to set constant insolation
                                   ! on the whole planet (0/1)=(off/on)
       integer :: iyrbp   = -50    ! Year before present (1950 AD)
                                   ! default = 2000 AD
-      integer :: nfixed  = 0      ! Switch for fixed zenith angle (0/1=no/yes)
-      real    :: fixedlon = 0.0   ! Longitude of fixed solar zenith
 
       real :: rcl1(3)=(/0.15,0.30,0.60/) ! cloud albedos spectral range 1
       real :: rcl2(3)=(/0.15,0.30,0.60/) ! cloud albedos spectral range 2
@@ -141,7 +139,7 @@
 !**   0) define namelist
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
-     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon                   &
+     &               ,iyrbp,nswr,nlwr                                   &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale             &
      &               ,nsol,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn
@@ -272,8 +270,6 @@
       call mpbci(ndcycle)
       call mpbci(ncstsol)
       call mpbci(no3)
-      call mpbci(nfixed)
-      call mpbcr(fixedlon)
       call mpbcr(a0o3)
       call mpbcr(a1o3)
       call mpbcr(aco3)
@@ -710,13 +706,49 @@
 !
       return
       end subroutine radstop
+      
+!     ========================
+!     SUBROUTINE NEWTONRAPHSON
+!     ========================
 
+      subroutine newtonraphson(meananom,eccen,ee)
+      
+      real meananom
+      real eccen
+      real ee
+      real e0
+      integer ict
+      logical thresh
+      
+      if (eccen .lt. 0.5) then
+        ee = meananom
+      else
+        ee = 0.
+      endif
+      
+      thresh = .false.
+      
+      ict = 0
+      
+      do while (thresh .neqv. .true.)
+        e0 = ee
+        ee = ee - (ee-(meananom+eccen*sin(ee)))/(1-eccen*cos(ee))
+        if (abs(ee-e0) .le. 1.0e-14) thresh = .true.
+        ict = ict + 1
+        if (ict .gt. 100.0) thresh = .true.
+      enddo 
+      
+      return
+      end subroutine newtonraphson
+      
 !     =================
 !     SUBROUTINE SOLANG
 !     =================
 
       subroutine solang
       use radmod
+      
+      real ma, ea, anomarg, trueanom, phi, thyng, thing
 !
 !     compute cosine of zenit angle including daily cycle
 !
@@ -744,10 +776,14 @@
       if (nperpetual > 0) then
          zcday = nperpetual
       else
-         zcday = ndayofyear(nstep) ! from calmod
+!          zcday = ndayofyear(nstep) ! from calmod
+         zcday = mod(nstep*mpstep*60.0/sidereal_day,sidereal_year) !Because come on, if we're measuring minutes, we
+                                                                   !don't need a calendar routine to figure out how
+                                                                   !many days have passed. Sheesh.
       endif
+      
 
-      call ntomin(nstep,imin,ihou,iday,imon,iyea)
+!       call ntomin(nstep,imin,ihou,iday,imon,iyea)
 !
 !**   2) compute declination [radians]
 !
@@ -759,21 +795,47 @@
       zmuz    = 0.0
       zdawn = sin(dawn * PI / 180.0) ! compute dawn/dusk angle 
       zrlon = TWOPI / NLON           ! scale lambda to radians
-      zrtim = TWOPI / 1440.0         ! scale time   to radians
-      zmins = ihou * 60 + imin
-      
-      if (nfixed==1) zmins = 1440.0 * (1.0 - (fixedlon/360.))
-      
+!       zrtim = TWOPI / 1440.0         ! scale time   to radians
+!       zrtim = TWOPI / (solar_day*60.0) ! radians per minute
+      zrtim = TWOPI / (sidereal_day/60.0)
+!       zmins = ihou * 60 + imin
+      zmins = mpstep*nstep
       jhor = 0
       if (ncstsol==0) then
+! +++ AYP      
+       thyng = mvelpp-PI
+       thing = sidereal_year/60.0
+       ma = (TWOPI/thing)*zmins - thyng  !Mean anomaly. We assume we start the 
+       ma = ma - 0.5*PI                  !orbit pi/2 before vernal equinox (ascending node).
+       ma = mod(ma,TWOPI)                                 
+          
+       call newtonraphson(ma,eccen,ea)                    !Newton-Raphson iterator to get the 
+                                                          !eccentric anomaly
+                                                          
+       thyng = tan(ea*0.5)
+       anomarg = sqrt( (1+eccen)/(1-eccen) * thyng*thyng)
+       
+       if (thyng .lt. 0.) trueanom = 2*atan(0.0-anomarg)
+       if (thyng .ge. 0.) trueanom = 2*atan(anomarg)
+       
+       if (trueanom .lt. 0) trueanom = trueanom + TWOPI   !true anomaly
+       trueanom = mod(trueanom+PI, TWOPI)                 !vector pointed at the sun
+! ---       
        do jlat = 1 , NLPP
         do jlon = 0 , NLON-1
          jhor = jhor + 1
-         zhangle = zmins * zrtim + jlon * zrlon - PI
+!          zhangle = zmins * zrtim + jlon * zrlon - PI
          
-         if (nfixed==1) zhangle = zhangle + PI
-         
-         zmuz=sin(zdecl)*sid(jlat)+cola(jlat)*cos(zdecl)*cos(zhangle)
+! +++ AYP: This should compute the zenith angle for arbitrary closed orbits by actually
+!       comparing the geographical normal vector to the true anomaly
+
+         phi = zmins*zrtim + jlon*zrlon !Longitude relative to fixed stars
+         phi = mod(phi,TWOPI)
+         zhangle = trueanom - phi !Angle between true anomaly + pi and the current fixed longitude
+         if (zhangle .gt. PI) zhangle = zhangle - TWOPI
+         if (zhangle .lt. 0.0-PI) zhangle = zhangle + TWOPI
+! --- 
+         zmuz = sin(zdecl)*sid(jlat) + cola(jlat)*cos(zdecl)*cos(zhangle)
          if (zmuz > zdawn) gmu0(jhor) = zmuz
         enddo
        enddo

@@ -224,6 +224,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(nstep   ) ! current timestep
       call mpbci(mstep   ) ! current timestep in month
       call mpbci(ntspd   ) ! number of timesteps per day
+      call mpbci(ntspm   ) ! number of timesteps per month
+      call mpbci(ntspy   ) ! number of timesteps per year
+      call mpbci(ntsp24h ) ! number of timesteps per traditional 24-hour day
 
       call mpbci(mpstep)   ! minutes per timestep
       call mpbci(n_days_per_month)
@@ -322,8 +325,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
 !     Copy some calendar variables to calmod
 
+! 
+!       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
+!                  ,solar_day,-1)
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                 ,solar_day,-1)
+                 ,sidereal_day,-1,ntspm,ntspy,mpstep)
       if (nrestart == 0) nstep = n_start_step ! timestep since 01-01-0001
       call updatim(nstep)  ! set date & time array ndatim
 
@@ -492,7 +498,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       ikits = nkits
       do jkits=1,ikits
-         deltsec  = (solar_day / ntspd) / (2**nkits)
+!          deltsec  = (solar_day / ntspd) / (2**nkits)
+         deltsec  = (sidereal_day / ntspd) / (2**nkits)
          deltsec2 = deltsec + deltsec
          delt     = (TWOPI     / ntspd) / (2**nkits)
          delt2    = delt + delt
@@ -512,7 +519,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     * with 1 planetary rotation per sidereal day (2 Pi) of Earth   *
 !     ****************************************************************
 
-      deltsec  = solar_day / ntspd   ! timestep in seconds
+!       deltsec  = solar_day / ntspd   ! timestep in seconds
+      deltsec  = sidereal_day / ntspd   ! timestep in seconds
       deltsec2 = deltsec + deltsec   ! timestep in seconds * 2
       delt     = TWOPI     / ntspd   ! timestep scaled
       delt2    = delt + delt
@@ -526,7 +534,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     or step-countdown (for debugging purposes)
       
       mocd = n_run_months                     ! month countdown
-      nscd = n_run_days * ntspd + n_run_steps ! step countdown
+!       nscd = n_run_days * ntspd + n_run_steps ! step countdown
+      nscd = n_run_days * ntsp24h + n_run_steps ! step countdown
 
       if (nrestart == 0) nstep = n_start_step ! timestep since 01-01-0001
       call updatim(nstep)  ! set date & time array ndatim
@@ -580,11 +589,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          endif
 
          iyea  = ndatim(1)    ! current year
-         imon  = ndatim(2)    ! current month
+!          imon  = ndatim(2)    ! current month
+         imon = nstep/ntspm
          nstep = nstep + 1
          mstep = mstep + 1
          call updatim(nstep)  ! set date & time array ndatim
-         if (imon /= ndatim(2)) then
+!          if (imon /= ndatim(2)) then
+         if (mod(nstep,ntspm)==0) then
             mocd = mocd - 1 ! next month
             if (mypid == NROOT) then
                write(nud,"('Completed month ',I2.2,'-',I4.4)") imon,iyea  
@@ -993,10 +1004,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     preset namelist parameter according to model set up
 !
+
+
+! If the sidereal day is prescribed, along with the orbital parameters, then
+! the solar day should be a derived quantity. The converse is also true. If
+! the solar day and the orbit are prescribed, then the sidereal day is a derived
+! quantity. If the orbit is eccentric, then the solar day should vary throughout
+! the year.
+
+
       if (NLEV==10) then
-         tfrc(1)      =  20.0 * solar_day
-         tfrc(2)      = 100.0 * solar_day
-         tfrc(3:NLEV) =   0.0 * solar_day
+!          tfrc(1)      =  20.0 * solar_day
+!          tfrc(2)      = 100.0 * solar_day
+!          tfrc(3:NLEV) =   0.0 * solar_day
+         tfrc(1)      =  20.0 * sidereal_day
+         tfrc(2)      = 100.0 * sidereal_day
+         tfrc(3:NLEV) =   0.0 * sidereal_day
       endif
 !
       if(NTRU==42) then
@@ -1025,12 +1048,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       if (rotspd /= 1.0) then
          if (n_days_per_year == 365) n_days_per_year = 360
-!          solar_day = solar_day / rotspd
-         sidereal_day = sidereal_day / rotspd
+         solar_day = solar_day / rotspd
          n_days_per_year = n_days_per_year * rotspd
          n_days_per_month = n_days_per_year / 12
-!          sidereal_day =(n_days_per_year*solar_day)/(n_days_per_year+1.0)
-         solar_day = (n_days_per_year+1.0)*sidereal_day/n_days_per_year
+         ! This estimate of the sidereal day is not correct.
+         sidereal_day =(n_days_per_year*solar_day)/(n_days_per_year+1.0)
       endif
 
       ww    = TWOPI / sidereal_day ! Omega (scaling)
@@ -1040,6 +1062,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       ct    = cv * cv / gascon     ! ct
       pnu21 = 1.0 - 2.0 * pnu      ! Time filter 2
       rdbrv = gascon / RV          ! rd / rv
+      
+      n_days_per_year = 360
+!       n_days_per_year = sidereal_year / sidereal_day
+      n_days_per_month = n_days_per_year / 12
+      ntspy = (sidereal_year/60.0) / mpstep
+!       ntspm = ntspy / 12
 !
 !     calendar and time control
 !     set simulation length by using the following parameters:
@@ -1060,16 +1088,25 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Make sure that (mpstep * 60) * ntspd = solar_day
 
       if (mpstep > 0) then             ! timestep given in [min]
-         ntspd = nint(solar_day) / (mpstep * 60)
+!          ntspd = nint(solar_day) / (mpstep * 60)
+         ntspd = nint(sidereal_day) / (mpstep * 60)
          ntspd = ntspd + mod(ntspd,2)  ! make even
       endif
-      mpstep = solar_day  / (ntspd * 60)
-      nafter = ntspd
+!       mpstep = solar_day  / (ntspd * 60)
+      mpstep = sidereal_day  / (ntspd * 60)
+      ntspy = (sidereal_year/60.0) / mpstep
+!       ntspm = ntspy / 12
+      ntsp24h = 24*60/mpstep
+      ntspm = n_days_per_month*ntsp24h
+!       nafter = ntspd
+      nafter = ntsp24h
       if (nwpd > 0 .and. nwpd <= ntspd) then
-         nafter = ntspd / nwpd
+!          nafter = ntspd / nwpd
+         nafter = ntsp24h / nwpd
       endif
-      if (ndiag < 1) ndiag = 10 * ntspd
+      if (ndiag < 1) ndiag = ntspm !10 * ntsp24h
 
+      
 !
 !     for column runs set horizontal diffusion coefficients to 0
 !
@@ -1091,8 +1128,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
 !     Convert start date to timesteps since 1-Jan-0000
 
+!       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
+!                  ,solar_day,0)
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                 ,solar_day,0)
+                 ,sidereal_day,0,ntspm,ntspy,mpstep)
       call cal2step(n_start_step,ntspd,n_start_year,n_start_month,1,0,0)
 
 !     Compute simulation time in [months]
@@ -1134,8 +1173,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     set sponge layer time scale
 
       if(dampsp > 0.) then
-       if(dampsp < (solar_day/ntspd)) dampsp=dampsp*solar_day
-       dampsp=solar_day/(TWOPI*dampsp)
+!        if(dampsp < (solar_day/ntspd)) dampsp=dampsp*solar_day
+!        dampsp=solar_day/(TWOPI*dampsp)
+       if(dampsp < (sidereal_day/ntspd)) dampsp=dampsp*sidereal_day
+       dampsp=sidereal_day/(TWOPI*dampsp)
       endif
 
 !     set franks diagnostics
@@ -1223,13 +1264,15 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call dayseccheck(tdissq,"tdissq")
 
       where (restim > 0.0)
-         damp = solar_day / (TWOPI * restim)
+!          damp = solar_day / (TWOPI * restim)
+         damp = sidereal_day / (TWOPI * restim)
       elsewhere
          damp = 0.0
       endwhere
          
       where (tfrc > 0.0)
-          tfrc = solar_day / (TWOPI * tfrc)
+!           tfrc = solar_day / (TWOPI * tfrc)
+          tfrc = sidereal_day / (TWOPI * tfrc)
       elsewhere
           tfrc = 0.0
       endwhere
@@ -1239,22 +1282,26 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       do jlev=1,NLEV
        jdel = ndel(jlev)
        if (tdissd(jlev) > 0.0) then
-        tdissd(jlev) = solar_day/(TWOPI*tdissd(jlev))
+!         tdissd(jlev) = solar_day/(TWOPI*tdissd(jlev))
+        tdissd(jlev) = sidereal_day/(TWOPI*tdissd(jlev))
        else
         tdissd(jlev)=0.
        endif
        if (tdissz(jlev) > 0.0) then
-        tdissz(jlev) = solar_day/(TWOPI*tdissz(jlev))
+!         tdissz(jlev) = solar_day/(TWOPI*tdissz(jlev))
+        tdissz(jlev) = sidereal_day/(TWOPI*tdissz(jlev))
        else
         tdissz(jlev)=0.
        endif
        if (tdisst(jlev) > 0.0) then
-        tdisst(jlev) = solar_day/(TWOPI*tdisst(jlev))
+!         tdisst(jlev) = solar_day/(TWOPI*tdisst(jlev))
+        tdisst(jlev) = sidereal_day/(TWOPI*tdisst(jlev))
        else
         tdisst(jlev) = 0.
        endif
        if (tdissq(jlev) > 0.0) then
-        tdissq(jlev) = solar_day/(TWOPI*tdissq(jlev))
+!         tdissq(jlev) = solar_day/(TWOPI*tdissq(jlev))
+        tdissq(jlev) = sidereal_day/(TWOPI*tdissq(jlev))
        else
         tdissq(jlev)=0.
        endif
