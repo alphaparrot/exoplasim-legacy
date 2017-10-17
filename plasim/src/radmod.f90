@@ -50,6 +50,8 @@
                                   ! on the whole planet (0/1)=(off/on)
       integer :: iyrbp   = -50    ! Year before present (1950 AD)
                                   ! default = 2000 AD
+      integer :: nfixed  = 0      ! Switch for fixed zenith angle (0/1=no/yes)
+      real    :: fixedlon = 0.0   ! Longitude of fixed solar zenith
 
       real :: rcl1(3)=(/0.15,0.30,0.60/) ! cloud albedos spectral range 1
       real :: rcl2(3)=(/0.15,0.30,0.60/) ! cloud albedos spectral range 2
@@ -139,7 +141,7 @@
 !**   0) define namelist
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
-     &               ,iyrbp,nswr,nlwr                                   &
+     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon                   &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale             &
      &               ,nsol,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn
@@ -757,12 +759,18 @@
       zrlon = TWOPI / NLON           ! scale lambda to radians
       zrtim = TWOPI / 1440.0         ! scale time   to radians
       zmins = ihou * 60 + imin
+      
+      if (nfixed==1) zmins = (fixedlon/360.) * 1440.0
+      
       jhor = 0
       if (ncstsol==0) then
        do jlat = 1 , NLPP
         do jlon = 0 , NLON-1
          jhor = jhor + 1
          zhangle = zmins * zrtim + jlon * zrlon - PI
+         
+         if (nfixed==1) zhangle = zhangle + PI
+         
          zmuz=sin(zdecl)*sid(jlat)+cola(jlat)*cos(zdecl)*cos(zhangle)
          if (zmuz > zdawn) gmu0(jhor) = zmuz
         enddo

@@ -305,10 +305,10 @@
       call mpbcr(co2)
       call mpbcr(psurf)
       
-      call co2update !(uncomment if you want CO2 changing year-by-year within a run)
+!       call co2update !(uncomment if you want CO2 changing year-by-year within a run)
       n_run_months = 0
       call mpbci(n_run_months)
-      call psurfupdate !(uncomment if you want surface pressure changing every year)
+!       call psurfupdate !(uncomment if you want surface pressure changing every year)
       
       return
       end subroutine carbonstop
@@ -321,7 +321,7 @@
       use radmod
       
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
-     &               ,iyrbp,nswr,nlwr                                   &
+     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon                   &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale             &
      &               ,nsol,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn
