@@ -272,6 +272,8 @@
       call mpbci(ndcycle)
       call mpbci(ncstsol)
       call mpbci(no3)
+      call mpbci(nfixed)
+      call mpbcr(fixedlon)
       call mpbcr(a0o3)
       call mpbcr(a1o3)
       call mpbcr(aco3)

@@ -12,7 +12,7 @@
       character(len=80) :: version = '07.14.2017 by Adiv'
 !
 !     Parameter   
-!
+!                          !Outgassing rates given in ubars/year
 #if realv == 1
       parameter(VEARTH=5.0e-2) ! Rate based on volcanic outgassing estimates from Gerlach 2011
 #else
@@ -38,9 +38,12 @@
       real :: beta = 0.5 ! pCO2 dependence
       real :: frequency = 4.0 ! Number of times to compute weathering per day. Can be a float, i.e.
                               ! for once every 2 days, use frequency=0.5.
-      real :: PEARTH = 1.0 ! Annual precipitation on modern Earth that is relevant for weathering.
+      real :: PEARTH = 79.0 ! Annual precipitation on modern Earth that is relevant for weathering.
+                           ! 79 cm/yr (Chen 2002 & Schneider 2014)
       real :: WMAX = 1.0 ! Maximum weathering rate for the supply-limited case, in ubar/yr
       real :: zeta = 0.0 !Dependence of max weathering on precipitation (not used)
+      
+      real :: psurf0 = 101100.0 !Mean sea-level pressure
 !
 !     global arrays
 !
@@ -67,7 +70,8 @@
       real :: timeweight = 0.0 ! Weight for computing annual averages
       real :: avgweathering = 0.0 ! Global annual average weathering rate
       real :: dpco2dt = 0.0 ! Change in pCO2 with respect to time. = (volcanco2 - avgweathering)*VEARTH
-      real :: tunefactor = 2.07 ! Tuning adjustment to make global average match.
+      real :: tune1 = 5.41 ! Tuning adjustment to make global average match for non-precip model.
+      real :: tune2 = 2.20 ! Tuning adjustment to make precip model match non-precip model.
 !
       end module carbonmod
       
@@ -96,6 +100,8 @@
       interval = int(ntspd/frequency)
       timeweight = (1.0 / (frequency*n_days_per_year))
       
+      psurf0 = psurf
+      
       call makeareas
       
       call mpbci(interval)
@@ -109,6 +115,7 @@
       call mpbcr(PEARTH)
       call mpbcr(WMAX)
       call mpbcr(nsupply)
+      call mpbcr(psurf0)
       
       end subroutine carbonini
       
@@ -163,10 +170,10 @@
                   pco2 = co2*dp(i)*1e-7 ! Convert ppmv to ubars (1e-6 for ppmv->ppv, and 1e-1 for Pa->ubars)
 #if precipweath == 1
                   localweathering(i) = ((pco2/CO2EARTH)**beta) * exp(kact*(tsurf(i)-288.0)) * &
-     &                                 (localprecip(i)/PEARTH)**0.65 * tunefactor
+     &                                 (localprecip(i)/PEARTH)**0.65 * tune1*tune2
 #else
                   localweathering(i) = ((pco2/CO2EARTH)**beta) * exp(kact*(tsurf(i)-288.0)) * &
-                                       (1+krun*(tsurf(i)-288.0))**0.65 * tunefactor
+                                       (1+krun*(tsurf(i)-288.0))**0.65 * tune1
 #endif
                   if (nsupply .eq. 1) then !Apply a weathering supply limit following Foley 2015
                      wmaxp = max((WMAX/VEARTH),2.0e-15)
@@ -284,24 +291,24 @@
          globalweath(:) = globalweath(:)*VEARTH*1000.0
          call writegtextarray(globalweath,NUGP,'annualweather')
          dpco2dt = ncarbon*VEARTH*(volcanco2 - avgweathering)
-         pco2 = co2*1e-6*psurf ! Pa
-         newco2 = (pco2 + dpco2dt*0.1)/(psurf+dpco2dt*0.1) ! ppv [Pa/Pa]
-         newpco2 = newco2*(psurf+dpco2dt*0.1)*1.e-5 ! Convert to bars (from Pa)
+         pco2 = co2*1e-6*psurf0 ! Pa
+         newco2 = (pco2 + dpco2dt*0.1)/(psurf0+dpco2dt*0.1) ! ppv [Pa/Pa]
+         newpco2 = newco2*(psurf0+dpco2dt*0.1)*1.e-5 ! Convert to bars (from Pa)
          open(unit=43,file="weathering.pso",position="append",status="unknown")
          write(43,'(1p8e13.5)') pco2*1e-5,globalavgt,avgweathering,volcanco2,dpco2dt*1e-6,newpco2
          close(43)
          co2 = newco2*1e6 ! ppmv
-         psurf = psurf + dpco2dt*0.1 ! Pa
+         psurf = psurf0 + dpco2dt*0.1 ! Pa
       endif
       call mpbcr(avgweathering)
       call mpbcr(dpco2dt)
       call mpbcr(co2)
       call mpbcr(psurf)
       
-      call co2update !(uncomment if you want CO2 changing year-by-year within a run)
+!       call co2update !(uncomment if you want CO2 changing year-by-year within a run)
       n_run_months = 0
       call mpbci(n_run_months)
-      call psurfupdate !(uncomment if you want surface pressure changing every year)
+!       call psurfupdate !(uncomment if you want surface pressure changing every year)
       
       return
       end subroutine carbonstop
@@ -314,7 +321,7 @@
       use radmod
       
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
-     &               ,iyrbp,nswr,nlwr                                   &
+     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon                   &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale             &
      &               ,nsol,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn

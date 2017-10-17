@@ -501,7 +501,34 @@
 !     *********************
       netoro(:) = groundoro(:) + glacieroro(:)
       call writegp(40,netoro,302,0)
+
+!     ********************
+!     * Cos Solar Zenith *
+!     ********************
+         
+      azmuz(:) = azmuz(:)/real(naccuout)   
+      call writegp(40,azmuz,318,0)
       
+!     *****************************
+!     * Weatherable Precipitation *
+!     *****************************
+        
+      asigrain(:) = asigrain(:)/real(naccuout)
+      call writegp(40,asigrain,319,0)
+
+!     ***********************
+!     * Minimum Temperature *
+!     ***********************
+         
+      call writegp(40,tempmin,320,0)
+
+!     ***********************
+!     * Maximum Temperature *
+!     ***********************
+         
+      call writegp(40,tempmax,321,0)
+                  
+            
       return
       end
 
@@ -626,6 +653,7 @@
 !
 !     reset accumulated arrays and counter
 !
+      azmuz(:)=0.
       aprl(:)=0.
       aprc(:)=0.
       aprs(:)=0.
@@ -652,6 +680,10 @@
       atsama(:)=0.
       aweathering(:) = 0.
       
+      asigrain(:) = 0.
+      tempmax(:) = 0.
+      tempmin(:) = 1.0e3
+      
       naccuout=0
 
 !     ************************************************
@@ -672,9 +704,21 @@
       subroutine outaccu
       use pumamod
       use carbonmod
+      use radmod
 !
 !     accumulate diagnostic arrays
 !
+
+      where (dls(:) .gt. 0.5) !weatherable precipitation
+         where (dt(:,NLEP) .gt. 273.15)
+            asigrain(:)=asigrain(:)+(dprl(:)+dprc(:))*8.64e7 ![mm/day]
+         endwhere
+      endwhere
+      do i=1,NHOR
+        tempmax(i) = MAX(tempmax(i),dt(i,NLEP))
+        tempmin(i) = MIN(tempmin(i),dt(i,NLEP))
+      enddo
+      
       aprl(:)=aprl(:)+dprl(:)
       aprc(:)=aprc(:)+dprc(:)
       aprs(:)=aprs(:)+dprs(:)
@@ -700,6 +744,7 @@
       atsami(:)=AMIN1(atsami(:),dtsa(:))
       atsama(:)=AMAX1(atsama(:),dtsa(:))
       aweathering(:)=aweathering(:)+localweathering(:)
+      azmuz(:) = azmuz(:)+gmu0(:)
 
       naccuout=naccuout+1
 !
