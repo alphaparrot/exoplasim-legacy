@@ -1,2 +1,0 @@
-#!/bin/bash
-gfortran -O3 -cpp -fcheck=all -ffixed-line-length-132 -finit-real=zero -ffpe-trap=invalid,zero,overflow -fdefault-real-8 newsnow.f90 -o ../bin/newsnow.x
