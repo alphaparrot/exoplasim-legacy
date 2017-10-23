@@ -1010,7 +1010,7 @@
 !
 !     top solar radiation downward
 !
-      zftop1(:) = zsolar1 * gsol0 * gdist2 * zmu1(:)
+      zftop1(:) = zsolar1 * gsol0 * gdist2 * zmu1(:) !Adjust down here for redder spectrum. --AYP
       zftop2(:) = zsolar2 * gsol0 * gdist2 * zmu1(:)
 
 !     from this point on, all computations are made only for
@@ -1481,7 +1481,7 @@
 !
 !*    top downward flux, surface grayness and surface upward flux
 !
-      zbd(:,0)=SBK*zttop**4
+      zbd(:,0)=SBK*zttop**4 !We could add IR flux from M dwarf host star here? --AYP
       zeps(:)=dls(:)+0.98*(1.-dls(:))
       zbu(:,NLEP)=zeps(:)*zst4(:,NLEP)
       zbue1(:,NLEP)=0.
