@@ -52,6 +52,7 @@
                                   ! default = 2000 AD
       integer :: nfixed  = 0      ! Switch for fixed zenith angle (0/1=no/yes)
       real    :: fixedlon = 0.0   ! Longitude of fixed solar zenith
+      real    :: slowdown = 1.0   ! Factor by which to change diurnal insolation cycle
 
       real :: rcl1(3)=(/0.15,0.30,0.60/) ! cloud albedos spectral range 1
       real :: rcl2(3)=(/0.15,0.30,0.60/) ! cloud albedos spectral range 2
@@ -141,7 +142,7 @@
 !**   0) define namelist
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
-     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon                   &
+     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown          &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale             &
      &               ,nsol,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn
@@ -748,6 +749,12 @@
       endif
 
       call ntomin(nstep,imin,ihou,iday,imon,iyea)
+      
+      istp = mod(nstep,ntspd*slowdown)
+      imin = (istp * 1440) / (ntspd*slowdown)
+      ihou = imin / 60
+      imin = mod(imin,60      
+      
 !
 !**   2) compute declination [radians]
 !
