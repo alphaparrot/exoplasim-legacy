@@ -275,6 +275,7 @@
       call mpbci(no3)
       call mpbci(nfixed)
       call mpbcr(fixedlon)
+      call mpbcr(slowdown)
       call mpbcr(a0o3)
       call mpbcr(a1o3)
       call mpbcr(aco3)
@@ -750,10 +751,10 @@
 
       call ntomin(nstep,imin,ihou,iday,imon,iyea)
       
-      istp = mod(nstep,ntspd*slowdown)
-      imin = (istp * 1440) / (ntspd*slowdown)
+      istp = mod(nstep,int(ntspd*slowdown+0.5))
+      imin = (istp * 1440) / int(ntspd*slowdown+0.5)
       ihou = imin / 60
-      imin = mod(imin,60      
+      imin = mod(imin,60)      
       
 !
 !**   2) compute declination [radians]
