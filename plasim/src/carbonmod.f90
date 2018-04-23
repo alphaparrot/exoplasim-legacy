@@ -285,7 +285,13 @@
       ! weathering rate (factor of 3.33 increase, seems okay based on 1 AU tests) due to continental weathering. If 
       ! we were to add in seafloor weathering, then we'd add factors to account for changing land and sea area, but
       ! there would also be weights to determine the relative contributions of each, and those are parameterized (poorly).
-       if (mypid==NROOT) avgweathering = avgweathering / landfraction
+      if (mypid==NROOT) then 
+         if (landfraction > 0) then
+           avgweathering = avgweathering / landfraction
+         else
+           avgweathering = 0.0
+         endif
+      endif
       
       if (mypid==NROOT) then
          globalweath(:) = globalweath(:)*VEARTH*1000.0
