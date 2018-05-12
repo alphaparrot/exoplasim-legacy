@@ -1027,10 +1027,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          if (n_days_per_year == 365) n_days_per_year = 360
 !          solar_day = solar_day / rotspd
          sidereal_day = sidereal_day / rotspd
-         n_days_per_year = n_days_per_year * rotspd
+!          n_days_per_year = n_days_per_year * rotspd
          n_days_per_month = n_days_per_year / 12
 !          sidereal_day =(n_days_per_year*solar_day)/(n_days_per_year+1.0)
-         solar_day = (n_days_per_year+1.0)*sidereal_day/n_days_per_year
+!          solar_day = (n_days_per_year+1.0)*sidereal_day/n_days_per_year
       endif
 
       ww    = TWOPI / sidereal_day ! Omega (scaling)

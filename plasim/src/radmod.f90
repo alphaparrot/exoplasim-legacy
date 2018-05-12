@@ -44,7 +44,7 @@
       integer :: nlwr    = 1      ! switch for lwr (1/0=yes/no)
       integer :: nswrcl  = 1      ! switch for computed cloud props.(1/0=y/n)
       integer :: nrscat  = 1      ! switch for rayleigh scat. (1/0=yes/no)
-      integer :: ndcycle = 0      ! switch for daily cycle of insolation
+      integer :: ndcycle = 1      ! switch for daily cycle of insolation
                                   !  0 = daily mean insolation)
       integer :: ncstsol = 0      ! switch to set constant insolation
                                   ! on the whole planet (0/1)=(off/on)
