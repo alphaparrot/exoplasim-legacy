@@ -1881,7 +1881,7 @@
 !*    convective cloud cover for random overlab:
 !
 
-      zrfac = solar_day * 1000.0 ! convert m/s into mm/day
+      zrfac = solar_day * 1000.0 ! convert m/s into mm/day !solar_day
       where(dprc(:) > 0.)
        zcctot(:)=zcca+zccb*log(dprc(:)*zrfac)
        zcctot(:)=AMIN1(zccmax,AMAX1(zccmin,zcctot(:)))

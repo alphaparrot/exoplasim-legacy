@@ -284,6 +284,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbcr(rdbrv   )
       call mpbcr(ww      )
       call mpbcr(solar_day)
+      call mpbcr(solar_day)
       call mpbcr(sidereal_day)
       call mpbcr(tropical_year)
       call mpbcr(sidereal_year)
@@ -324,6 +325,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
                  ,solar_day,-1)
+!                  ,solar_day,-1)
       if (nrestart == 0) nstep = n_start_step ! timestep since 01-01-0001
       call updatim(nstep)  ! set date & time array ndatim
 
@@ -492,6 +494,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       ikits = nkits
       do jkits=1,ikits
+!          deltsec  = (solar_day / ntspd) / (2**nkits)
          deltsec  = (solar_day / ntspd) / (2**nkits)
          deltsec2 = deltsec + deltsec
          delt     = (TWOPI     / ntspd) / (2**nkits)
@@ -512,6 +515,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     * with 1 planetary rotation per sidereal day (2 Pi) of Earth   *
 !     ****************************************************************
 
+!       deltsec  = solar_day / ntspd   ! timestep in seconds
       deltsec  = solar_day / ntspd   ! timestep in seconds
       deltsec2 = deltsec + deltsec   ! timestep in seconds * 2
       delt     = TWOPI     / ntspd   ! timestep scaled
@@ -994,6 +998,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     preset namelist parameter according to model set up
 !
       if (NLEV==10) then
+!          tfrc(1)      =  20.0 * solar_day
+!          tfrc(2)      = 100.0 * solar_day
+!          tfrc(3:NLEV) =   0.0 * solar_day
          tfrc(1)      =  20.0 * solar_day
          tfrc(2)      = 100.0 * solar_day
          tfrc(3:NLEV) =   0.0 * solar_day
@@ -1002,6 +1009,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if(NTRU==42) then
        nhdiff=16
        ndel(:)=4
+!        tdissq(:)=0.1  * solar_day
+!        tdisst(:)=0.76 * solar_day
+!        tdissz(:)=0.3  * solar_day
+!        tdissd(:)=0.06 * solar_day
        tdissq(:)=0.1  * solar_day
        tdisst(:)=0.76 * solar_day
        tdissz(:)=0.3  * solar_day
@@ -1027,10 +1038,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          if (n_days_per_year == 365) n_days_per_year = 360
 !          solar_day = solar_day / rotspd
          sidereal_day = sidereal_day / rotspd
-         n_days_per_year = n_days_per_year * rotspd
+!          n_days_per_year = n_days_per_year * rotspd
          n_days_per_month = n_days_per_year / 12
 !          sidereal_day =(n_days_per_year*solar_day)/(n_days_per_year+1.0)
-         solar_day = (n_days_per_year+1.0)*sidereal_day/n_days_per_year
+!          solar_day = (n_days_per_year-1.0)*sidereal_day/n_days_per_year
+              !! Don't change solar_day! It's not actually used for radiation or rotation.
+              !! Just for converting timescales.
       endif
 
       ww    = TWOPI / sidereal_day ! Omega (scaling)
@@ -1060,10 +1073,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Make sure that (mpstep * 60) * ntspd = solar_day
 
       if (mpstep > 0) then             ! timestep given in [min]
+!          ntspd = nint(solar_day) / (mpstep * 60)
          ntspd = nint(solar_day) / (mpstep * 60)
          ntspd = ntspd + mod(ntspd,2)  ! make even
       endif
-      mpstep = solar_day  / (ntspd * 60)
+!       mpstep = solar_day  / (ntspd * 60)
+      mpstep = solar_day / (ntspd * 60)
       nafter = ntspd
       if (nwpd > 0 .and. nwpd <= ntspd) then
          nafter = ntspd / nwpd
@@ -1092,7 +1107,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Convert start date to timesteps since 1-Jan-0000
 
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                 ,solar_day,0)
+                   ,solar_day,0)
+!                  ,solar_day,0)
       call cal2step(n_start_step,ntspd,n_start_year,n_start_month,1,0,0)
 
 !     Compute simulation time in [months]
@@ -1134,6 +1150,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     set sponge layer time scale
 
       if(dampsp > 0.) then
+!        if(dampsp < (solar_day/ntspd)) dampsp=dampsp*solar_day
+!        dampsp=solar_day/(TWOPI*dampsp)
        if(dampsp < (solar_day/ntspd)) dampsp=dampsp*solar_day
        dampsp=solar_day/(TWOPI*dampsp)
       endif
@@ -1156,9 +1174,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       character (len=*) :: yn
 
       zmax = maxval(pf(:))
+!       if (zmax < (solar_day / ntspd) .and. zmax > 0.0) then
       if (zmax < (solar_day / ntspd) .and. zmax > 0.0) then
          write(nud,*) 'old maxval(',trim(yn),') = ',zmax
          write(nud,*) 'assuming [days] - converting to [sec]'
+!          pf(:) = pf(:) * solar_day
          pf(:) = pf(:) * solar_day
          write(nud,*) 'new maxval(',trim(yn),') = ',maxval(pf(:))
       endif   
@@ -1222,6 +1242,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call dayseccheck(tdisst,"tdisst")
       call dayseccheck(tdissq,"tdissq")
 
+!      Blanket replacing solar_day with solar_day in sections below 
+      
       where (restim > 0.0)
          damp = solar_day / (TWOPI * restim)
       elsewhere
@@ -2168,8 +2190,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call guid3dcol("DQCOL" // char(0),dq,sellon,NLEP,1000.0,0.0)  !dq
          call guid3dcol("DTDTCOL" // char(0),dtdt,sellon,NLEP,         &
                         solar_day,0.0)            ! t-tendency
+!                         solar_day,0.0)            ! t-tendency
          call guid3dcol("DQDTCOL" // char(0),dqdt,sellon,NLEP,         &
                         1000.0*solar_day,0.0)     ! q-tendency
+!                         1000.0*solar_day,0.0)     ! q-tendency
       endif
       if (nqspec == 0) then
          do jlev = 1 , NLEV
