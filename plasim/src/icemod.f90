@@ -51,7 +51,7 @@
       integer :: ngui   = 0        ! switch for gui
       integer :: naout  = 0        ! no additional output fields 
 !
-      real :: taunc         =  0.  ! time scale for newtonian cooling (d)
+      real :: taunc         =  0.  ! time scale for newtonian cooling
       real :: xmind         = 0.1  ! minimal ice thickness (m)
       real :: xmaxd         = 9.0  ! maximal ice thickness (m; neg. = no limit)
       real :: thicec        = 0.5  ! threshold to obtain make mask from comp. 

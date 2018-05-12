@@ -5125,7 +5125,7 @@ void PumaControl(void)
 
    while (1)
    {
-      Eof = ReadHeaderRecord(); //Get new write with new date; only 1 if end of file reached
+      Eof = ReadHeaderRecord();
       if (Eof && Multi)
       {
          SwitchFile();
@@ -5166,7 +5166,7 @@ void PumaControl(void)
          return;
       }
 
-      DecodePumaHeader(); /* Get new date from HeadIn; set NewMonth */
+      DecodePumaHeader();
 
       if (NewMonth < FirstMonth) /* Skip months before FirstMonth */
       {
@@ -5195,10 +5195,10 @@ void PumaControl(void)
 
       if (OldMonth > 0)
       {
-         EndOfMonth = NewMonth != OldMonth; /* month is over */
-         EndOfTerm = memcmp(&NewDate,&OldDate,sizeof(struct tm)); /* 1 if NewDate > OldDate */
-         if (EndOfTerm && MeanCount == DPM-1) EndOfMonth = 1; /* month is over */
-         if (EndOfTerm) /* Keep collecting data */
+         EndOfMonth = NewMonth != OldMonth;
+         EndOfTerm = memcmp(&NewDate,&OldDate,sizeof(struct tm));
+         if (EndOfTerm && MeanCount == DPM-1) EndOfMonth = 1;
+         if (EndOfTerm)
          {
             SetOutputHeader();
             PumaProcess();
