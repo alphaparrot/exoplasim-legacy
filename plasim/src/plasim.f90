@@ -1026,12 +1026,16 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (rotspd /= 1.0) then
          if (n_days_per_year == 365) n_days_per_year = 360
 !          solar_day = solar_day / rotspd
+!          solar_day = (n_days_per_year-1.0)*sidereal_day/n_days_per_year
          sidereal_day = sidereal_day / rotspd
 !          n_days_per_year = n_days_per_year * rotspd
          n_days_per_month = n_days_per_year / 12
 !          sidereal_day =(n_days_per_year*solar_day)/(n_days_per_year+1.0)
-!          solar_day = (n_days_per_year+1.0)*sidereal_day/n_days_per_year
+         solar_day = (n_days_per_year-1.0)*sidereal_day/n_days_per_year
       endif
+!       It would appear that solar_day and sidereal_day cannot be inconsistent with rotspd.
+!       For some reason, keeping solar_day to 24 hours produces NaNs. Why is this?? As near
+!       as I can tell, it's purely used for time unit conversions.
 
       ww    = TWOPI / sidereal_day ! Omega (scaling)
       acpd  = gascon / akap        ! Specific heat for dry air
