@@ -290,6 +290,7 @@
       iyea  = idall / n_days_per_year
       idall = mod(idall,n_days_per_year)
       imon  = idall / n_days_per_month + 1
+!       imon = mod(kstep/(n_days_per_year*ntspd / 12) + 1,12)
       iday  = mod(idall,n_days_per_month) + 1
       istp  = mod(kstep,ktspd)
       imin  = (istp * solar_day) / (ktspd * 60)
