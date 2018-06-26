@@ -24,6 +24,8 @@
 #endif
 #endif
       parameter(CO2EARTH=330.0)  ! Earth CO2 level in ubars
+      parameter(RAD_EARTH=6371220.0) !Earth radius
+      parameter(RAD_EARTHSQ=6371220.0*6371220.0) !Earth radius squared
 !
 !     namelist parameters
 !
@@ -32,6 +34,7 @@
       
       integer :: ncarbon = 1 ! 1 = do weathering, 0 = constant pCO2
       integer :: nsupply = 0 ! Should it be supply-limited weathering?
+      integer :: nco2evolve = 0 !Should CO2 and pressure evolve each year? (0/1)
       real :: volcanco2 = 0.02 ! Volcanic outgassing rate in units of VEARTH
       real :: kact = 0.09 ! activation energy factor
       real :: krun = 0.045 ! runoff efficiency factor
@@ -82,7 +85,7 @@
       subroutine carbonini
       use carbonmod
       
-      namelist/carbonmod_nl/ncarbon,volcanco2,kact,krun,beta,frequency,PEARTH,nsupply,WMAX,zeta
+      namelist/carbonmod_nl/ncarbon,volcanco2,kact,krun,beta,frequency,PEARTH,nsupply,WMAX,zeta,nco2evolve
       
       if (mypid==NROOT) then
          open(23,file=carbon_namelist)
@@ -170,7 +173,7 @@
                   pco2 = co2*dp(i)*1e-7 ! Convert ppmv to ubars (1e-6 for ppmv->ppv, and 1e-1 for Pa->ubars)
 #if precipweath == 1
                   localweathering(i) = ((pco2/CO2EARTH)**beta) * exp(kact*(tsurf(i)-288.0)) * &
-     &                                 (localprecip(i)/PEARTH)**0.65 * tune1*tune2
+     &                                 (localprecip(i)/PEARTH)**0.65 * tune1*tune2 
 #else
                   localweathering(i) = ((pco2/CO2EARTH)**beta) * exp(kact*(tsurf(i)-288.0)) * &
                                        (1+krun*(tsurf(i)-288.0))**0.65 * tune1
@@ -179,12 +182,16 @@
                      wmaxp = max((WMAX/VEARTH),2.0e-15)
                      localweathering(i) = wmaxp*(1-exp(-localweathering(i)/wmaxp))
                   endif
+                  
                endif
             endif
 #if outputrain==1
             cprecip(i) = (dprc(i) + dprl(i))
 #endif
          enddo
+         
+         
+         localweathering(:) = localweathering(:)*plarad**2 / (RAD_EARTHSQ*0.29) !Account for land fraction
          
 !          endif
          
@@ -285,15 +292,19 @@
       ! weathering rate (factor of 3.33 increase, seems okay based on 1 AU tests) due to continental weathering. If 
       ! we were to add in seafloor weathering, then we'd add factors to account for changing land and sea area, but
       ! there would also be weights to determine the relative contributions of each, and those are parameterized (poorly).
-      if (mypid==NROOT) then 
-         if (landfraction > 0) then
-           avgweathering = avgweathering / landfraction
-         else
-           avgweathering = 0.0
-         endif
-      endif
+!       if (mypid==NROOT) then 
+!          if (landfraction > 0) then
+!            avgweathering = avgweathering / landfraction
+!          else
+!            avgweathering = 0.0
+!          endif
+!       endif
+
+      ! We should divide by Earth's land fraction as a constant pre-factor, and then upon integrating
+      ! over the whole planet, we'll pick up a multiplicative factor of the actual land fraction.
       
       if (mypid==NROOT) then
+         
          globalweath(:) = globalweath(:)*VEARTH*1000.0
          call writegtextarray(globalweath,NUGP,'annualweather')
          dpco2dt = ncarbon*VEARTH*(volcanco2 - avgweathering)
@@ -311,10 +322,12 @@
       call mpbcr(co2)
       call mpbcr(psurf)
       
-!       call co2update !(uncomment if you want CO2 changing year-by-year within a run)
       n_run_months = 0
       call mpbci(n_run_months)
-!       call psurfupdate !(uncomment if you want surface pressure changing every year)
+      if (nco2evolve > 0.5) then
+        call co2update !(uncomment if you want CO2 changing year-by-year within a run)
+        call psurfupdate !(uncomment if you want surface pressure changing every year)
+      endif
       
       return
       end subroutine carbonstop
