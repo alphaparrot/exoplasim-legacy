@@ -687,11 +687,21 @@
 !
 !     make ice mask form compactness
 !
-      where(xicec(:) >= thicec)
-       xicec(:)=1.
-      elsewhere
-       xicec(:)=0.
+
+! This is where the fractional sea ice thing comes into play. If sea ice thickness is above a
+! certain fraction, make it 1, otherwise 0. We are assuming basically that this is the minimum 
+! thickness to form coherent ice flows. This probably means thicec should be set to what, 1 meter?
+
+      xicec(:) = xicec(:)/thicec
+      where (xicec(:) >= 1.)
+        xicec(:)=1.
       end where
+
+!       where(xicec(:) >= thicec)
+!        xicec(:)=1.
+!       elsewhere
+!        xicec(:)=0.
+!       end where
 !
 !     correct snow with new ice (ice was melted below snow)
 !     and melt snow (modify heat flux)
