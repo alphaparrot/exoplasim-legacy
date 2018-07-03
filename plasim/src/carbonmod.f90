@@ -70,6 +70,7 @@
       integer :: interval = 8   ! Number of timesteps to go between weathering updates
       integer :: cstep = 0 ! Current timestep number in the cycle. When cstep = interval, do weathering
       integer :: istep = 0
+      integer :: nco2evolve = 0 ! Do we allow CO2 to evolve year-to-year?
       real :: timeweight = 0.0 ! Weight for computing annual averages
       real :: avgweathering = 0.0 ! Global annual average weathering rate
       real :: dpco2dt = 0.0 ! Change in pCO2 with respect to time. = (volcanco2 - avgweathering)*VEARTH
@@ -170,10 +171,10 @@
          do i=1,NHOR
             if (dls(i) .gt. 0.5) then !land
                if (tsurf(i) .ge. 273.15) then !not frozen
-                  pco2 = co2*dp(i)*1e-7 ! Convert ppmv to ubars (1e-6 for ppmv->ppv, and 1e-1 for Pa->ubars)
+                  pco2 = co2*dp(i)*1e-5 ! Convert ppmv to ubars (1e-6 for ppmv->ppv, and 10 for Pa->ubars)
 #if precipweath == 1
                   localweathering(i) = ((pco2/CO2EARTH)**beta) * exp(kact*(tsurf(i)-288.0)) * &
-     &                                 (localprecip(i)/PEARTH)**0.65 * tune1*tune2 
+     &                                 (localprecip(i)/PEARTH)**0.65 !* tune1*tune2 
 #else
                   localweathering(i) = ((pco2/CO2EARTH)**beta) * exp(kact*(tsurf(i)-288.0)) * &
                                        (1+krun*(tsurf(i)-288.0))**0.65 * tune1
@@ -325,8 +326,8 @@
       n_run_months = 0
       call mpbci(n_run_months)
       if (nco2evolve > 0.5) then
-        call co2update !(uncomment if you want CO2 changing year-by-year within a run)
-        call psurfupdate !(uncomment if you want surface pressure changing every year)
+        call co2update !Change CO2 for following year
+        call psurfupdate !Change surface pressure for following year
       endif
       
       return
