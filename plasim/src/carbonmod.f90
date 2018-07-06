@@ -70,7 +70,7 @@
       integer :: interval = 8   ! Number of timesteps to go between weathering updates
       integer :: cstep = 0 ! Current timestep number in the cycle. When cstep = interval, do weathering
       integer :: istep = 0
-      integer :: nco2evolve = 0 ! Do we allow CO2 to evolve year-to-year?
+!       integer :: nco2evolve = 0 ! Do we allow CO2 to evolve year-to-year?
       real :: timeweight = 0.0 ! Weight for computing annual averages
       real :: avgweathering = 0.0 ! Global annual average weathering rate
       real :: dpco2dt = 0.0 ! Change in pCO2 with respect to time. = (volcanco2 - avgweathering)*VEARTH
