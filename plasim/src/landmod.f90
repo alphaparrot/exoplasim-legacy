@@ -20,7 +20,10 @@
       integer :: nlandw   = 1     ! switch for soil model (1/0 : prog./clim)
       integer :: newsurf  = 0     ! (dtcl,dwcl) 1: update from file, 2:reset 
       integer :: nwatcini = 0     ! (0/1) initialize water content of soil
+      integer :: nwetsoil = 0     ! (0/1) Soil albedo responds to water content
       real    :: albland  = 0.2   ! albedo for land
+      real    :: alblandmax = 0.4
+      real    :: alblandmin = 0.069
       real    :: albsmin  = 0.4   ! min. albedo for snow
       real    :: albsmax  = 0.8   ! max. albedo for snow
       real    :: albsminf = 0.3   ! min. albedo for snow (with forest)
@@ -1363,12 +1366,37 @@
 
       subroutine getalb
       use landmod
+      
+      real :: aa = 5.2
+      real :: yy = 4.0
+      real :: bf = 0.0
+      real :: al = 0.0
 !
 !     get surface background albedo from  annual cycle
 !
       call momint(nperpetual,nstep+1,jm1,jm2,zgw2)
       zgw1 = 1.0 - zgw2
       dalbclim(:)=zgw1*dalbcl(:,jm1)+zgw2*dalbcl(:,jm2)
+      
+!      
+!     Modify the surface background albedo according to soil water capacity
+!
+      if (nwetsoil > 0.5) then
+        do jhor = 1,NHOR
+          if (dls(jhor)>0.5) then
+            if (dts(jhor)>273.15) then !We have wet soil. The wetter, the darker.
+              bf = dwater(jhor)/wsmax
+              al = 1.0/aa*(max(bf,1.0e-3)**((1.0-yy)/yy) - 1)**(1.0/yy)
+              dalbclim(jhor) = alblandmax * exp(-(bf*25)**6)+ &
+&                              al * (1 - exp(-(bf*25)**6) - exp(-((1-bf)*30)**9))+ &
+&                              alblandmin * exp(-((1-bf)*30)**9)
+            else !Frozen soil.
+              dalbclim(jhor) = albland
+            endif
+          endif
+        enddo
+      endif
+      
       return
       end subroutine getalb
 
