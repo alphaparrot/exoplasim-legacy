@@ -1291,6 +1291,15 @@
 !
 !     make upward R
 !
+
+!
+!     This would be the place to add spectral albedo dependence for snow
+!     and ice. Or at least one of the options. The other option is to 
+!     keep track of two dalb arrays, and when dalb is computed, also 
+!     compute a NIR version. The latter is more computationally expensive,
+!     so we will check first if we can use a simple multiplier.
+!
+!
        zra1s(:)=dalb(:)
        zra2s(:)=dalb(:)
 !

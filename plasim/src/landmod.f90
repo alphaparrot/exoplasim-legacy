@@ -136,7 +136,7 @@
      &                ,albgmin,albgmax                                  &
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
-     &                ,rnbiocats                                        &
+     &                ,rnbiocats,nwetsoil                               &
      &                ,newsurf,rinifor,nwatcini,dwatcini
 !
       dtclsoil(:) = tmelt
