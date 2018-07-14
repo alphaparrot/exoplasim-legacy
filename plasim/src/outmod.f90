@@ -113,55 +113,116 @@
       subroutine outsp
       use pumamod
 
-!     ************
-!     * orograpy *
-!     ************
+      
+      if (nlowio .eq. 0) then
+!       ************
+!       * orograpy *
+!       ************
+       
+        call writesp(40,so,129,0,CV*CV,0.)
+       
+!       ************
+!       * pressure *
+!       ************
+       
+        call writesp(40,sp,152,0,1.0,log(psurf))
+       
+!       ***************
+!       * temperature *
+!       ***************
+       
+        do jlev = 1 , NLEV
+           call writesp(40,st(1,jlev),130,jlev,ct,t0(jlev) * ct)
+        enddo
+       
+!       *********************
+!       * specific humidity *
+!       *********************
+       
+        if (nqspec == 1) then
+           do jlev = 1 , NLEV
+              call writesp(40,sqout(1,jlev),133,jlev,1.0,0.0)
+           enddo
+        endif
+       
+!       **************
+!       * divergence *
+!       **************
+       
+        do jlev = 1 , NLEV
+           call writesp(40,sd(1,jlev),155,jlev,ww,0.0)
+        enddo
+       
+!       *************
+!       * vorticity *
+!       *************
+       
+        do jlev = 1 , NLEV
+           zsave = sz(3,jlev)
+           sz(3,jlev) = sz(3,jlev) - plavor
+           call writesp(40,sz(1,jlev),138,jlev,ww,0.0)
+           sz(3,jlev) = zsave
+        enddo
 
-      call writesp(40,so,129,0,CV*CV,0.)
-
-!     ************
-!     * pressure *
-!     ************
-
-      call writesp(40,sp,152,0,1.0,log(psurf))
-
-!     ***************
-!     * temperature *
-!     ***************
-
-      do jlev = 1 , NLEV
-         call writesp(40,st(1,jlev),130,jlev,ct,t0(jlev) * ct)
-      enddo
-
-!     *********************
-!     * specific humidity *
-!     *********************
-
-      if (nqspec == 1) then
-         do jlev = 1 , NLEV
-            call writesp(40,sqout(1,jlev),133,jlev,1.0,0.0)
-         enddo
+      else !Low-I/O mode
+!       ************
+!       * orograpy *
+!       ************
+        
+        aaso(:) = aaso(:) / real(naccuout)
+        call writesp(40,aaso,129,0,CV*CV,0.)
+        
+!       ************
+!       * pressure *
+!       ************
+        
+        aasp(:) = aasp(:) / real(naccuout)
+        call writesp(40,aasp,152,0,1.0,log(psurf))
+        
+!       ***************
+!       * temperature *
+!       ***************
+        
+        do jlev = 1 , NLEV
+           aast(:,jlev) = aast(:,jlev) / real(naccuout)
+           call writesp(40,aast(1,jlev),130,jlev,ct,t0(jlev) * ct)
+        enddo
+        
+!       *********************
+!       * specific humidity *
+!       *********************
+        
+        if (nqspec == 1) then
+           do jlev = 1 , NLEV
+              aasqout(:,jlev) = aasqout(:,jlev) / real(naccuout)
+              call writesp(40,aasqout(1,jlev),133,jlev,1.0,0.0)
+           enddo
+        endif
+        
+!       **************
+!       * divergence *
+!       **************
+        
+        do jlev = 1 , NLEV
+           aasd(:,jlev) = aasd(:,jlev) / real(naccuout)
+           call writesp(40,aasd(1,jlev),155,jlev,ww,0.0)
+        enddo
+        
+!       *************
+!       * vorticity *
+!       *************
+        
+        do jlev = 1 , NLEV
+           aasz(:,jlev) = aasz(:,jlev) / real(naccuout)
+           zsave = aasz(3,jlev)
+           aasz(3,jlev) = aasz(3,jlev) - plavor
+           call writesp(40,aasz(1,jlev),138,jlev,ww,0.0)
+           aasz(3,jlev) = zsave
+        enddo      
+        
+      
       endif
-
-!     **************
-!     * divergence *
-!     **************
-
-      do jlev = 1 , NLEV
-         call writesp(40,sd(1,jlev),155,jlev,ww,0.0)
-      enddo
-
-!     *************
-!     * vorticity *
-!     *************
-
-      do jlev = 1 , NLEV
-         zsave = sz(3,jlev)
-         sz(3,jlev) = sz(3,jlev) - plavor
-         call writesp(40,sz(1,jlev),138,jlev,ww,0.0)
-         sz(3,jlev) = zsave
-      enddo
-
+      
       return
       end
 
@@ -176,40 +237,86 @@
       use radmod
       use glaciermod
 
-!     *********************
-!     * specific humidity *
-!     *********************
-
-      if (nqspec == 0) then ! Semi Langrangian advection active
-         do jlev = 1 , NLEV
-            call writegp(40,dq(1,jlev),133,jlev)
-         enddo
+      if (nlowio .eq. 0) then
+!       *********************
+!       * specific humidity *
+!       *********************
+        
+        if (nqspec == 0) then ! Semi Langrangian advection active
+           do jlev = 1 , NLEV
+              call writegp(40,dq(1,jlev),133,jlev)
+           enddo
+        endif
+        
+!       **********************************
+!       * mixed-layer depth (from ocean) *
+!       **********************************
+        
+        call writegp(40,dmld,110,0)
+        
+!       ***********************
+!       * surface temperature *
+!       ***********************
+        
+        call writegp(40,dt(1,NLEP),139,0)
+        
+!       ****************
+!       * soil wetness *
+!       ****************
+        
+        call writegp(40,dwatc,140,0)
+        
+!       **************
+!       * snow depth *
+!       **************
+        
+        call writegp(40,dsnow,141,0)
+      
+      else ! Low I/O mode
+      
+!       *********************
+!       * specific humidity *
+!       *********************
+        
+        if (nqspec == 0) then ! Semi Langrangian advection active
+           do jlev = 1 , NLEV
+              aadq(:,jlev) = aadq(:,jlev)/real(naccuout)
+              call writegp(40,aadq(1,jlev),133,jlev)
+           enddo
+        endif
+        
+!       **********************************
+!       * mixed-layer depth (from ocean) *
+!       **********************************
+        
+        aadmld(:) = aadmld(:)/real(naccuout)
+        call writegp(40,aadmld,110,0)
+        
+!       ***********************
+!       * surface temperature *
+!       ***********************
+        
+        do jlev=1,NLEP
+          aadt(:,jlev) = aadt(:,jlev)/real(naccuout)
+        enddo
+        call writegp(40,aadt(1,NLEP),139,0)
+        
+!       ****************
+!       * soil wetness *
+!       ****************
+        
+        aadwatc(:) = aadwatc(:)/real(naccuout)
+        call writegp(40,aadwatc,140,0)
+        
+!       **************
+!       * snow depth *
+!       **************
+        
+        aadsnow(:) = aadsnow(:)/real(naccuout)
+        call writegp(40,aadsnow,141,0)
+      
       endif
-
-!     **********************************
-!     * mixed-layer depth (from ocean) *
-!     **********************************
-
-      call writegp(40,dmld,110,0)
-
-!     ***********************
-!     * surface temperature *
-!     ***********************
-
-      call writegp(40,dt(1,NLEP),139,0)
-
-!     ****************
-!     * soil wetness *
-!     ****************
-
-      call writegp(40,dwatc,140,0)
-
-!     **************
-!     * snow depth *
-!     **************
-
-      call writegp(40,dsnow,141,0)
-
+      
 !     **********************
 !     * large scale precip *
 !     **********************
@@ -245,20 +352,43 @@
       alhfl(:)=alhfl(:)/real(naccuout)
       call writegp(40,alhfl,147,0)
 
-!     ************************
-!     * liquid water content *
-!     ************************
-
-      do jlev = 1 , NLEV
-         call writegp(40,dql(1,jlev),161,jlev)
-      enddo
-
-!     *************
-!     * u-star**3 *
-!     *************
-
-      call writegp(40,dust3,159,0)
-
+      if (nlowio .eq. 0) then
+      
+!       ************************
+!       * liquid water content *
+!       ************************
+     
+        do jlev = 1 , NLEV
+           call writegp(40,dql(1,jlev),161,jlev)
+        enddo
+     
+!       *************
+!       * u-star**3 *
+!       *************
+     
+        call writegp(40,dust3,159,0)
+     
+      else !Low I/O mode
+      
+!       ************************
+!       * liquid water content *
+!       ************************
+     
+        do jlev = 1 , NLEV
+           aadql(:,jlev) = aadql(:,jlev)/real(naccuout)
+           call writegp(40,aadql(1,jlev),161,jlev)
+        enddo
+     
+!       *************
+!       * u-star**3 *
+!       *************
+     
+        aadust3(:) = aadust3(:)/real(naccuout)
+        call writegp(40,aadust3,159,0)
+     
+     endif
+      
+     
 !     **********
 !     * runoff *
 !     **********
@@ -270,9 +400,16 @@
 !     * cloud cover *
 !     ***************
 
-      do jlev = 1 , NLEV
-        call writegp(40,dcc(1,jlev),162,jlev)
-      enddo
+      if (nlowio .eq. 0) then
+        do jlev = 1 , NLEV
+          call writegp(40,dcc(1,jlev),162,jlev)
+        enddo
+      else
+        do jlev = 1 , NLEV
+          aadcc(:,jlev) = aadcc(:,jlev)/real(naccuout)
+          call writegp(40,aadcc(1,jlev),162,jlev)
+        enddo
+      endif
       acc(:)=acc(:)/real(naccuout)
       call writegp(40,acc,164,0)
 
@@ -290,29 +427,63 @@
       ats0(:)=ats0(:)/real(naccuout)
       call writegp(40,ats0,169,0)
 
-!     *************************
-!     * deep soil temperature *
-!     *************************
-
-      call writegp(40,dtd5,170,0)
-
-!     *****************
-!     * land sea mask *
-!     *****************
-
-      call writegp(40,dls,172,0)
-
-!     *********************
-!     * surface roughness *
-!     *********************
-
-      call writegp(40,dz0,173,0)
-
-!     **********
-!     * albedo *
-!     **********
-
-      call writegp(40,dalb,175,0)
+      if (nlowio .eq. 0) then
+      
+!       *************************
+!       * deep soil temperature *
+!       *************************
+      
+        call writegp(40,dtd5,170,0)
+      
+!       *****************
+!       * land sea mask *
+!       *****************
+      
+        call writegp(40,dls,172,0)
+      
+!       *********************
+!       * surface roughness *
+!       *********************
+      
+        call writegp(40,dz0,173,0)
+      
+!       **********
+!       * albedo *
+!       **********
+      
+        call writegp(40,dalb,175,0)
+        
+      else
+      
+!       *************************
+!       * deep soil temperature *
+!       *************************
+        
+        aadtd5(:) = aadtd5(:)/real(naccuout)
+        call writegp(40,aadtd5,170,0)
+      
+!       *****************
+!       * land sea mask *
+!       *****************
+      
+        aadls(:) = aadls(:)/real(naccuout)
+        call writegp(40,aadls,172,0)
+      
+!       *********************
+!       * surface roughness *
+!       *********************
+      
+        aadz0(:) = aadz0(:)/real(naccuout)
+        call writegp(40,aadz0,173,0)
+      
+!       **********
+!       * albedo *
+!       **********
+      
+        aadalb(:) = aadalb(:)/real(naccuout)
+        call writegp(40,aadalb,175,0)
+        
+      endif
 
 !     ***************************
 !     * surface solar radiation *
@@ -366,9 +537,15 @@
 !     *********************
 !     * soil temperature *
 !     *********************
-
-      call writegp(40,dtsoil,183,0)
-
+      
+      if (nlowio .eq. 0) then
+        call writegp(40,dtsoil,183,0)
+      else
+        aadtsoil(:) = aadtsoil(:)/real(naccuout)
+        call writegp(40,aadtsoil,183,0)
+      endif
+      
+      
 !     ***********************************
 !     * maximum surface air temperature *
 !     ***********************************
@@ -402,32 +579,71 @@
       asthru(:)=asthru(:)/real(naccuout)
       call writegp(40,asthru,205,0)
 
-!     *******************************
-!     * soil temperatures level 2-4 *
-!     *******************************
-
-      call writegp(40,dtd2,207,0)
-      call writegp(40,dtd3,208,0)
-      call writegp(40,dtd4,209,0)
-
-!     *****************
-!     * sea ice cover *
-!     *****************
-
-      call writegp(40,dicec,210,0)
-
-!     *********************
-!     * sea ice thickness *
-!     *********************
-
-      call writegp(40,diced,211,0)
-
-!     ****************
-!     * forest cover *
-!     ****************
-
-      call writegp(40,dforest,212,0)
-
+      if (nlowio .eq. 0) then
+      
+!       *******************************
+!       * soil temperatures level 2-4 *
+!       *******************************
+       
+        call writegp(40,dtd2,207,0)
+        call writegp(40,dtd3,208,0)
+        call writegp(40,dtd4,209,0)
+       
+!       *****************
+!       * sea ice cover *
+!       *****************
+       
+        call writegp(40,dicec,210,0)
+       
+!       *********************
+!       * sea ice thickness *
+!       *********************
+       
+        call writegp(40,diced,211,0)
+       
+!       ****************
+!       * forest cover *
+!       ****************
+       
+        call writegp(40,dforest,212,0)
+       
+      else
+      
+!       *******************************
+!       * soil temperatures level 2-4 *
+!       *******************************
+        
+        aadtd2(:) = aadtd2(:) / real(naccuout)
+        aadtd3(:) = aadtd3(:) / real(naccuout)
+        aadtd4(:) = aadtd4(:) / real(naccuout)
+        
+        call writegp(40,aadtd2,207,0)
+        call writegp(40,aadtd3,208,0)
+        call writegp(40,aadtd4,209,0)
+       
+!       *****************
+!       * sea ice cover *
+!       *****************
+       
+        aadicec(:) = aadicec(:) / real(naccuout)
+        call writegp(40,aadicec,210,0)
+       
+!       *********************
+!       * sea ice thickness *
+!       *********************
+       
+        aadiced(:) = aadiced(:) / real(naccuout)
+        call writegp(40,aadiced,211,0)
+       
+!       ****************
+!       * forest cover *
+!       ****************
+       
+        aadforest(:) = aadforest(:) / real(naccuout)
+        call writegp(40,dforest,212,0)
+      
+      endif
+       
 !     *************
 !     * snow melt *
 !     *************
@@ -445,9 +661,14 @@
 !     ******************
 !     * field capacity *
 !     ******************
-
-      call writegp(40,dwmax,229,0)
-
+      if (nlowio .eq. 0) then
+        call writegp(40,dwmax,229,0)
+      else
+        aadwmax(:) = aadwmax(:)/real(naccuout)
+        call writegp(40,aadwmax,229,0)
+      endif
+        
+        
 !     *****************************************
 !     * vertical integrated specific humidity *
 !     *****************************************
@@ -459,8 +680,13 @@
 !     * glacier mask *
 !     ****************
 
-      call writegp(40,dglac,232,0)
-
+      if (nlowio .eq. 0) then
+        call writegp(40,dglac,232,0)
+      else
+        aadglac(:) = aadglac(:) / real(naccuout)
+        call writegp(40,aadglac,232,0)
+      endif
+        
 !     *********************
 !     ***   S I M B A   ***
 !     *********************
@@ -472,9 +698,16 @@
 !     * Ozone concentration *
 !     ***********************
 
-      do jlev = 1 , NLEV
-         call writegp(40,dqo3(1,jlev),265,jlev)
-      enddo
+      if (nlowio .eq. 0) then
+        do jlev = 1 , NLEV
+           call writegp(40,dqo3(1,jlev),265,jlev)
+        enddo
+      else
+        do jlev = 1 , NLEV
+           aadqo3(:,jlev) = aadqo3(:,jlev)/real(naccuout)
+           call writegp(40,aadqo3(1,jlev),265,jlev)
+        enddo
+      endif
       
 !     ********************
 !     * local weathering *
@@ -483,25 +716,51 @@
       aweathering(:) = aweathering(:)/real(naccuout)
       call writegp(40,aweathering,266,0)
 
-!     ********************
-!     * ground elevation *
-!     ********************
-
-      call writegp(40,groundoro,267,0)
-
-!     *********************
-!     * glacier elevation *
-!     *********************
-
-      call writegp(40,glacieroro,301,0)
-
       
-!     *********************
-!     *    net elevation  *
-!     *********************
-      netoro(:) = groundoro(:) + glacieroro(:)
-      call writegp(40,netoro,302,0)
-
+      if (nlowio .eq. 0) then
+!       ********************
+!       * ground elevation *
+!       ********************
+       
+        call writegp(40,groundoro,267,0)
+       
+!       *********************
+!       * glacier elevation *
+!       *********************
+       
+        call writegp(40,glacieroro,301,0)
+       
+        
+!       *********************
+!       *    net elevation  *
+!       *********************
+        netoro(:) = groundoro(:) + glacieroro(:)
+        call writegp(40,netoro,302,0)
+        
+      else
+!       ********************
+!       * ground elevation *
+!       ********************
+        
+        aagroundoro(:) = aagroundoro(:) / real(naccuout)
+        call writegp(40,aagroundoro,267,0)
+       
+!       *********************
+!       * glacier elevation *
+!       *********************
+       
+        aaglacieroro(:) = aaglacieroro(:) / real(naccuout)
+        call writegp(40,aaglacieroro,301,0)
+       
+        
+!       *********************
+!       *    net elevation  *
+!       *********************
+        netoro(:) = aagroundoro(:) + aaglacieroro(:)
+        call writegp(40,netoro,302,0)
+      
+      endif
+       
 !     ********************
 !     * Cos Solar Zenith *
 !     ********************
@@ -684,6 +943,45 @@
       tempmax(:) = 0.
       tempmin(:) = 1.0e3
       
+      if (nlowio > 0) then
+      
+        aaso(:)  = 0.
+        aasp(:)  = 0.
+        do j=1,NLEV
+          aast(:,j)    = 0.
+          aasqout(:,j) = 0.
+          aasd(:,j)    = 0.
+          aasz(:,j)    = 0.
+          aadqo3(:,j)  = 0.
+        enddo
+        do j=1,NLEP
+          aadq(:,j)  = 0.
+          aadt(:,j)  = 0.
+          aadql(:,j) = 0.
+          aadcc(:,j) = 0.
+        enddo
+        aadmld(:)       = 0.
+        aadwatc(:)      = 0.
+        aadsnow(:)      = 0.
+        aadust3(:)      = 0.
+        aadtd5(:)       = 0.
+        aadls(:)        = 0.
+        aadz0(:)        = 0.
+        aadalb(:)       = 0.
+        aadtsoil(:)     = 0.
+        aadtd2(:)       = 0.
+        aadtd3(:)       = 0.
+        aadtd4(:)       = 0.
+        aadicec(:)      = 0.
+        aadiced(:)      = 0.
+        aadforest(:)    = 0.
+        aadwmax(:)      = 0.
+        aadglac(:)      = 0.
+        aagroundoro(:)  = 0.
+        aaglacieroro(:) = 0.
+
+      endif
+      
       naccuout=0
 
 !     ************************************************
@@ -705,6 +1003,7 @@
       use pumamod
       use carbonmod
       use radmod
+      use glaciermod
 !
 !     accumulate diagnostic arrays
 !
@@ -746,6 +1045,45 @@
       aweathering(:)=aweathering(:)+localweathering(:)
       azmuz(:) = azmuz(:)+gmu0(:)
 
+      if (nlowio > 0) then
+      
+        aaso(:) = aaso(:) + so(:)        
+        aasp(:) = aasp(:) + sp(:)
+        do j=1,NLEV
+          aast(:,j)    = aast(:,j)    + st(:,j)        
+          aasqout(:,j) = aasqout(:,j) + sqout(:,j)     
+          aasd(:,j)    = aasd(:,j)    + sd(:,j)        
+          aasz(:,j)    = aasz(:,j)    + sz(:,j) 
+          aadqo3(:,j)  = aadqo3(:,j)  + dqo3(:,j)   
+        enddo
+        do j=1,NLEP
+          aadq(:,j)  = aadq(:,j)  + dq(:,j)   
+          aadt(:,j)  = aadt(:,j)  + dt(:,j)     
+          aadql(:,j) = aadql(:,j) + dql(:,j)     
+          aadcc(:,j) = aadcc(:,j) + dcc(:,j)            
+        enddo
+        aadmld(:)       = aadmld(:)       + dmld(:)     
+        aadwatc(:)      = aadwatc(:)      + dwatc(:)     
+        aadsnow(:)      = aadsnow(:)      + dsnow(:)       
+        aadust3(:)      = aadust3(:)      + dust3(:)         
+        aadtd5(:)       = aadtd5(:)       + dtd5(:)      
+        aadls(:)        = aadls(:)        + dls(:)       
+        aadz0(:)        = aadz0(:)        + dz0(:)       
+        aadalb(:)       = aadalb(:)       + dalb(:)      
+        aadtsoil(:)     = aadtsoil(:)     + dtsoil(:)    
+        aadtd2(:)       = aadtd2(:)       + dtd2(:)      
+        aadtd3(:)       = aadtd3(:)       + dtd3(:)      
+        aadtd4(:)       = aadtd4(:)       + dtd4(:)      
+        aadicec(:)      = aadicec(:)      + dicec(:)     
+        aadiced(:)      = aadiced(:)      + diced(:)     
+        aadforest(:)    = aadforest(:)    + dforest(:)   
+        aadwmax(:)      = aadwmax(:)      + dwmax(:)     
+        aadglac(:)      = aadglac(:)      + dglac(:)       
+        aagroundoro(:)  = aagroundoro(:)  + groundoro(:) 
+        aaglacieroro(:) = aaglacieroro(:) + glacieroro(:)      
+      
+      endif
+      
       naccuout=naccuout+1
 !
       return
