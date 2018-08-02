@@ -978,7 +978,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , ndiagsp   , ndiagsp2d , ndiagsp3d                  &
                    , ndl     , nentropy, nentro3d, neqsig  , nflux      &
                    , ngui    , nguidbg , nhdiff  , nhordif , nkits      &
-                   , noutput    &
+                   , noutput , nlowio  , nstpw   &
                    , npackgp , npacksp , nperpetual        , nprhor     &
                    , nprint  , nqspec  , nrad    , nsela   , nsync      &
                    , ntime   , ntspd   , nveg    , nwpd    &
@@ -1075,6 +1075,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (nwpd > 0 .and. nwpd <= ntspd) then
          nafter = ntspd / nwpd
       endif
+      
+      if (nlowio > 0 .and. nstpw > 0) nafter = nstpw
+      
       if (ndiag < 1) ndiag = 10 * ntspd
 
 !

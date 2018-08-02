@@ -138,6 +138,8 @@
       integer :: mpstep          =       0 ! minutes/timestep = 1day/ntspd
       integer :: ntspd           =       0 ! number of timesteps per day
       integer :: nwpd            =       1 ! number of writes per day
+      integer :: nlowio          =       0 ! Low I/O mode (0/1)
+      integer :: nstpw           =       0 ! Timesteps between writes (0=use nwpd)
       integer :: ndatim(7)       =      -1 ! date & time array
       real    :: tmstart         =     0.0 ! start of run
 
@@ -432,6 +434,38 @@
       real :: tempmax(NHOR) = 0. !accumulated maximum temperature
       real :: tempmin(NHOR) = 1.0e3 !accumulated minimum temperature
       
+      real :: aaso(NESP)          = 0. !Accumulated quantities
+      real :: aasp(NESP)          = 0.
+      real :: aast(NESP,NLEV)     = 0.
+      real :: aasqout(NESP,NLEV)  = 0.
+      real :: aasd(NESP,NLEV)     = 0.
+      real :: aasz(NESP,NLEV)     = 0.
+      real :: aadq(NHOR,NLEP)     = 0.
+      real :: aadmld(NHOR)        = 0.
+      real :: aadt(NHOR,NLEP)     = 0.
+      real :: aadwatc(NHOR)       = 0.
+      real :: aadsnow(NHOR)       = 0.
+      real :: aadql(NHOR,NLEP)    = 0.
+      real :: aadust3(NHOR)       = 0.
+      real :: aadcc(NHOR,NLEP)    = 0.
+      real :: aadtd5(NHOR)        = 0.
+      real :: aadls(NHOR)         = 0.
+      real :: aadz0(NHOR)         = 0.
+      real :: aadalb(NHOR)        = 0.
+      real :: aadtsoil(NHOR)      = 0.
+      real :: aadtd2(NHOR)        = 0.
+      real :: aadtd3(NHOR)        = 0.
+      real :: aadtd4(NHOR)        = 0.
+      real :: aadicec(NHOR)       = 0.
+      real :: aadiced(NHOR)       = 0.
+      real :: aadforest(NHOR)     = 0.
+      real :: aadwmax(NHOR)       = 0.
+      real :: aadglac(NHOR)       = 0.
+      real :: aadqo3(NHOR,NLEV)   = 0.
+      real :: aagroundoro(NHOR)   = 0.
+      real :: aaglacieroro(NHOR)  = 0.
+      
+      
 !     *******************
 !     * Latitude Arrays *
 !     *******************
@@ -462,7 +496,7 @@
       real sigma(NLEV)
       real sigmah(NLEV)
       real t01s2(NLEV)
-      real tkp(NLEV)
+      real tkp(NLEV)                                
       real c(NLEV,NLEV)
       real g(NLEV,NLEV)
       real tau(NLEV,NLEV)
