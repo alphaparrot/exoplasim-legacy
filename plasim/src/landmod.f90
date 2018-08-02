@@ -133,7 +133,7 @@
 !
       namelist/landmod_nl/nlandt,nlandw,albland,dz0land,drhsland        &
      &                ,albsmin,albsmax,albsminf,albsmaxf                &
-     &                ,albgmin,albgmax                                  &
+     &                ,albgmin,albgmax,nwetsoil                         &
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
      &                ,rnbiocats                                        &
