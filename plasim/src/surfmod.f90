@@ -371,8 +371,19 @@
          sp(:)   = 0.0         ! spectral  pressure
          spm(:)  = 0.0         ! spectral  pressure scattered
       endif
+      
+!     Desert planet settings
 
-      if (nrestart == 0 .and. naqua == 0) then ! need to read start data
+      if (nrestart == 0 .and. ndesert /= 0) then
+         n_sea_points = 0      ! No gridpoints are water
+         dls(:)  = 1.0         ! land/sea mask ro water
+         doro(:) = 0.0         ! gridpoint orography (flat)
+         so(:)   = 0.0         ! spectral  orography
+         sp(:)   = 0.0         ! spectral  pressure
+         spm(:)  = 0.0         ! spectral  pressure scattered
+      endif
+
+      if (nrestart == 0 .and. naqua == 0 .and. ndesert == 0) then ! need to read start data
          call mpsurfgp('doro',doro,NHOR,1)
          call mpsurfgp('dls' ,dls ,NHOR,1)
          if (npro == 1) then ! print only in single core runs

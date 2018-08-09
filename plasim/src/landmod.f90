@@ -136,7 +136,7 @@
      &                ,albgmin,albgmax,nwetsoil                         &
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
-     &                ,rnbiocats,nwetsoil                               &
+     &                ,rnbiocats,nwetsoil,soilcap                       &
      &                ,newsurf,rinifor,nwatcini,dwatcini
 !
       dtclsoil(:) = tmelt
@@ -154,6 +154,11 @@
 !        dsnowt(:)   = tmelt_CO2
       endif
 
+      if (ndesert == 1 .and. nrestart == 0) then
+         dwatcini = 0.0
+         dwater(:) = 0.0
+      endif
+      
       if (mypid == NROOT) then
       open(12,file=landmod_namelist)
       read(12,landmod_nl)

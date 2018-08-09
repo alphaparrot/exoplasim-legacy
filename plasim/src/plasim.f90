@@ -208,6 +208,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       call mpbci(kick    ) ! add noise for kick > 0
       call mpbci(naqua   ) ! aqua planet switch
+      call mpbci(ndesert ) ! desert planet switch
       call mpbci(nveg    ) ! vegetation switch
       call mpbci(noutput ) ! write data switch
       call mpbci(nafter  ) ! write data interval
@@ -974,7 +975,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       namelist /plasim_nl/ &
                      kick    , mpstep  , nadv    , naqua   , ncoeff     &
                    , ndel    , ndheat  , ndiag   , ndiagcf , ndiaggp    &
-                   , ndiaggp2d , ndiaggp3d                              &
+                   , ndiaggp2d , ndiaggp3d , ndesert                    &
                    , ndiagsp   , ndiagsp2d , ndiagsp3d                  &
                    , ndl     , nentropy, nentro3d, neqsig  , nflux      &
                    , ngui    , nguidbg , nhdiff  , nhordif , nkits      &
@@ -1017,11 +1018,20 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       open(11,file=plasim_namelist,form='formatted')
       read (11,plasim_nl)
 
-!     aqua planet settings
+      if ((ndesert == 1) .and. (naqua == 1)) then !If both toggled, turn off both
+        naqua = 0
+        ndesert = 0
+      endif
 
+
+!     aqua planet settings
       if (naqua == 1) then
          nveg = 0 ! switch off vegetation
       endif
+      
+!     We won't turn off vegetation for the desert planet, figuring that interested parties
+!     might appreciate having the vegetation naturally respond to low moisture.
+      
 
 !     set rotation dependent variables
 

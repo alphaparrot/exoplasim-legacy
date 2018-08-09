@@ -154,6 +154,7 @@
       integer :: noutput  =  1  ! master switch for output: 0=no output
       integer :: nafter   =  0  ! write data interval: 0 = once per day
       integer :: naqua    =  0  ! 1: switch to aqua planet mode
+      integer :: ndesert  =  0  ! 1: switch to desert planet mode
       integer :: nveg     =  1  ! 1: run vegetation module
       integer :: ncoeff   =  0  ! number of modes to print
       integer :: ndiag    =  0  ! write diagnostics interval 0 = every 10th. day
