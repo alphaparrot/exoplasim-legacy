@@ -32,7 +32,7 @@
       integer :: nglacier = 1 ! 1 = implement glaciation, 0 = ignore
       real :: glacelim = 2.0 ! Minimum snow depth in meters liquid water equivalent that has to be maintained
                                  ! year-round to convert the gridpoint to a glacier.
-      
+      real :: icesheeth = -1.0 !Initial snow depth
 !
 !     global arrays
 !
@@ -56,7 +56,7 @@
       subroutine glacierprep
       use glaciermod
 
-      namelist/glacier_nl/nglacier,glacelim
+      namelist/glacier_nl/nglacier,glacelim,icesheeth
       
       if (mypid==NROOT) then
          open(23,file=glacier_namelist)
@@ -101,89 +101,164 @@
         call mpsurfgp('doro'    ,doro    ,NHOR,1)
         groundoro(:) = doro(:)
         glacieroro(:) = 0.0
+        if (icesheeth .ge. 0.0) then
+          where (dls(:) > 0.5)
+            dsnowz = icesheeth
+            dglac = 1.0
+          endwhere
+        endif
       endif
       
       if (nglacier .eq. 1) then
       
-      if (nrestart > 0.) then     
+        if (nrestart > 0.) then     
+          call mpgagp(zoro,doro,1)
+        
+          if (mypid==NROOT) then
+            write(nud,'(/,"Topography before glaciers")')
+            write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
+            write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
+            write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+          endif        
+        endif
+        
+        if (mypid==NROOT) inquire(file='restart_dsnow',exist=ldsnow)
+        call mpbcl(ldsnow)
+        
+        if (ldsnow .and. (nrestart > 0.)) then
+        
+           call readarray(dsnowz,'restart_dsnow')
+           
+        endif   
+        
+        call oroini       
+           
+!          Compute spectral orography
+        so(:) = 0.
+        doro(:) = doro(:) * oroscale  ! Scale orography
+        foro(:) = doro(:)
+        
+        
+        call gp2fc(foro,NLON,NLPP)
+        call fc2sp(foro,so)
+        call mpsum(so,1)
+        
+        if (npro == 1) then ! print only in single core runs
+           call sp2fc(so,doro)
+           call fc2gp(doro,nlon,nlpp)
+           write(nud,'(/,"Topography after spectral fitting")')
+           write(nud,'("Maximum: ",f10.2," [m]")') maxval(doro) / ga
+           write(nud,'("Minimum: ",f10.2," [m]")') minval(doro) / ga
+           write(nud,'("Mean:    ",f10.2," [m]")') sum(doro) / (ga * NUGP)
+        endif
+        
+        if (mypid == NROOT) then
+           so(:) = so(:) / (cv*cv)
+           if (noromax < NTRU) then
+            jr=-1
+            do jm=0,NTRU
+             do jn=jm,NTRU
+              jr=jr+2
+              ji=jr+1
+              if(jn > noromax) then
+               so(jr)=0.
+               so(ji)=0.
+              endif
+             enddo
+            enddo
+           endif ! (noromax < NTRU)
+        
+!          Initialize surface pressure
+        
+          if (nspinit > 0) then
+             sp(:) = -so(:)*cv*cv / (gascon * tgr)
+          endif
+        endif ! (mypid == NROOT)
+        call mpscsp(sp,spm,1)
+        
+        where (dsnowz(:) > 30.0) dglac = 1.0 !If we have more than 30 m of lq H2O equivalent in snow/ice, it's a glacier
+                                             !30 meters of ice is the minimum thickness for an ice sheet to flow
+        where (dls(:) < 0.5) persistflag = .FALSE.
+        
         call mpgagp(zoro,doro,1)
-
+        
         if (mypid==NROOT) then
-          write(nud,'(/,"Topography before glaciers")')
+          write(nud,'(/,"New Topography after glaciers")')
           write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
           write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
           write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
-        endif        
-      endif
-      
-      if (mypid==NROOT) inquire(file='restart_dsnow',exist=ldsnow)
-      call mpbcl(ldsnow)
-      
-      if (ldsnow .and. (nrestart > 0.)) then
-      
-         call readarray(dsnowz,'restart_dsnow')
-         
-      endif   
-  
-      call oroini       
-         
-!        Compute spectral orography
-      so(:) = 0.
-      doro(:) = doro(:) * oroscale  ! Scale orography
-      foro(:) = doro(:)
-      
-
-      call gp2fc(foro,NLON,NLPP)
-      call fc2sp(foro,so)
-      call mpsum(so,1)
-      
-      if (npro == 1) then ! print only in single core runs
-         call sp2fc(so,doro)
-         call fc2gp(doro,nlon,nlpp)
-         write(nud,'(/,"Topography after spectral fitting")')
-         write(nud,'("Maximum: ",f10.2," [m]")') maxval(doro) / ga
-         write(nud,'("Minimum: ",f10.2," [m]")') minval(doro) / ga
-         write(nud,'("Mean:    ",f10.2," [m]")') sum(doro) / (ga * NUGP)
-      endif
-
-      if (mypid == NROOT) then
-         so(:) = so(:) / (cv*cv)
-         if (noromax < NTRU) then
-          jr=-1
-          do jm=0,NTRU
-           do jn=jm,NTRU
-            jr=jr+2
-            ji=jr+1
-            if(jn > noromax) then
-             so(jr)=0.
-             so(ji)=0.
-            endif
-           enddo
-          enddo
-         endif ! (noromax < NTRU)
-      
-!        Initialize surface pressure
-      
-        if (nspinit > 0) then
-           sp(:) = -so(:)*cv*cv / (gascon * tgr)
         endif
-      endif ! (mypid == NROOT)
-      call mpscsp(sp,spm,1)
       
-      where (dsnowz(:) > 30.0) dglac = 1.0 !If we have more than 30 m of lq H2O equivalent in snow/ice, it's a glacier
-                                           !30 meters of ice is the minimum thickness for an ice sheet to flow
-      where (dls(:) < 0.5) persistflag = .FALSE.
+      else    !nglacier == 0
+       
+        if (nrestart > 0.) then     
+          call mpgagp(zoro,doro,1)
+        
+          if (mypid==NROOT) then
+            write(nud,'(/,"Topography before smoothing")')
+            write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
+            write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
+            write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+          endif    
+        endif
+          
+        call oroini 
+                
+!        Compute spectral orography
+        so(:) = 0.
+        doro(:) = doro(:) * oroscale  ! Scale orography
+        foro(:) = doro(:)
+        
+        
+        call gp2fc(foro,NLON,NLPP)
+        call fc2sp(foro,so)
+        call mpsum(so,1)
+        
+        if (npro == 1) then ! print only in single core runs
+           call sp2fc(so,doro)
+           call fc2gp(doro,nlon,nlpp)
+           write(nud,'(/,"Topography after spectral fitting")')
+           write(nud,'("Maximum: ",f10.2," [m]")') maxval(doro) / ga
+           write(nud,'("Minimum: ",f10.2," [m]")') minval(doro) / ga
+           write(nud,'("Mean:    ",f10.2," [m]")') sum(doro) / (ga * NUGP)
+        endif
+        
+        if (mypid == NROOT) then
+           so(:) = so(:) / (cv*cv)
+           if (noromax < NTRU) then
+            jr=-1
+            do jm=0,NTRU
+             do jn=jm,NTRU
+              jr=jr+2
+              ji=jr+1
+              if(jn > noromax) then
+               so(jr)=0.
+               so(ji)=0.
+              endif
+             enddo
+            enddo
+           endif ! (noromax < NTRU)
+        
+!          Initialize surface pressure
+        
+          if (nspinit > 0) then
+             sp(:) = -so(:)*cv*cv / (gascon * tgr)
+          endif
+        endif ! (mypid == NROOT)
+        call mpscsp(sp,spm,1)
+        
+        call mpgagp(zoro,doro,1)
+        
+        if (mypid==NROOT) then
+          write(nud,'(/,"New Topography after glaciers")')
+          write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
+          write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
+          write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+        endif
+        
+        endif     
       
-      call mpgagp(zoro,doro,1)
-      
-      if (mypid==NROOT) then
-        write(nud,'(/,"New Topography after glaciers")')
-        write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
-        write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-        write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
-      endif
-      
-      endif !nglacier == 0
+      endif !nglacier switch
       
       end subroutine glacierini
 
