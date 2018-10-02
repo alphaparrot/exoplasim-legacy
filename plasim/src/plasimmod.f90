@@ -216,7 +216,7 @@
       real :: dttrp =     2.0
       real :: tgr   =   288.0  ! Temperature ground in mean profile
       real :: psurf =101100.0  ! global mean surface pressure
-      real :: ptop  = 15000.0  ! Upper pressure to use to anchor upper levels
+      real :: ptop  =  7500.0  ! Upper pressure to use to anchor upper levels
                                ! (actual top pressure is ~0.5 this value)
       real :: time0 =     0.0  ! start time (for performance estimates)
       real :: co2   =   360.0  ! atm. co2 concentration (ppmv)
