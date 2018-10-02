@@ -734,7 +734,7 @@
 !
 !     diagnostic: snow depth change
 !
-      where(dls(:) > 0.) dsndch(:)=(dsnowz(:)-dsndch(:))/deltsec
+      where(dls(:) > 0.) dsndch(:)=(dsnowz(:)-dsndch(:))!/deltsec
 !
 !     dbug output
 !

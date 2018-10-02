@@ -655,7 +655,7 @@
 !     * snow depth change *
 !     *********************
 
-      asndch(:)=asndch(:)/real(naccuout)
+!       asndch(:)=asndch(:)/real(naccuout)
       call writegp(40,asndch,221,0)
 
 !     ******************

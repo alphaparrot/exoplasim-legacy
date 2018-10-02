@@ -662,7 +662,7 @@
 !       diagnose the lost ice as accumulated snow 
 !       (to make the budged from the atm. output) 
 !
-        xsndch(:)=xsndch(:)+zcflux(:)*1000./CRHOI/zrhoilfdt/xdt
+        xsndch(:)=xsndch(:)+zcflux(:)*1000./CRHOI/zrhoilfdt!/xdt
        end where
        call getiflx
       endif
@@ -895,7 +895,7 @@
 !
 !     snow diagnostics
 !
-      where(xls(:) < 0.5) xsndch(:)=xsndch(:)+(xsnow(:)-zsnowold(:))/xdt
+      where(xls(:) < 0.5) xsndch(:)=xsndch(:)+(xsnow(:)-zsnowold(:))!/xdt
 !
 !     copy output from icemod
 !
