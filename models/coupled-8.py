@@ -128,6 +128,8 @@ if __name__=="__main__":
   p0 = 1010670.0
   cyear=0
   n=0
+  NCPU = int(sys.argv[1])
+  os.system("rm -f *.nc")
   eCO2s=[]
   etemps=[]
   #changep(psurf*0.1)
@@ -146,7 +148,7 @@ if __name__=="__main__":
     wf.write("     CO2       AVG SURF T   WEATHERING    OUTGASSING      DpCO2       NEW CO2\n")
     wf.close()
     EXP="MOST"
-    NCPU=8
+    #NCPU=8
     #os.system("rm -f plasim_restart") #Uncomment for a fresh run when you haven't cleaned up beforehand
     os.system("rm -f Abort_Message")
     year=0

@@ -280,6 +280,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbcr(pnu     )
       call mpbcr(pnu21   )
       call mpbcr(psurf   )
+      call mpbcr(ptop    )
       call mpbcr(ra1     )
       call mpbcr(ra2     )
       call mpbcr(ra4     )
@@ -990,7 +991,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , syncstr , synctime                                 &
                    , dtep    , dtns    , dtrop   , dttrp                &
                    , tdissd  , tdissz  , tdisst  , tdissq  , tgr        &
-                   , psurf                                              &
+                   , psurf   , ptop                                     &
                    , restim  , t0      , tfrc                           &
                    , sigh    , nenergy , nener3d , nsponge , dampsp
 !
@@ -1214,6 +1215,17 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        do jlev = 1 , NLEV
         sigmah(jlev) = real(jlev) / NLEV
        enddo
+      elseif(neqsig==2) then
+       zsk0 = log10(ptop/psurf) + 1
+       zskf = 0.99
+       dzsk = (zskf - zsk0) / REAL(NLEV-1)
+       do jlev = 2 , NLEV
+        zsk = zsk0 + (jlev-1)*dzsk - 1
+        sigma(jlev) = 10**zsk
+       enddo
+       sigma(1) = 0.5*sigma(2)
+       sigmah(NLEV) = 1.0
+       sigmah(1:NLEV-1) = 0.5*(sigma(1:NLEV-1)+sigma(2:NLEV))
       else
        do jlev=1,NLEV
         zsk=REAL(jlev)/REAL(NLEV)
@@ -1225,10 +1237,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       dsigma(2:NLEV) = sigmah(2:NLEV) - sigmah(1:NLEV-1)
 
       rdsig = 0.5 / dsigma
-
+ 
       sigma(1     ) = 0.5 * sigmah(1)
       sigma(2:NLEV) = 0.5 * (sigmah(1:NLEV-1) + sigmah(2:NLEV))
-
+        
 !     dimensionless coefficient for newtonian cooling
 !     friction and timestep. of course a day is 2*PI in non dimensional
 !     units using omega as the unit of frquency.

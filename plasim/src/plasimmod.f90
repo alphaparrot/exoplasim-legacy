@@ -166,7 +166,7 @@
       integer :: nflux    =  1  ! vertical diffusion 1/0
       integer :: nadv     =  1  ! advection 1/0=(y/n)
       integer :: nhordif  =  1  ! horizontal diffusion 1/0=(y/n)
-      integer :: neqsig   =  0  ! equidistant sigma levels (1/0)=(y/n)
+      integer :: neqsig   =  0  ! equidistant sigma levels (1/0)=(y/n) !2=equidistant in log(sigma)
       integer :: nprint   =  0  ! comprehensive print out (only for checks!)
       integer :: nprhor   =  0  ! grid point for print out (only for checks!)
       integer :: npacksp  =  0  ! pack spectral fields on output
@@ -216,6 +216,8 @@
       real :: dttrp =     2.0
       real :: tgr   =   288.0  ! Temperature ground in mean profile
       real :: psurf =101100.0  ! global mean surface pressure
+      real :: ptop  = 15000.0  ! Upper pressure to use to anchor upper levels
+                               ! (actual top pressure is ~0.5 this value)
       real :: time0 =     0.0  ! start time (for performance estimates)
       real :: co2   =   360.0  ! atm. co2 concentration (ppmv)
       real :: umax  =     0.0  ! diagnostic U max

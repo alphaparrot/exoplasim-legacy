@@ -72,6 +72,7 @@
       
       call mpbci(nglacier)
       call mpbcr(glacelim)
+      call mpbcr(icesheeth)
       
       if (mypid==NROOT) nglspec = nglacier
       
@@ -89,6 +90,7 @@
       logical :: ldsnow
       real :: zoro(NUGP) = 0.0
       real :: foro(NHOR) = 0.0
+      real :: zsnow(NUGP) = 0.0
       
       integer noromax
       
@@ -102,11 +104,24 @@
         groundoro(:) = doro(:)
         glacieroro(:) = 0.0
         if (icesheeth .ge. 0.0) then
-          where (dls(:) > 0.5)
-            dsnowz = icesheeth
-            dglac = 1.0
-          endwhere
+          dglac(:) = 1.0
+          dsnowz(:) = icesheeth
+          do jhor=1,NHOR
+            if (groundoro(jhor) == 0.0) then
+              dsnowz(jhor) = 0.0
+              dglac(jhor) = 0.0
+            endif
+          enddo
         endif
+          
+        call mpgagp(zsnow,dsnowz,1)
+        
+        if (mypid==NROOT) then
+          write(nud,'(/,"Initial Icesheet Heights")')
+          write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zsnow))
+          write(nud,'("Minimum: ",f10.2," [m]")') (minval(zsnow))
+          write(nud,'("Mean:    ",f10.2," [m]")') (sum(zsnow) / (NUGP))
+        endif 
       endif
       
       if (nglacier .eq. 1) then
@@ -255,8 +270,6 @@
           write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
           write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
         endif
-        
-        endif     
       
       endif !nglacier switch
       
@@ -300,6 +313,21 @@
        enddo
       enddo 
       
+      call mpgagp(zoro,doro,1)
+
+      if(mypid==NROOT) then
+
+       write(nud,'(/,"Topography before glaciers and before smoothing")')
+       write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
+       write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
+       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+      
+      endif
+      
+      if (nglacier .gt. 0.5) then
+      
+      groundoro(:) = groundoro(:)*oroscale
+      
       do i=1,NHOR ! Add elevation of snowpack/ice sheet
          jlat = i/NLON + 1
 !          radius = sqrt(((rad_p1**2*cola(jlat))**2+(rad_p2**2*sid(jlat))**2)/&
@@ -310,8 +338,62 @@
          grav = gconst*p_mass/(radius+dz)**2
          glacieroro(i) = grav*dhsnow - grav/(dz+radius)*dhsnow**2
          doro(i) = groundoro(i) + glacieroro(i)
+!          if(mypid==NROOT) then
+!          write(nud,'("Gr,Sn: ",f10.2," ",f10.2," ",f10.2," [m]")') (groundoro(i) / ga,glacieroro(i)/ga)
+!          write(nud,'("Net: ",f10.2," [m]")') (doro(i)/ga)
+!          endif 
 
       enddo
+      
+      call mpgagp(zoro,glacieroro,1)
+      
+      if(mypid==NROOT) then
+
+       write(nud,'(/,"Glacial Topography")')
+       write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
+       write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
+       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+      
+      endif
+      
+      call mpgagp(zoro,groundoro,1)
+      if(mypid==NROOT) then
+
+       write(nud,'(/,"Ground Topography")')
+       write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
+       write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
+       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+      
+      endif
+      call mpgagp(zoro,doro-groundoro,1)
+      if(mypid==NROOT) then
+
+       write(nud,'(/,"Net-Ground Topography")')
+       write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
+       write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
+       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+      
+      endif
+      call mpgagp(zoro,doro-glacieroro,1)
+      if(mypid==NROOT) then
+
+       write(nud,'(/,"Net-Glacier Topography")')
+       write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
+       write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
+       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+      
+      endif
+      call mpgagp(zoro,glacieroro+groundoro,1)
+      if(mypid==NROOT) then
+
+       write(nud,'(/,"Ground + Glacier Topography")')
+       write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
+       write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
+       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+      
+      endif
+      
+      endif
       
       call mpgagp(zsi,zsir,1)
       call mpgagp(zoro,doro,1)
