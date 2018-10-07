@@ -169,6 +169,10 @@
 !       * orograpy *
 !       ************
         
+        
+!         write(nud,'("* nstep ",i6,"  *")') nstep
+!         write(nud,*) real(naccuout)
+!         write(nud,*) aaso(:)
         aaso(:) = aaso(:) / real(naccuout)
         call writesp(40,aaso,129,0,CV*CV,0.)
         

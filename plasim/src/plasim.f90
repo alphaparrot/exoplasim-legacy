@@ -435,6 +435,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          psurf    = EXP(LOG(psurf)-zdlnp)
          write(nud,'(" Mean of topographic height          = ",f10.2," [m]")') zmeanoro / ga
          write(nud,'(" Mean of surface pressure            = ",f10.2," [hPa]")') psurf * 0.01
+         write(nud,'(" Initial step number : ",i6," ")') nstep
       end if
       call mpbcr(psurf)
 
@@ -536,6 +537,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call updatim(nstep)  ! set date & time array ndatim
 
       nstep1 = nstep ! Remember start step for timing stats
+      
+!       if (mypid == NROOT) write(nud,'("*  nstep1: ",i6,"   *")') nstep1
 
       do while (mocd > 0 .or. nscd > 0)  ! main loop
 
@@ -558,21 +561,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
          call gridpointd
 
+         call outaccu
          if (mypid == NROOT) then
-            if (mod(nstep,nafter) == 0 .and. noutput > 0) then
+            if (mod(nstep,nafter) == 0 .and. noutput > 0 ) then
+!                write(nud,'("* nstep ",i6,"  *")') nstep
                call outsp
             endif
-            if (mod(nstep,ndiag) == 0) then
+            if (mod(nstep,ndiag) == 0 ) then
                call diag
             elseif (ngui > 0) then
-               if (mod(nstep,ngui) == 0) call diag
+               if (mod(nstep,ngui) == 0 ) call diag
             endif
          endif
 
          if (ngui > 0) call guistep_plasim
          call spectrald
 
-          call outaccu
          if (mod(nstep,nafter) == 0) then
           if(noutput > 0) then
            call outgp
@@ -581,6 +585,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            if(koutdiag > 0) call outdiag
           endif
           call outreset
+!           write(nud,*)"Called outreset"
          endif
 
          iyea  = ndatim(1)    ! current year
@@ -1126,14 +1131,15 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Print some values
 
       write(nud,'(/,"**********************************")')
-      write(nud,'("* Solar    day     :",f8.1," [s] *")') day_24hr
-      write(nud,'("* Sidereal day     :",f8.1," [s] *")') sidereal_day
-      write(nud,'("* Omega            :",f6.2," [s-6] *")') ww * 1.0e6
-      write(nud,'("* Rotation Speed   :",f8.1,"     *")') rotspd
-      write(nud,'("* Days / Year      :",i6,"       *")') n_days_per_year
-      write(nud,'("* Days / Month     :",i6,"       *")') n_days_per_month
-      write(nud,'("* Timestep         :",i6," [min] *")') mpstep
-      write(nud,'("* Timesteps / day  :",i6,"       *")') ntspd
+      write(nud,'("* Solar    day      :",f8.1," [s] *")') day_24hr
+      write(nud,'("* Sidereal day      :",f8.1," [s] *")') sidereal_day
+      write(nud,'("* Omega             :",f6.2," [s-6] *")') ww * 1.0e6
+      write(nud,'("* Rotation Speed    :",f8.1,"     *")') rotspd
+      write(nud,'("* Days / Year       :",i6,"       *")') n_days_per_year
+      write(nud,'("* Days / Month      :",i6,"       *")') n_days_per_month
+      write(nud,'("* Timestep          :",i6," [min] *")') mpstep
+      write(nud,'("* Timesteps / write :",i6,"       *")') nafter
+      write(nud,'("* Timesteps / day   :",i6,"       *")') ntspd
       if (iyea  > 1 .and. imon == 0) then
          write(nud,'("* Simulation time:  ",i5,"  years *")') iyea
       else if (iyea == 1 .and. imon == 0) then
@@ -1222,6 +1228,19 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        do jlev = 2 , NLEV
         zsk = zsk0 + (jlev-1)*dzsk - 1
         sigma(jlev) = 10**zsk
+       enddo
+       sigma(1) = 0.5*sigma(2)
+       sigmah(NLEV) = 1.0
+       sigmah(1:NLEV-1) = 0.5*(sigma(1:NLEV-1)+sigma(2:NLEV))
+      elseif(neqsig==3) then
+       zsk0 = log10(ptop/psurf) + 1
+       zskf = 0.99
+       dzsk = (zskf - zsk0) / REAL(NLEV-1)
+       do jlev = 2 , NLEV
+        zfk = real(jlev-1)/real(NLEV-1)
+        zffk = (real(jlev-1)/real(NLEV))**0.25
+        zsk = zsk0 + (jlev-1)*dzsk - 1
+        sigma(jlev) = (1.0-exp(-((1-zfk)**2)/0.05))*10**zsk + exp(-((1-zfk)**2)/0.05)*zffk
        enddo
        sigma(1) = 0.5*sigma(2)
        sigmah(NLEV) = 1.0
