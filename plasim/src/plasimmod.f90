@@ -71,6 +71,7 @@
       character (256) :: rainmod_namelist    = "rainmod_namelist"
       character (256) :: surfmod_namelist    = "surfmod_namelist"
       character (256) :: plasim_output       = "plasim_output"
+      character (256) :: plasim_snapshot     = "plasim_snapshot"
       character (256) :: plasim_diag         = "plasim_diag"
       character (256) :: plasim_restart      = "plasim_restart"
       character (256) :: plasim_status       = "plasim_status"
@@ -140,6 +141,7 @@
       integer :: nwpd            =       1 ! number of writes per day
       integer :: nlowio          =       0 ! Low I/O mode (0/1)
       integer :: nstpw           =       0 ! Timesteps between writes (0=use nwpd)
+      integer :: nstps           =       0 ! Steps per snapshot (0=use ntspd)
       integer :: ndatim(7)       =      -1 ! date & time array
       real    :: tmstart         =     0.0 ! start of run
 
@@ -152,6 +154,7 @@
       integer :: kick     =  1  ! add noise for kick > 0
       integer :: mars     =  0  ! global switch for planet mars
       integer :: noutput  =  1  ! master switch for output: 0=no output
+      integer :: nsnapshot = 0  ! switch for snapshot output
       integer :: nafter   =  0  ! write data interval: 0 = once per day
       integer :: naqua    =  0  ! 1: switch to aqua planet mode
       integer :: ndesert  =  0  ! 1: switch to desert planet mode
@@ -166,7 +169,7 @@
       integer :: nflux    =  1  ! vertical diffusion 1/0
       integer :: nadv     =  1  ! advection 1/0=(y/n)
       integer :: nhordif  =  1  ! horizontal diffusion 1/0=(y/n)
-      integer :: neqsig   =  0  ! equidistant sigma levels (1/0)=(y/n) !2=equidistant in log(sigma)
+      integer :: neqsig   =  0  ! equidistant sigma levels (1/0)=(y/n) !2=log-equidistant; 3=pseudolog
       integer :: nprint   =  0  ! comprehensive print out (only for checks!)
       integer :: nprhor   =  0  ! grid point for print out (only for checks!)
       integer :: npacksp  =  0  ! pack spectral fields on output

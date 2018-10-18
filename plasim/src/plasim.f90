@@ -213,6 +213,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(noutput ) ! write data switch
       call mpbci(nafter  ) ! write data interval
       call mpbci(nwpd    ) ! number of writes per day
+      call mpbci(nsnapshot) ! Switch for writing snapshots
+      call mpbci(nstps   ) ! number of steps per snapshot
       call mpbci(ncoeff  ) ! number of modes to print
       call mpbci(ndiag   ) ! write diagnostics interval
       call mpbci(ndivdamp) ! divergence damping countdown
@@ -567,6 +569,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !                write(nud,'("* nstep ",i6,"  *")') nstep
                call outsp
             endif
+            if (mod(nstep,nstps) == 0 .and. nsnapshot > 0) call snapshotsp
             if (mod(nstep,ndiag) == 0 ) then
                call diag
             elseif (ngui > 0) then
@@ -577,6 +580,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          if (ngui > 0) call guistep_plasim
          call spectrald
 
+         if (mod(nstep,nstps) == 0 .and. nsnapshot > 0) then
+           call snapshotgp
+           koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
+     &             +nentropy+nenergy
+           if(koutdiag > 0) call snapshotdiag
+         endif
          if (mod(nstep,nafter) == 0) then
           if(noutput > 0) then
            call outgp
@@ -638,6 +647,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     close output file
 !
       if (mypid == NROOT) close(40)
+      
+!
+!     close snapshot file
+!
+      if (nsnapshot > 0 .and. mypid == NROOT) close(140)
+
 !
 !     close efficiency diagnostic file
 !
@@ -985,7 +1000,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , ndiagsp   , ndiagsp2d , ndiagsp3d                  &
                    , ndl     , nentropy, nentro3d, neqsig  , nflux      &
                    , ngui    , nguidbg , nhdiff  , nhordif , nkits      &
-                   , noutput , nlowio  , nstpw   &
+                   , noutput , nlowio  , nstpw   , nsnapshot, nstps     &
                    , npackgp , npacksp , nperpetual        , nprhor     &
                    , nprint  , nqspec  , nrad    , nsela   , nsync      &
                    , ntime   , ntspd   , nveg    , nwpd    &
@@ -1096,6 +1111,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       
       if (ndiag < 1) ndiag = 10 * ntspd
 
+      if (nstps == 0) nstps = ntspd
+      
 !
 !     for column runs set horizontal diffusion coefficients to 0
 !

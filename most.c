@@ -377,6 +377,7 @@ char oro_name[256]      = "N064_surf_0129.sra"; // Orography in T42 resolution
 char namelist_name[256] = "puma_namelist";
 char diag_name[256]     = "puma_diag";
 char outp_name[256]     = "puma_output";
+char snap_name[256]     = "puma_snapshot";
 char build_name[256]    = "most_puma_build";
 char build_ppp[256]     = "most_ppp_build";
 char run_name[256]      = "most_puma_run";
@@ -1767,6 +1768,7 @@ void GenerateNames(void)
 
    sprintf(diag_name,"%s_diag",ShortModelName[Model]);
    sprintf(outp_name,"%s_output",ShortModelName[Model]);
+   sprintf(snap_name,"%s_snapshot",ShortModelName[Model]);
    sprintf(build_name,"most_%s_build",ShortModelName[Model]);
    sprintf(build_ppp,"most_%s_build","ppp");
    sprintf(run_name,"most_%s_run",ShortModelName[Model]);
@@ -1832,6 +1834,7 @@ int WriteRunScript(int model)
    fputs("do\n",fp);
    fputs("   YEAR=`expr $YEAR + 1`\n",fp);
    fputs("   DATANAME=`printf '%s.%03d' $EXP $YEAR`\n",fp);
+   fputs("   SNAPNAME=`printf '%s_SNAP.%03d' $EXP $YEAR`\n",fp);
    fputs("   DIAGNAME=`printf '%s_DIAG.%03d' $EXP $YEAR`\n",fp);
    fputs("   RESTNAME=`printf '%s_REST.%03d' $EXP $YEAR`\n",fp);
    fputs("   SNOWNAME=`printf '%s_SNOW.%03d' $EXP $YEAR`\n",fp);
@@ -1859,6 +1862,8 @@ int WriteRunScript(int model)
       fputs("      EXT=`printf '%02d' $INST`\n",fp);
       fprintf(fp,"      [ -e %s_$EXT ] && mv %s_$EXT ${EXT}_$DATANAME\n",
               outp_name,outp_name);
+      fprintf(fp,"      [ -e %s_$EXT ] && mv %s_$EXT ${EXT}_$SNAPNAME\n",
+              snap_name,snap_name);
       fprintf(fp,"      mv %s_$EXT   ${EXT}_$DIAGNAME\n",diag_name);
       fprintf(fp,"      cp %s_status_$EXT %s_restart_$EXT\n",
               ShortModelName[model],ShortModelName[model]);
@@ -1869,6 +1874,7 @@ int WriteRunScript(int model)
    else
    {
       fprintf(fp,"   [ -e %s ] && mv %s $DATANAME\n",outp_name,outp_name);
+      fprintf(fp,"   [ -e %s ] && mv %s $SNAPNAME\n",snap_name,snap_name);
       fprintf(fp,"   [ -e %s ] && mv %s $DIAGNAME\n",diag_name,diag_name);
       fprintf(fp,"   [ -e %s_status ] && cp %s_status %s_restart\n",
               ShortModelName[model],ShortModelName[model],ShortModelName[model]);
