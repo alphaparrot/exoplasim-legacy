@@ -5575,6 +5575,10 @@ void InitAll(void)
    All[319].Init("wthpr","weatherable_precipitation"       ,"mm day-1" ,1); // Not standard (AYP)
    All[320].Init("mint" ,"minimum_temperature"             ,"K"        ,1); // Not standard (AYP)
    All[321].Init("maxt" ,"maximum_temperature"             ,"K"        ,1); // Not standard (AYP)
+   All[404].Init("dfu"  ,"shortwave_up"                    ,"W m-2"    ,0); // Not standard (AYP)
+   All[405].Init("dfd"  ,"shortwave_down"                  ,"W m-2"    ,0); // Not standard (AYP)
+   All[406].Init("dftu"  ,"longwave_up"                    ,"W m-2"    ,0); // Not standard (AYP)
+   All[407].Init("dftd"  ,"longwave_down"                  ,"W m-2"    ,0); // Not standard (AYP)
 }
 
 void Usage(void)

@@ -1194,6 +1194,17 @@
 !     ************************
 
       call writegp(140,dfu(:,NLEP),204,0)
+      
+!     ************************
+!     * radiation level data *
+!     ************************
+
+      do jlev=1,NLEP
+        call writegp(140,dfu(:,jlev),404,jlev)
+        call writegp(140,dfd(:,jlev),405,jlev)
+        call writegp(140,dftu(:,jlev),406,jlev)
+        call writegp(140,dftd(:,jlev),407,jlev)
+      enddo
 
 !     **************************
 !     * surface thermal upward *
