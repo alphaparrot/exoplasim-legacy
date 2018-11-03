@@ -120,11 +120,13 @@ NcFile *NetFile;
 NcVar *LonVar;
 NcVar *LatVar;
 NcVar *LevVar;
+NcVar *LevpVar;
 NcVar *TimVar;
 
 NcDim *LonDim;
 NcDim *LatDim;
 NcDim *LevDim;
+NcDim *LevpDim;
 NcDim *TimDim;
 
 #endif
@@ -307,6 +309,7 @@ class Control
    int    plev        ;
    int    loff        ;
    int    twod        ;
+   int    threedp1    ;
    int    code        ;
    valarray<double>hsp;
    valarray<double>hfc;
@@ -323,7 +326,7 @@ class Control
 #endif
 
    void Status(void);
-   void Init(const char* Idf, const char *Name, const char *Units, int TwoD);
+   void Init(const char* Idf, const char *Name, const char *Units, int TwoD, int ThreeDp1);
    void SetHSpec(int Hlev, int Plev, int Twod);
    void SetHFour(int Hlev, int Plev, int Twod);
    void SetHGrid(int Hlev, int Plev, int Twod);
@@ -353,12 +356,13 @@ void Control::Status(void)
    if (pgp.size()) printf("mean of pgp: %16.10lf\n",pgp.sum() / pgp.size());
 };
 
-void Control::Init(const char* Idf, const char *Name, const char *Units, int TwoD)
+void Control::Init(const char* Idf, const char *Name, const char *Units, int TwoD, int ThreeDp1)
 {  
    strncpy(Id,Idf  ,MAX_ID_LEN-1);
    strncpy(Na,Name ,MAX_NA_LEN-1);
    strncpy(Un,Units,MAX_UN_LEN-1);
    twod = TwoD;
+   threedp1 = ThreeDp1;
 }
 
 void Control::SetHSpec(int Hlev, int Plev, int Twod)
@@ -564,6 +568,7 @@ FILE *pliuf;
 FILE *plivf;
 
 int OutLevs;  /* number of requested output   levels  */
+int OutLevsp1; /* number of requested output   levels+1*/
 int nrpl;     /* number of requested pressure levels  */
 int nrml;     /* number of requested model    levels  */
 int nrqh;
@@ -853,6 +858,7 @@ void NetOpen(char *NetFileName)
    int londim;
 
    double *Outlev;
+   double *Outlevp;
 
    const char *title=TITLE;
    const char *conv="CF-1.0";
@@ -863,12 +869,17 @@ void NetOpen(char *NetFileName)
    int BaseDate[4];
 
    Outlev = new double[OutLevs];
+   Outlevp = new double[OutLevsp1];
 
    if (VerType == 's') // sigma
    {
       for (jlev = 0 ; jlev < OutLevs ; ++jlev)
          Outlev[jlev] = 0.5 *
          (vct[SigLevs+mol[jlev]]+vct[SigLevs+mol[jlev]+1]);
+      Outlevp[0] = 0.0;
+      Outlevp[OutLevsp1-1] = 1.0;
+      for (jlev=1; jlev < OutLevsp1-1 ; ++jlev)
+          Outlevp[jlev] = 0.5*(Outlev[jlev-1]+Outlev[jlev]);
    }
    else // pressure levels [hPa]
    {
@@ -904,11 +915,13 @@ void NetOpen(char *NetFileName)
    LonDim = NetFile->add_dim("lon" , londim);
    LatDim = NetFile->add_dim("lat" , Lats  );
    LevDim = NetFile->add_dim("lev" , OutLevs  );
+   LevpDim = NetFile->add_dim("levp" , OutLevsp1 );
    TimDim = NetFile->add_dim("time"        );
 
    LonVar = NetFile->add_var("lon" , ncDouble, LonDim);
    LatVar = NetFile->add_var("lat" , ncDouble, LatDim);
    LevVar = NetFile->add_var("lev" , ncDouble, LevDim);
+   LevpVar = NetFile->add_var("levp" , ncDouble, LevpDim);
    TimVar = NetFile->add_var("time", ncDouble, TimDim);
 
    LonVar->add_att("axis"         ,"X"            );
@@ -928,6 +941,11 @@ void NetOpen(char *NetFileName)
       LevVar->add_att("standard_name","atmosphere_sigma_coordinate");
       LevVar->add_att("positive"     ,"down"                       );
       LevVar->add_att("units"        ,"level"                      );
+      LevpVar->add_att("axis"         ,"Z"                          );
+      LevpVar->add_att("long_name"    ,"sigma at layer interfaces"  );
+      LevpVar->add_att("standard_name","atmosphere_sigma_coordinate");
+      LevpVar->add_att("positive"     ,"down"                       );
+      LevpVar->add_att("units"        ,"level"                      );
    }
    else // pressure level
    {
@@ -935,6 +953,10 @@ void NetOpen(char *NetFileName)
       LevVar->add_att("long_name"    ,"pressure"     );
       LevVar->add_att("standard_name","pressure"     );
       LevVar->add_att("units"        ,"hPa"          );
+      LevpVar->add_att("axis"         ,"Z"            );
+      LevpVar->add_att("long_name"    ,"pressure"     );
+      LevpVar->add_att("standard_name","pressure"     );
+      LevpVar->add_att("units"        ,"hPa"          );
    }
 
    TimVar->add_att("calendar"     ,cale           );
@@ -954,6 +976,7 @@ void NetOpen(char *NetFileName)
    LonVar->put(Outlon->Lam,londim );
    LatVar->put(Outlat->Phi,Lats   );
    LevVar->put(Outlev     ,OutLevs);
+   LevpVar->put(Outlevp   ,OutLevsp1);
 
 }
 
@@ -974,10 +997,20 @@ void NetVarDefine(void)
       }
       else
       {
-         if (RealSize == 8)
-            All[jvar].NetVar = NetFile->add_var(All[jvar].Id,ncDouble,TimDim,LevDim,LatDim,LonDim);
+         if (All[jvar].threedp1)
+         {
+            if (RealSize == 8)
+                All[jvar].NetVar = NetFile->add_var(All[jvar].Id,ncDouble,TimDim,LevpDim,LatDim,LonDim);
+            else
+                All[jvar].NetVar = NetFile->add_var(All[jvar].Id,ncFloat ,TimDim,LevpDim,LatDim,LonDim);
+         }
          else
-            All[jvar].NetVar = NetFile->add_var(All[jvar].Id,ncFloat ,TimDim,LevDim,LatDim,LonDim);
+         {
+            if (RealSize == 8)
+                All[jvar].NetVar = NetFile->add_var(All[jvar].Id,ncDouble,TimDim,LevDim,LatDim,LonDim);
+            else
+                All[jvar].NetVar = NetFile->add_var(All[jvar].Id,ncFloat ,TimDim,LevDim,LatDim,LonDim);
+         }
       }
       All[jvar].NetVar->add_att("long_name"    ,All[jvar].Na);
       All[jvar].NetVar->add_att("standard_name",All[jvar].Na);
@@ -1025,13 +1058,27 @@ void NetWrite32(int code, double *Var)
    }
    else
    {
-      for (jlev = 0 ; jlev < OutLevs ; ++jlev, Var += DimGP)
+      if (All[code].threedp1)
       {
-         NetBuffer(Var,Record_float);
-         if (code==WCODE)
-            NetScale(Record_float,Lats*(Lons+Cyclical),0.01);
-         All[code].NetVar->set_cur(OutputCount,jlev);
-         All[code].NetVar->put(Record_float,1,1,Lats,Lons+Cyclical);
+        for (jlev = 0 ; jlev < OutLevsp1 ; ++jlev, Var += DimGP)
+        {
+            NetBuffer(Var,Record_float);
+            if (code==WCODE)
+                NetScale(Record_float,Lats*(Lons+Cyclical),0.01);
+            All[code].NetVar->set_cur(OutputCount,jlev);
+            All[code].NetVar->put(Record_float,1,1,Lats,Lons+Cyclical);
+        }
+      }
+      else
+      {
+        for (jlev = 0 ; jlev < OutLevs ; ++jlev, Var += DimGP)
+        {
+            NetBuffer(Var,Record_float);
+            if (code==WCODE)
+                NetScale(Record_float,Lats*(Lons+Cyclical),0.01);
+            All[code].NetVar->set_cur(OutputCount,jlev);
+            All[code].NetVar->put(Record_float,1,1,Lats,Lons+Cyclical);
+        }
       }
    }
 }
@@ -1051,13 +1098,27 @@ void NetWrite64(int code, double *Var)
    }
    else
    {
-      for (jlev = 0 ; jlev < OutLevs ; ++jlev, Var += DimGP)
+      if (All[code].threedp1)
       {
-         memcpy(Record_double,Var,DimGP * sizeof(double));
-         if (code==WCODE)
-            NetScale(Record_double,Lats*(Lons+Cyclical),0.01);
-         All[code].NetVar->set_cur(OutputCount,jlev);
-         All[code].NetVar->put(Record_double,1,1,Lats,Lons+Cyclical);
+        for (jlev = 0 ; jlev < OutLevsp1 ; ++jlev, Var += DimGP)
+        {
+            memcpy(Record_double,Var,DimGP * sizeof(double));
+            if (code==WCODE)
+                NetScale(Record_double,Lats*(Lons+Cyclical),0.01);
+            All[code].NetVar->set_cur(OutputCount,jlev);
+            All[code].NetVar->put(Record_double,1,1,Lats,Lons+Cyclical);
+        }
+      }
+      else
+      {
+        for (jlev = 0 ; jlev < OutLevs ; ++jlev, Var += DimGP)
+        {
+            memcpy(Record_double,Var,DimGP * sizeof(double));
+            if (code==WCODE)
+                NetScale(Record_double,Lats*(Lons+Cyclical),0.01);
+            All[code].NetVar->set_cur(OutputCount,jlev);
+            All[code].NetVar->put(Record_double,1,1,Lats,Lons+Cyclical);
+        }
       }
    }
 }
@@ -1121,7 +1182,7 @@ public:
    ServiceGrid(FILE *, int, int);
   ~ServiceGrid(void);
    void Write(int *, double *);
-   void WriteCode(int code, double *field, int twod);
+   void WriteCode(int code, double *field, int twod, int threedp1);
    void Write_hspec(void);
    void Write_pspec(void);
    void Write_hfour(void);
@@ -1222,7 +1283,7 @@ void ServiceGrid::Write(int *Head, double *Array)
    }
 }
    
-void ServiceGrid::WriteCode(int code, double *field, int twod)
+void ServiceGrid::WriteCode(int code, double *field, int twod, int threedp1)
 {
    int jlev;
 
@@ -1256,7 +1317,7 @@ void ServiceGrid::Write_hspec(void)
 {
    for (int code = 0; code < CODES; code++)
       if (All[code].selected)
-         WriteCode(code,&All[code].hsp[0],All[code].twod);
+         WriteCode(code,&All[code].hsp[0],All[code].twod,All[code].threedp1);
 }
 
 
@@ -1264,7 +1325,7 @@ void ServiceGrid::Write_pspec(void)
 {
    for (int code = 0; code < CODES; code++)
       if (All[code].selected)
-         WriteCode(code,&All[code].psp[0],All[code].twod);
+         WriteCode(code,&All[code].psp[0],All[code].twod,All[code].threedp1);
 }
 
 
@@ -1365,7 +1426,7 @@ void ServiceGrid::Write_hfour(void)
 
    for (code = 0; code < CODES; code++)
    if (All[code].selected)
-      WriteCode(code,&All[code].hfc[0],All[code].twod);
+      WriteCode(code,&All[code].hfc[0],All[code].twod,All[code].threedp1);
 }
 
 
@@ -1375,7 +1436,7 @@ void ServiceGrid::Write_pfour(void)
 
    for (code = 0; code < CODES; code++)
    if (All[code].selected)
-      WriteCode(code,&All[code].pfc[0],All[code].twod);
+      WriteCode(code,&All[code].pfc[0],All[code].twod,All[code].threedp1);
 }
 
 
@@ -1401,7 +1462,7 @@ void ServiceGrid::Write_hgrid(void)
       }
       else 
 #endif
-         WriteCode(code,&All[code].hgp[0],All[code].twod);
+         WriteCode(code,&All[code].hgp[0],All[code].twod,All[code].threedp1);
    }
    OutputCount++;
 }
@@ -1422,7 +1483,7 @@ void ServiceGrid::Write_pgrid(void)
       }
       else 
 #endif
-         WriteCode(code,&All[code].pgp[0],All[code].twod);
+         WriteCode(code,&All[code].pgp[0],All[code].twod,All[code].threedp1);
    }
    OutputCount++;
 }
@@ -1434,7 +1495,7 @@ class ServiceSect : public ServiceGrid
 public:
    ServiceSect(FILE *, int, int);
   ~ServiceSect(void);
-   void WriteCode(int code, double *field, int twod);
+   void WriteCode(int code, double *field, int twod, int threedp1);
    void Write_hfour(void);
    void Write_pfour(void);
 };
@@ -1450,7 +1511,7 @@ ServiceSect::~ServiceSect(void)
    delete Buffer;
 }
 
-void ServiceSect::WriteCode(int code, double *field, int twod)
+void ServiceSect::WriteCode(int code, double *field, int twod, int threedp1)
 {
    int jlev;
 
@@ -1487,7 +1548,7 @@ void ServiceSect::Write_hfour(void)
          NetWriteSection(code,&All[code].hfc[0]);
       else 
 #endif
-         WriteCode(code,&All[code].hfc[0],All[code].twod);
+         WriteCode(code,&All[code].hfc[0],All[code].twod, All[code].threedp1);
    }
    OutputCount++;
 }
@@ -1505,7 +1566,7 @@ void ServiceSect::Write_pfour(void)
          NetWriteSection(code,&All[code].pfc[0]);
       else 
 #endif
-         WriteCode(code,&All[code].pfc[0],All[code].twod);
+         WriteCode(code,&All[code].pfc[0],All[code].twod,All[code].threedp1);
    }
    OutputCount++;
 }
@@ -5484,101 +5545,101 @@ void InitAll(void)
    {
       sprintf(Id,"var%3.3d",code);
       sprintf(Na,"Code[%d]",code);
-      All[code].Init(Id,Na,"1",0);
+      All[code].Init(Id,Na,"1",0,0);
       All[code].code = code;
    }
 
-   All[110].Init("mld"  ,"mixed_layer_depth"               ,"m"        ,1); // Not standard
-   All[129].Init("sg"   ,"surface_geopotential"            ,"m2 s-2"   ,1);
-   All[130].Init("ta"   ,"air_temperature"                 ,"K"        ,0);
-   All[131].Init("ua"   ,"eastward_wind"                   ,"m s-1"    ,0);
-   All[132].Init("va"   ,"northward_wind"                  ,"m s-1"    ,0);
-   All[133].Init("hus"  ,"specific_humidity"               ,"1"        ,0);
-   All[134].Init("ps"   ,"surface_air_pressure"            ,"hPa"      ,1);
-   All[135].Init("wap"  ,"vertical_air_velocity"           ,"Pa s-1"   ,0); // shortened
-   All[137].Init("wa"   ,"upward_wind"                     ,"m s-1"    ,0); // Not standard
-   All[138].Init("zeta" ,"atm_relative_vorticity"          ,"s-1"      ,0);
-   All[139].Init("ts"   ,"surface_temperature"             ,"K"        ,1);
-   All[140].Init("mrso" ,"lwe_of_soil_moisture_content"    ,"m"        ,1); // shortened
-   All[141].Init("snd"  ,"surface_snow_thickness"          ,"m"        ,1);
-   All[142].Init("prl"  ,"lwe_of_large_scale_precipitation","m s-1"    ,1); // rate !!
-   All[143].Init("prc"  ,"convective_precipitation_rate"   ,"m s-1"    ,1);
-   All[144].Init("prsn" ,"lwe_of_snowfall_amount"          ,"m s-1"    ,1); // rate !!
-   All[145].Init("bld"  ,"dissipation_in_atmosphere_bl"    ,"W m-2"    ,1); // shortened
-   All[146].Init("hfss" ,"surface_sensible_heat_flux"      ,"W m-2"    ,1); // shortened
-   All[147].Init("hfls" ,"surface_latent_heat_flux"        ,"W m-2"    ,1); // shortened
-   All[148].Init("stf"  ,"streamfunction"                  ,"m2 s-2"   ,0); // Not standard
-   All[149].Init("psi"  ,"velocity_potential"              ,"m2 s-2"   ,0); // Not standard
-   All[151].Init("psl"  ,"air_pressure_at_sea_level"       ,"hPa"      ,1);
-   All[152].Init("pl"   ,"log_surface_pressure"            ,"1"        ,1);
-   All[155].Init("d"    ,"divergence_of_wind"              ,"s-1"      ,0);
-   All[156].Init("zg"   ,"geopotential_height"             ,"m"        ,0);
-   All[157].Init("hur"  ,"relative_humidity"               ,"1"        ,0);
-   All[158].Init("tps"  ,"tendency_of_surface_air_pressure","Pa s-1"   ,1);
-   All[159].Init("u3"   ,"ustar"                           ,"m3 s-3"   ,1); // Not standard
-   All[160].Init("mrro" ,"surface_runoff"                  ,"m s-1"    ,1); // Not standard
-   All[161].Init("clw"  ,"liquid_water_content"            ,"1"        ,0); // Not standard
-   All[162].Init("cl"   ,"cloud_area_fraction_in_layer"    ,"1"        ,0); // Not standard
-   All[163].Init("tcc"  ,"total_cloud_cover"               ,"1"        ,1); // Not standard
-   All[164].Init("clt"  ,"cloud_area_fraction"             ,"1"        ,1);
-   All[165].Init("uas"  ,"eastward_wind_10m"               ,"m s-1"    ,1); // shortened
-   All[166].Init("vas"  ,"northward_wind_10m"              ,"m s-1"    ,1); // shortened
-   All[167].Init("tas"  ,"air_temperature_2m"              ,"K"        ,1); // shortened
-   All[168].Init("td2m" ,"dew_point_temperature_2m"        ,"K"        ,1); // shortened
-   All[169].Init("tsa"  ,"surface_temperature_accumulated" ,"K"        ,1); // Not standard
-   All[170].Init("tsod" ,"deep_soil_temperature"           ,"K"        ,1);
-   All[171].Init("dsw"  ,"deep_soil_wetness"               ,"1"        ,1);
-   All[172].Init("lsm"  ,"land_binary_mask"                ,"1"        ,1);
-   All[173].Init("z0"   ,"surface_roughness_length"        ,"m"        ,1);
-   All[174].Init("alb"  ,"surface_albedo"                  ,"1"        ,1); // Not standard
-   All[175].Init("as"   ,"surface_albedo"                  ,"1"        ,1); // Not standard
-   All[176].Init("rss"  ,"surface_net_shortwave_flux"      ,"W m-2"    ,1); // shortened
-   All[177].Init("rls"  ,"surface_net_longwave_flux"       ,"W m-2"    ,1); // shortened
-   All[178].Init("rst"  ,"toa_net_shortwave_flux"          ,"W m-2"    ,1); // shortened
-   All[179].Init("rlut" ,"toa_net_longwave_flux"           ,"W m-2"    ,1); // shortened
-   All[180].Init("tauu" ,"surface_eastward_stress"         ,"Pa"       ,1); // shortened
-   All[181].Init("tauv" ,"surface_northward_stress"        ,"Pa"       ,1); // shortened
-   All[182].Init("evap" ,"lwe_of_water_evaporation"        ,"m s-1"    ,1); // rate !!
-   All[183].Init("tso"  ,"climate_deep_soil_temperature"   ,"K"        ,1); // Not standard
-   All[184].Init("wsoi" ,"climate_deep_soil_wetness"       ,"1"        ,1);
-   All[199].Init("vegc" ,"vegetation_cover"                ,"1"        ,1); // Not standard
-   All[203].Init("rsut" ,"toa_outgoing_shortwave_flux"     ,"W m-2"    ,1); // Not standard
-   All[204].Init("ssru" ,"surface_solar_radiation_upward"  ,"W m-2"    ,1); // Not standard
-   All[205].Init("stru" ,"surface_thermal_radiation_upward","W m-2"    ,1); // Not standard
-   All[207].Init("tso2" ,"soil_temperature_level_2"        ,"K"        ,1); // Not standard
-   All[208].Init("tso3" ,"soil_temperature_level_3"        ,"K"        ,1); // Not standard
-   All[209].Init("tso4" ,"soil_temperature_level_4"        ,"K"        ,1); // Not standard
-   All[210].Init("sic"  ,"sea_ice_cover"                   ,"1"        ,1); // Not standard
-   All[211].Init("sit"  ,"sea_ice_thickness"               ,"m"        ,1); // Not standard
-   All[212].Init("vegf" ,"forest_cover"                    ,"1"        ,1); // Not standard
-   All[218].Init("snm"  ,"snow_melt"                       ,"m s-1"    ,1); // Not standard
-   All[221].Init("sndc" ,"snow_depth_change"               ,"m s-1"    ,1); // Not standard
-   All[230].Init("prw"  ,"atmosphere_water_vapor_content"  ,"kg m-2"   ,1); // Not standard
-   All[232].Init("glac" ,"glacier_cover"                   ,"1"        ,1); // Not standard
-   All[238].Init("tsn"  ,"snow_temperature"                ,"K"        ,1);
-   All[259].Init("spd"  ,"wind_speed"                      ,"m s-1"    ,0); // Not standard
-   All[260].Init("pr"   ,"total_precipitation"             ,"m s-1"    ,1); // Not standard
-   All[261].Init("ntr"  ,"net_top_radiation"               ,"W m-2"    ,1); // Not standard
-   All[262].Init("nbr"  ,"net_bottom_radiation"            ,"W m-2"    ,1); // Not standard
-   All[263].Init("hfns" ,"surface_downward_heat_flux"      ,"W m-2"    ,1); // shortened
-   All[264].Init("wfn"  ,"net_water_flux"                  ,"m s-1"    ,1); // Not standard
-   All[265].Init("dqo3" ,"ozone_concentration"             ,"unknown"  ,0); // Not standard (AYP)
-   All[266].Init("lwth" ,"local_weathering"                ,"W_earth"  ,1); // Not standard (AYP)
-   All[267].Init("grnz" ,"ground_geopotential"             ,"m2 s-2"   ,1); // Not standard (AYP)
-   All[301].Init("icez" ,"glacier_geopotential"            ,"m2 s-2"   ,1); // Not standard (AYP)
-   All[302].Init("netz" ,"net_geopotential"                ,"m2 s-2"   ,1); // Not standard (AYP)
-   All[273].Init("dpdx" ,"d(ps)/dx"                        ,"Pa m-1"   ,1); // Not standard
-   All[274].Init("dpdy" ,"d(ps)/dy"                        ,"Pa m-1"   ,1); // Not standard
-   All[277].Init("hlpr" ,"half_level_pressure"             ,"Pa"       ,0); // Not standard
-   All[278].Init("flpr" ,"full_level_pressure"             ,"Pa"       ,0); // Not standard
-   All[318].Init("czen" ,"cosine_solar_zenith_angle"       ,"nondimen" ,1); // Not standard (AYP)
-   All[319].Init("wthpr","weatherable_precipitation"       ,"mm day-1" ,1); // Not standard (AYP)
-   All[320].Init("mint" ,"minimum_temperature"             ,"K"        ,1); // Not standard (AYP)
-   All[321].Init("maxt" ,"maximum_temperature"             ,"K"        ,1); // Not standard (AYP)
-   All[404].Init("dfu"  ,"shortwave_up"                    ,"W m-2"    ,0); // Not standard (AYP)
-   All[405].Init("dfd"  ,"shortwave_down"                  ,"W m-2"    ,0); // Not standard (AYP)
-   All[406].Init("dftu"  ,"longwave_up"                    ,"W m-2"    ,0); // Not standard (AYP)
-   All[407].Init("dftd"  ,"longwave_down"                  ,"W m-2"    ,0); // Not standard (AYP)
+   All[110].Init("mld"  ,"mixed_layer_depth"               ,"m"        ,1,0); // Not standard
+   All[129].Init("sg"   ,"surface_geopotential"            ,"m2 s-2"   ,1,0);
+   All[130].Init("ta"   ,"air_temperature"                 ,"K"        ,0,0);
+   All[131].Init("ua"   ,"eastward_wind"                   ,"m s-1"    ,0,0);
+   All[132].Init("va"   ,"northward_wind"                  ,"m s-1"    ,0,0);
+   All[133].Init("hus"  ,"specific_humidity"               ,"1"        ,0,0);
+   All[134].Init("ps"   ,"surface_air_pressure"            ,"hPa"      ,1,0);
+   All[135].Init("wap"  ,"vertical_air_velocity"           ,"Pa s-1"   ,0,0); // shortened
+   All[137].Init("wa"   ,"upward_wind"                     ,"m s-1"    ,0,0); // Not standard
+   All[138].Init("zeta" ,"atm_relative_vorticity"          ,"s-1"      ,0,0);
+   All[139].Init("ts"   ,"surface_temperature"             ,"K"        ,1,0);
+   All[140].Init("mrso" ,"lwe_of_soil_moisture_content"    ,"m"        ,1,0); // shortened
+   All[141].Init("snd"  ,"surface_snow_thickness"          ,"m"        ,1,0);
+   All[142].Init("prl"  ,"lwe_of_large_scale_precipitation","m s-1"    ,1,0); // rate !!
+   All[143].Init("prc"  ,"convective_precipitation_rate"   ,"m s-1"    ,1,0);
+   All[144].Init("prsn" ,"lwe_of_snowfall_amount"          ,"m s-1"    ,1,0); // rate !!
+   All[145].Init("bld"  ,"dissipation_in_atmosphere_bl"    ,"W m-2"    ,1,0); // shortened
+   All[146].Init("hfss" ,"surface_sensible_heat_flux"      ,"W m-2"    ,1,0); // shortened
+   All[147].Init("hfls" ,"surface_latent_heat_flux"        ,"W m-2"    ,1,0); // shortened
+   All[148].Init("stf"  ,"streamfunction"                  ,"m2 s-2"   ,0,0); // Not standard
+   All[149].Init("psi"  ,"velocity_potential"              ,"m2 s-2"   ,0,0); // Not standard
+   All[151].Init("psl"  ,"air_pressure_at_sea_level"       ,"hPa"      ,1,0);
+   All[152].Init("pl"   ,"log_surface_pressure"            ,"1"        ,1,0);
+   All[155].Init("d"    ,"divergence_of_wind"              ,"s-1"      ,0,0);
+   All[156].Init("zg"   ,"geopotential_height"             ,"m"        ,0,0);
+   All[157].Init("hur"  ,"relative_humidity"               ,"1"        ,0,0);
+   All[158].Init("tps"  ,"tendency_of_surface_air_pressure","Pa s-1"   ,1,0);
+   All[159].Init("u3"   ,"ustar"                           ,"m3 s-3"   ,1,0); // Not standard
+   All[160].Init("mrro" ,"surface_runoff"                  ,"m s-1"    ,1,0); // Not standard
+   All[161].Init("clw"  ,"liquid_water_content"            ,"1"        ,0,0); // Not standard
+   All[162].Init("cl"   ,"cloud_area_fraction_in_layer"    ,"1"        ,0,0); // Not standard
+   All[163].Init("tcc"  ,"total_cloud_cover"               ,"1"        ,1,0); // Not standard
+   All[164].Init("clt"  ,"cloud_area_fraction"             ,"1"        ,1,0);
+   All[165].Init("uas"  ,"eastward_wind_10m"               ,"m s-1"    ,1,0); // shortened
+   All[166].Init("vas"  ,"northward_wind_10m"              ,"m s-1"    ,1,0); // shortened
+   All[167].Init("tas"  ,"air_temperature_2m"              ,"K"        ,1,0); // shortened
+   All[168].Init("td2m" ,"dew_point_temperature_2m"        ,"K"        ,1,0); // shortened
+   All[169].Init("tsa"  ,"surface_temperature_accumulated" ,"K"        ,1,0); // Not standard
+   All[170].Init("tsod" ,"deep_soil_temperature"           ,"K"        ,1,0);
+   All[171].Init("dsw"  ,"deep_soil_wetness"               ,"1"        ,1,0);
+   All[172].Init("lsm"  ,"land_binary_mask"                ,"1"        ,1,0);
+   All[173].Init("z0"   ,"surface_roughness_length"        ,"m"        ,1,0);
+   All[174].Init("alb"  ,"surface_albedo"                  ,"1"        ,1,0); // Not standard
+   All[175].Init("as"   ,"surface_albedo"                  ,"1"        ,1,0); // Not standard
+   All[176].Init("rss"  ,"surface_net_shortwave_flux"      ,"W m-2"    ,1,0); // shortened
+   All[177].Init("rls"  ,"surface_net_longwave_flux"       ,"W m-2"    ,1,0); // shortened
+   All[178].Init("rst"  ,"toa_net_shortwave_flux"          ,"W m-2"    ,1,0); // shortened
+   All[179].Init("rlut" ,"toa_net_longwave_flux"           ,"W m-2"    ,1,0); // shortened
+   All[180].Init("tauu" ,"surface_eastward_stress"         ,"Pa"       ,1,0); // shortened
+   All[181].Init("tauv" ,"surface_northward_stress"        ,"Pa"       ,1,0); // shortened
+   All[182].Init("evap" ,"lwe_of_water_evaporation"        ,"m s-1"    ,1,0); // rate !!
+   All[183].Init("tso"  ,"climate_deep_soil_temperature"   ,"K"        ,1,0); // Not standard
+   All[184].Init("wsoi" ,"climate_deep_soil_wetness"       ,"1"        ,1,0);
+   All[199].Init("vegc" ,"vegetation_cover"                ,"1"        ,1,0); // Not standard
+   All[203].Init("rsut" ,"toa_outgoing_shortwave_flux"     ,"W m-2"    ,1,0); // Not standard
+   All[204].Init("ssru" ,"surface_solar_radiation_upward"  ,"W m-2"    ,1,0); // Not standard
+   All[205].Init("stru" ,"surface_thermal_radiation_upward","W m-2"    ,1,0); // Not standard
+   All[207].Init("tso2" ,"soil_temperature_level_2"        ,"K"        ,1,0); // Not standard
+   All[208].Init("tso3" ,"soil_temperature_level_3"        ,"K"        ,1,0); // Not standard
+   All[209].Init("tso4" ,"soil_temperature_level_4"        ,"K"        ,1,0); // Not standard
+   All[210].Init("sic"  ,"sea_ice_cover"                   ,"1"        ,1,0); // Not standard
+   All[211].Init("sit"  ,"sea_ice_thickness"               ,"m"        ,1,0); // Not standard
+   All[212].Init("vegf" ,"forest_cover"                    ,"1"        ,1,0); // Not standard
+   All[218].Init("snm"  ,"snow_melt"                       ,"m s-1"    ,1,0); // Not standard
+   All[221].Init("sndc" ,"snow_depth_change"               ,"m s-1"    ,1,0); // Not standard
+   All[230].Init("prw"  ,"atmosphere_water_vapor_content"  ,"kg m-2"   ,1,0); // Not standard
+   All[232].Init("glac" ,"glacier_cover"                   ,"1"        ,1,0); // Not standard
+   All[238].Init("tsn"  ,"snow_temperature"                ,"K"        ,1,0);
+   All[259].Init("spd"  ,"wind_speed"                      ,"m s-1"    ,0,0); // Not standard
+   All[260].Init("pr"   ,"total_precipitation"             ,"m s-1"    ,1,0); // Not standard
+   All[261].Init("ntr"  ,"net_top_radiation"               ,"W m-2"    ,1,0); // Not standard
+   All[262].Init("nbr"  ,"net_bottom_radiation"            ,"W m-2"    ,1,0); // Not standard
+   All[263].Init("hfns" ,"surface_downward_heat_flux"      ,"W m-2"    ,1,0); // shortened
+   All[264].Init("wfn"  ,"net_water_flux"                  ,"m s-1"    ,1,0); // Not standard
+   All[265].Init("dqo3" ,"ozone_concentration"             ,"unknown"  ,0,0); // Not standard (AYP)
+   All[266].Init("lwth" ,"local_weathering"                ,"W_earth"  ,1,0); // Not standard (AYP)
+   All[267].Init("grnz" ,"ground_geopotential"             ,"m2 s-2"   ,1,0); // Not standard (AYP)
+   All[301].Init("icez" ,"glacier_geopotential"            ,"m2 s-2"   ,1,0); // Not standard (AYP)
+   All[302].Init("netz" ,"net_geopotential"                ,"m2 s-2"   ,1,0); // Not standard (AYP)
+   All[273].Init("dpdx" ,"d(ps)/dx"                        ,"Pa m-1"   ,1,0); // Not standard
+   All[274].Init("dpdy" ,"d(ps)/dy"                        ,"Pa m-1"   ,1,0); // Not standard
+   All[277].Init("hlpr" ,"half_level_pressure"             ,"Pa"       ,0,0); // Not standard
+   All[278].Init("flpr" ,"full_level_pressure"             ,"Pa"       ,0,0); // Not standard
+   All[318].Init("czen" ,"cosine_solar_zenith_angle"       ,"nondimen" ,1,0); // Not standard (AYP)
+   All[319].Init("wthpr","weatherable_precipitation"       ,"mm day-1" ,1,0); // Not standard (AYP)
+   All[320].Init("mint" ,"minimum_temperature"             ,"K"        ,1,0); // Not standard (AYP)
+   All[321].Init("maxt" ,"maximum_temperature"             ,"K"        ,1,0); // Not standard (AYP)
+   All[404].Init("dfu"  ,"shortwave_up"                    ,"W m-2"    ,0,1); // Not standard (AYP)
+   All[405].Init("dfd"  ,"shortwave_down"                  ,"W m-2"    ,0,1); // Not standard (AYP)
+   All[406].Init("dftu"  ,"longwave_up"                    ,"W m-2"    ,0,1); // Not standard (AYP)
+   All[407].Init("dftd"  ,"longwave_down"                  ,"W m-2"    ,0,1); // Not standard (AYP)
 }
 
 void Usage(void)
@@ -5754,6 +5815,7 @@ void parini(void)
       else   /* No sigma levels specified -> select all */
       {
          OutLevs = nrml = SigLevs;
+         OutLevsp1 = SigLevs+1;
          for (i=0 ; i < OutLevs ; ++i)
          {
             level[i] = mol[i] = mom[i+1] = i+1;
@@ -5768,6 +5830,7 @@ void parini(void)
          0.5 * (vct[SigLevs+mol[i]]+vct[SigLevs+mol[i]+1]));
          LeftText(tb);
       }
+      
    }
    else             /* pressure levels */
    {
