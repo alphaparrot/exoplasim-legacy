@@ -44,6 +44,7 @@
       integer :: nlwr    = 1      ! switch for lwr (1/0=yes/no)
       integer :: nswrcl  = 1      ! switch for computed cloud props.(1/0=y/n)
       integer :: nrscat  = 1      ! switch for rayleigh scat. (1/0=yes/no)
+      integer :: newrsc  = 0      ! switch for layer-by-layer rayleigh scat. (1/0=yes/no)
       integer :: ndcycle = 1      ! switch for daily cycle of insolation
                                   !  0 = daily mean insolation)
       integer :: ncstsol = 0      ! switch to set constant insolation
@@ -143,7 +144,7 @@
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
      &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown          &
-     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale             &
+     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc      &
      &               ,nsol,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn
 !
@@ -936,6 +937,9 @@
       parameter(zmbar=1.9)      ! magnification factor ozon
       parameter(zro3=2.14)      ! ozon density (kg/m**3 STP)
       parameter(zfo3=100./zro3) ! transfere o3 to cm STP
+      parameter(aa=0.2542857142857143)
+      parameter(bb=0.8229693877551021)
+      parameter(c0=0.14997959183673468)
 !
       real zt1(NHOR,NLEP),zt2(NHOR,NLEP)    ! transmissivities 1-l
       real zr1s(NHOR,NLEP),zr2s(NHOR,NLEP)  ! reflexivities l-1 (scattered)
@@ -961,6 +965,7 @@
       real zmu0(NHOR)              ! zenit angle
       real zmu1(NHOR)              ! zenit angle
       real zcs(NHOR)               ! clear sky part
+      real zscf(NHOR)              ! Pressure scale factor
       real zm(NHOR)                ! magnification factor
       real zo3(NHOR)               ! ozon amount
       real zo3t(NHOR)              ! total ozon amount (top-sfc)
@@ -1141,8 +1146,10 @@
         zwvl(:,jlev)=zwvt(:)
         zywvl(:,jlev)=zywvt(:)
         zcs(:)=zcs(:)*(1.-dcc(:,jlev))
-        zrcs(:,jlev)=0.
-        zrcsu(:,jlev)=0.
+        zrcs(:,jlev) = (aa/(1.+bb*zmu0(:))*zcs+c0*(1.-zcs(:)-dcc(:,NLEV)))   &
+     &                  *dsigma(jlev)*(dp(:)/101100.0)*nrscat*newrsc
+        zrcsu(:,jlev)= c0*(1.-dcc(:,NLEV))*dsigma(jlev)*(dp(:)/101100.0)*nrscat*newrsc
+        
        endwhere
       end do
 !
@@ -1175,9 +1182,19 @@
 !
 !     clear sky scattering (Rayleigh scatterin lower most level only)
 !
-       zrcs(:,NLEV)=(0.219/(1.+0.816*zmu0(:))*zcs(:)                    &
-     &              +0.144*(1.-zcs(:)-dcc(:,NLEV)))*nrscat
-       zrcsu(:,NLEV)=0.144*(1.-dcc(:,NLEV))*nrscat
+       zrcs(:,NLEV) = zrcs(:,NLEV)*newrsc
+       zrcsu(:,NLEV) = zrcsu(:,NLEV)*newrsc
+!
+!      R = 1 - e^((ps/p0)*ln(T0))
+!
+       zscf(:) = dp(:)/101100.0
+       zrcsu(:,NLEV)=zrcsu(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-0.144))) &
+     &                                *(1-newrsc)*nrscat*(1-dcc(:,NLEV))
+       zrcs(:,NLEV)= zrcs(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-(0.219/(1.+0.816*zmu0(:))))))&
+     &                              * zcs(:)*(1-newrsc)*nrscat                    &
+     &                            + (1.0-exp(zscf(:)*log(1.0-0.144)))*(1.-zcs(:)-dcc(:,NLEV))&
+     &                              * nrscat*(1-newrsc)
+       
       endwhere
 !
       do jlev=1,NLEV
@@ -1196,6 +1213,7 @@
 !     cloudy part: cloud albedo
 !
         zrb1(:,jlev)=zrcs(:,jlev)+zrcl1(:,jlev)*dcc(:,jlev)
+        !zrb1(:,jlev) = zta1*zrcs(:,jlev)+(1-zta1)*zrcsu(:,jlev)+zrcl1(:,jlev)*dcc(:,jlev)
         zrb1s(:,jlev)=zrcsu(:,jlev)+zrcl1s(:,jlev)*dcc(:,jlev)
 !
 !     b) T
