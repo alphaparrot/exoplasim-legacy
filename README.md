@@ -27,3 +27,5 @@ physics such as spreading, flow, and bedrock denudation.
 
 The framework for the glacial model may be adapted in the future to enable
 orogeny, such as might be expected from a coupled plate-tectonics model.
+
+[![DOI](https://zenodo.org/badge/97154456.svg)](https://zenodo.org/badge/latestdoi/97154456)
