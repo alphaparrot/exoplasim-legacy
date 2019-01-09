@@ -42,6 +42,7 @@
       integer :: nsol    = 1      ! switch for solang (1/0=yes/no)
       integer :: nswr    = 1      ! switch for swr (1/0=yes/no)
       integer :: nlwr    = 1      ! switch for lwr (1/0=yes/no)
+      integer :: nclouds = 1      ! switch for cloud sw effects (1/0=yes/no)
       integer :: nswrcl  = 1      ! switch for computed cloud props.(1/0=y/n)
       integer :: nrscat  = 1      ! switch for rayleigh scat. (1/0=yes/no)
       integer :: newrsc  = 0      ! switch for layer-by-layer rayleigh scat. (1/0=yes/no)
@@ -145,7 +146,7 @@
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
      &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown          &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc      &
-     &               ,nsol,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
+     &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn
 !
 !     namelist parameter:
@@ -305,6 +306,7 @@
       call mpbci(nsol)
       call mpbci(nrscat)
       call mpbci(nswrcl)
+      call mpbci(nclouds)
 
 !
 !     determine orbital parameters
@@ -1041,6 +1043,7 @@
 !
 !     prescribed
 !
+      if (nclouds==1) then
       if (nswrcl == 0) then
        do jlev=1,NLEV
         if(sigma(jlev) <= 1./3.) then
@@ -1116,6 +1119,7 @@
         zcs(:)=zcs(:)*(1.-dcc(:,jlev))
        enddo ! jlev
       endif ! (nswrcl == 0)
+      endif ! (nclouds == 1)
 !
 !     magnification factor
 !
@@ -1145,8 +1149,8 @@
      &          +(1.-zcs(:))*(zywvt(:)+zbetta*zwv(:))
         zwvl(:,jlev)=zwvt(:)
         zywvl(:,jlev)=zywvt(:)
-        zcs(:)=zcs(:)*(1.-dcc(:,jlev))
-        zrcs(:,jlev) = (aa/(1.+bb*zmu0(:))*zcs+c0*(1.-zcs(:)-dcc(:,NLEV)))   &
+        zcs(:)=zcs(:)*(1.-dcc(:,jlev)*nclouds)
+        zrcs(:,jlev) = (aa/(1.+bb*zmu0(:))*zcs+c0*(1.-zcs(:)-dcc(:,NLEV)*nclouds))   &
      &                  *dsigma(jlev)*(dp(:)/101100.0)*nrscat*newrsc
         zrcsu(:,jlev)= c0*(1.-dcc(:,NLEV))*dsigma(jlev)*(dp(:)/101100.0)*nrscat*newrsc
         
@@ -1189,7 +1193,7 @@
 !
        zscf(:) = dp(:)/101100.0
        zrcsu(:,NLEV)=zrcsu(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-0.144))) &
-     &                                *(1-newrsc)*nrscat*(1-dcc(:,NLEV))
+     &                                *(1-newrsc)*nrscat*(1-dcc(:,NLEV)*nclouds)
        zrcs(:,NLEV)= zrcs(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-(0.219/(1.+0.816*zmu0(:))))))&
      &                              * zcs(:)*(1-newrsc)*nrscat                    &
      &                            + (1.0-exp(zscf(:)*log(1.0-0.144)))*(1.-zcs(:)-dcc(:,NLEV))&
@@ -1212,9 +1216,9 @@
 !     clear part: rayleigh scattering (only lowermost level)
 !     cloudy part: cloud albedo
 !
-        zrb1(:,jlev)=zrcs(:,jlev)+zrcl1(:,jlev)*dcc(:,jlev)
+        zrb1(:,jlev)=zrcs(:,jlev)+zrcl1(:,jlev)*dcc(:,jlev)*nclouds
         !zrb1(:,jlev) = zta1*zrcs(:,jlev)+(1-zta1)*zrcsu(:,jlev)+zrcl1(:,jlev)*dcc(:,jlev)
-        zrb1s(:,jlev)=zrcsu(:,jlev)+zrcl1s(:,jlev)*dcc(:,jlev)
+        zrb1s(:,jlev)=zrcsu(:,jlev)+zrcl1s(:,jlev)*dcc(:,jlev)*nclouds
 !
 !     b) T
 !
@@ -1259,8 +1263,8 @@
 !
 !     cloud albedo
 !
-        zrb2(:,jlev)=zrcl2(:,jlev)*dcc(:,jlev)
-        zrb2s(:,jlev)=zrcl2s(:,jlev)*dcc(:,jlev)
+        zrb2(:,jlev)=zrcl2(:,jlev)*dcc(:,jlev)*nclouds
+        zrb2s(:,jlev)=zrcl2s(:,jlev)*dcc(:,jlev)*nclouds
 !
 !     b) T
 !
@@ -1284,10 +1288,10 @@
 !
 !     total T = 1-A(water vapor)*(1.-dcc)-(A(cloud)+R(cloud))*dcc
 !
-        ztb2(:,jlev)=1.-(1.-ztwv(:))*(1.-dcc(:,jlev))                   &
-     &              -(1.-ztcl2(:,jlev))*dcc(:,jlev)
-        ztb2u(:,jlev)=1.-(1.-ztwvu(:))*(1.-dcc(:,jlev))                 &
-     &               -(1.-ztcl2s(:,jlev))*dcc(:,jlev)
+        ztb2(:,jlev)=1.-(1.-ztwv(:))*(1.-dcc(:,jlev)*nclouds)                   &
+     &              -(1.-ztcl2(:,jlev))*dcc(:,jlev)*nclouds
+        ztb2u(:,jlev)=1.-(1.-ztwvu(:))*(1.-dcc(:,jlev)*nclouds)                 &
+     &               -(1.-ztcl2s(:,jlev))*dcc(:,jlev)*nclouds
 !
 !     make combined layer R_ab, R_abs, T_ab and T_abs
 !
