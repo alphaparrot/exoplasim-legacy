@@ -5640,6 +5640,8 @@ void InitAll(void)
    All[405].Init("dfd"  ,"shortwave_down"                  ,"W m-2"    ,0,1); // Not standard (AYP)
    All[406].Init("dftu"  ,"longwave_up"                    ,"W m-2"    ,0,1); // Not standard (AYP)
    All[407].Init("dftd"  ,"longwave_down"                  ,"W m-2"    ,0,1); // Not standard (AYP)
+   All[408].Init("dtdt"  ,"rad_heating_rate"               ,"K s-1"    ,0,1); // Not standard (AYP)
+   All[409].Init("dfdz"  ,"flux_convergence"               ,"W m-3"    ,0,1); // Not standard (AYP)
 }
 
 void Usage(void)

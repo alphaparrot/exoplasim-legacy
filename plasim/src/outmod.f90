@@ -1205,6 +1205,10 @@
         call writegp(140,dftu(:,jlev),406,jlev)
         call writegp(140,dftd(:,jlev),407,jlev)
       enddo
+      do jlev=1,NLEV
+        call writegp(140,dtdtlwr(:,jlev)+dtdtswr(:,jlev),408,jlev)
+        call writegp(140,dconv(:,jlev),409,jlev)
+      enddo
 
 !     **************************
 !     * surface thermal upward *

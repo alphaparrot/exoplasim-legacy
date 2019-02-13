@@ -30,6 +30,8 @@
       real :: rkshallow = 10. ! diffusivity for shallow convection (m*m/s)
       real :: gamma   = 0.01  ! tuning parameter for evaporation of precip.
 
+      real :: rcritmod = 1.0   ! Modifier for cloud critical relative humidity
+      real :: rcritslope = 0.0 !By-level modifier for changing cloud height bias
       real :: rcrit(NLEV)    ! critical relative hum. for non conv. clouds
 
 !
@@ -68,7 +70,7 @@
 !
       namelist/rainmod_nl/kbeta,nprl,nprc,ndca,ncsurf,nmoment,nshallow  &
      &       ,nstorain,rcrit,clwcrit1,clwcrit2,pdeep,rkshallow,gamma    &
-     &       ,nclouds,pdeepth,nevapprec,nbeta,rhbeta,rbeta      
+     &       ,nclouds,pdeepth,nevapprec,nbeta,rhbeta,rbeta,rcritmod,rcritslope      
 !
 !     reset defaults (according to general setup... tuning)
 !
@@ -91,6 +93,10 @@
          write(nud,'(" * Namelist RAINMOD_NL from <rainmod_namelist> *")')
          write(nud,'(" ***********************************************")')
          write(nud,rainmod_nl)
+         
+         do jlev=1,NLEV
+            rcrit(jlev) = rcrit(jlev)*rcritmod*(1-2*rcritslope*(float(NLEV)/2-jlev)/(float(NLEV)))
+         enddo
       endif
 !
 !     broadcast namelist parameter

@@ -331,6 +331,9 @@
       real :: dfd(NHOR,NLEP)           ! solar radiation downward
       real :: dftu(NHOR,NLEP)          ! thermal radiation upward
       real :: dftd(NHOR,NLEP)          ! thermal radiation downward
+      real :: dtdtlwr(NHOR,NLEV)       ! lwr temperature tendencies
+      real :: dtdtswr(NHOR,NLEV)       ! swr temperature tendencies
+      real :: dconv(NHOR,NLEV)         ! flux convergence (-dF/dz)
 
 !     ***********
 !     * SURFACE *

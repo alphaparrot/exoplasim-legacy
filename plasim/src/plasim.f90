@@ -1262,6 +1262,15 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        sigma(1) = 0.5*sigma(2)
        sigmah(NLEV) = 1.0
        sigmah(1:NLEV-1) = 0.5*(sigma(1:NLEV-1)+sigma(2:NLEV))
+      elseif(neqsig==4) then
+       do jlev=1,NLEV
+        zsk=REAL(jlev)/REAL(NLEV)
+        sigmah(jlev)=0.75*zsk+1.75*zsk**3-1.5*zsk**4
+       enddo
+       zsk = ptop/psurf
+       sigmah(:) = sigmah(:) - sigmah(1)
+       sigmah(:) = sigmah(:)/sigmah(NLEV)
+       sigmah(:) = sigmah(:)*(1.0-zsk) + zsk
       else
        do jlev=1,NLEV
         zsk=REAL(jlev)/REAL(NLEV)

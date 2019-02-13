@@ -68,8 +68,6 @@
       real :: gmu1(NHOR)                   ! cosine of solar zenit angle
       real :: dqo3(NHOR,NLEV)        = 0.0 ! ozon concentration (kg/kg)
       real :: dqco2(NHOR,NLEV)       = 0.0 ! co2 concentration (ppmv)
-      real :: dtdtlwr(NHOR,NLEV)           ! lwr temperature tendencies
-      real :: dtdtswr(NHOR,NLEV)           ! swr temperature tendencies
 
       real, allocatable :: dqo3cl(:,:,:)   ! climatological O3 (used if NO3=2)
 
@@ -379,7 +377,7 @@
 !
 
       real zdtdt(NHOR,NLEV)    ! temperature tendency due to rad (K/s)
-
+      real zdh(NHOR,NLEV)      ! Thickness of an atmospheric layer (m)
 !
 !     allocatable arrays for diagnostic
 !
@@ -492,6 +490,15 @@
       dflux(:,:)=dlwfl(:,:)+dswfl(:,:)
 
 !
+!**   6a) Get altitudes
+!
+
+      do jlev=NLEV,2,-1
+       zdh(:,jlev)=-dt(:,jlev)*gascon/ga*ALOG(sigmah(jlev-1)/sigmah(jlev))
+      enddo
+      zdh(:,1)=-dt(:,1)*gascon/ga*ALOG(sigma(1)/sigmah(1))*0.5
+      
+!
 !**   7) compute tendencies and add them to PUMA dtdt
 !
 
@@ -504,6 +511,7 @@
      &              /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))
        dtdtlwr(:,jlev)=-ga*(dlwfl(:,jlep)-dlwfl(:,jlev))                &
      &              /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))
+       dconv(:,jlev) = (dflux(:,jlev)-dflux(:,jlep))/(zdh(:,jlev)+1.0e-9) !add small in case of zero zdh
       enddo
 
 !
@@ -1151,8 +1159,8 @@
         zywvl(:,jlev)=zywvt(:)
         zcs(:)=zcs(:)*(1.-dcc(:,jlev)*nclouds)
         zrcs(:,jlev) = (aa/(1.+bb*zmu0(:))*zcs+c0*(1.-zcs(:)-dcc(:,NLEV)*nclouds))   &
-     &                  *dsigma(jlev)*(dp(:)/101100.0)*nrscat*newrsc
-        zrcsu(:,jlev)= c0*(1.-dcc(:,NLEV))*dsigma(jlev)*(dp(:)/101100.0)*nrscat*newrsc
+     &                  *dsigma(jlev)*(dp(:)/101100.0)*(9.80665/ga)*nrscat*newrsc
+        zrcsu(:,jlev)= c0*(1.-dcc(:,NLEV))*dsigma(jlev)*(dp(:)/101100.0)*(9.80665/ga)*nrscat*newrsc
         
        endwhere
       end do
@@ -1191,7 +1199,7 @@
 !
 !      R = 1 - e^((ps/p0)*ln(T0))
 !
-       zscf(:) = dp(:)/101100.0
+       zscf(:) = dp(:)/101100.0*9.80665/ga
        zrcsu(:,NLEV)=zrcsu(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-0.144))) &
      &                                *(1-newrsc)*nrscat*(1-dcc(:,NLEV)*nclouds)
        zrcs(:,NLEV)= zrcs(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-(0.219/(1.+0.816*zmu0(:))))))&
