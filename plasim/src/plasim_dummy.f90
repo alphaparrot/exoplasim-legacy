@@ -758,7 +758,7 @@
       if (n_days_per_year == 365) then
          call step2cal(kstep,ntspd,ndatim)
       else
-         call step2cal30(kstep,ntspd,ndatim)
+         call step2cal30(kstep,ndatim)
       endif
       return
       end

@@ -55,6 +55,13 @@
       real(kind=4) :: zsca
       real(kind=4) :: zzf(NUGP)
 
+! We'll need to change how we write this header. It wants the timestep to translate to
+! multiple months per year, and multiple days per year, as well as minutes and hours per
+! day, which resets every day. There should be multiple days per year. It might make the
+! most sense to rewrite ntomin.
+      
+      
+      
       istep = nstep
       call ntomin(istep,nmin,nhour,nday,nmonth,nyear)
 

@@ -17,6 +17,9 @@
 
       integer :: n_days_per_month =  30
       integer :: n_days_per_year  = 360
+      integer :: m_days_per_year  = 360
+      integer :: m_days_per_month =  30
+      integer :: mtspd            =   0
       integer :: n_start_step     =   0
       integer :: ntspd            =   0
       real    :: solar_day        = 86400.0 ! [sec]
@@ -37,6 +40,13 @@
       n_start_step     = k_start_step
       ntspd            = ktspd
       solar_day        = psolday
+      
+      mtspd = n_days_per_year * ntspd / m_days_per_year 
+      
+      !If there are e.g. 5 days worth of timesteps per "day", there will conversely be 5x fewer days
+      !per year, and therefore this will rescale mtspd to that necessary for 360 days per year.
+      
+      
 
       if (kpid == 0) then
          write(nud,1050)
@@ -46,15 +56,17 @@
          write(nud,1010) n_days_per_month
          write(nud,1030) n_start_step
          write(nud,1040) ntspd
+         write(nud,1045) mtspd
          write(nud,1050)
          endif
       return
- 1060 format(" * Calmod initialization   *")
- 1000 format(" * Days per year:    ",i5," *")
- 1010 format(" * Days per month:   ",i5," *")
- 1030 format(" * Start step:",i12," *")
- 1040 format(" * Timesteps per day:",i5," *")
- 1050 format(" ***************************")
+ 1060 format(" * Calmod initialization             *")
+ 1000 format(" * Days per year:    ",i14," *")
+ 1010 format(" * Days per month:   ",i14," *")
+ 1030 format(" * Start step:",i21," *")
+ 1040 format(" * Timesteps per day:",i14," *")
+ 1045 format(" * Timesteps per calendar day:",i5," *")
+ 1050 format(" *************************************")
       end subroutine calini
 
 !     ====================
@@ -98,8 +110,8 @@
          call step2cal(kstep,ntspd,idatim)
          ndayofyear = idatim(3) + monaccu(idatim(2)-1)
       else
-         call step2cal30(kstep,ntspd,idatim)
-         ndayofyear = idatim(3) + n_days_per_month * (idatim(2)-1)
+         call step2cal30(kstep,idatim)
+         ndayofyear = idatim(3) + m_days_per_month * (idatim(2)-1)
       endif
 
       return
@@ -271,7 +283,7 @@
 !     SUBROUTINE STEP2CAL30
 !     =====================
 
-      subroutine step2cal30(kstep,ktspd,kdatim)
+      subroutine step2cal30(kstep,kdatim)
       use calmod
       implicit none
       integer, intent(IN ) :: kstep     ! time step since simulation start
@@ -286,14 +298,27 @@
       integer :: idall
       integer :: istp
 
-      idall = kstep / ktspd
-      iyea  = idall / n_days_per_year
-      idall = mod(idall,n_days_per_year)
-      imon  = idall / n_days_per_month + 1
+!       
+!       idall = kstep / ktspd
+!       iyea  = idall / n_days_per_year
+!       idall = mod(idall,n_days_per_year)
+!       imon  = idall / n_days_per_month + 1
+! !       imon = mod(kstep/(n_days_per_year*ntspd / 12) + 1,12)
+!       iday  = mod(idall,n_days_per_month) + 1
+!       istp  = mod(kstep,ktspd)
+!       imin  = (istp * solar_day) / (ktspd * 60)
+!       ihou  = imin / 60
+!       imin  = mod(imin,60)
+      
+      
+      idall = kstep / mtspd
+      iyea  = idall / m_days_per_year
+      idall = mod(idall,m_days_per_year)
+      imon  = idall / m_days_per_month + 1
 !       imon = mod(kstep/(n_days_per_year*ntspd / 12) + 1,12)
-      iday  = mod(idall,n_days_per_month) + 1
-      istp  = mod(kstep,ktspd)
-      imin  = (istp * solar_day) / (ktspd * 60)
+      iday  = mod(idall,m_days_per_month) + 1
+      istp  = mod(kstep,mtspd)
+      imin  = (istp * day_24hr) / mtspd * 60)
       ihou  = imin / 60
       imin  = mod(imin,60)
 
@@ -323,7 +348,7 @@
        if (n_days_per_year == 365) then
           call step2cal(kstep,ntspd,idatim)
        else
-          call step2cal30(kstep,ntspd,idatim)
+          call step2cal30(kstep,idatim)
        endif
        kyea = idatim(1)
        kmon = idatim(2)
@@ -399,7 +424,7 @@
       else if (n_days_per_year == 365) then   ! real calendar
          call step2cal(kstep,ntspd,idatim)
       else                                    ! simple calendar
-         call step2cal30(kstep,ntspd,idatim)
+         call step2cal30(kstep,idatim)
       endif
 
       kmona = idatim(2)
