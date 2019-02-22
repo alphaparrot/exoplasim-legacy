@@ -203,8 +203,8 @@
 
 !     scale taus from years to seconds
 
-      tau_veg  = tau_veg  * n_days_per_year * solar_day
-      tau_soil = tau_soil * n_days_per_year * solar_day
+      tau_veg  = tau_veg  * m_days_per_year * day_24hr
+      tau_soil = tau_soil * m_days_per_year * day_24hr
 
       if (tau_veg < 1.0 .or. tau_soil < 1.0) then
          write(nud,*)' *** error: tau_veg = ',tau_veg,'  tau_soil = ',tau_soil
@@ -812,9 +812,9 @@
         write(nud,*)'HFLA           = ',zfpr4(NPRHOR)
         write(nud,*)'HFLX MELTING   = ',zfpr5(NPRHOR)
         write(nud,*)'HFLX TO SOIL   = ',zfpr6(NPRHOR)
-        write(nud,*)'PRS (mm/d)     = ',zfpr1(NPRHOR)*1000.*deltsec*ntspd
-        write(nud,*)'DWATER (mm/d)  = ',zfpr8(NPRHOR)*1000.*deltsec*ntspd
-        write(nud,*)'SNOWMELT (mm/d)= ',zfpr9(NPRHOR)*1000.*deltsec*ntspd
+        write(nud,*)'PRS (mm/d)     = ',zfpr1(NPRHOR)*1000.*deltsec*mtspd
+        write(nud,*)'DWATER (mm/d)  = ',zfpr8(NPRHOR)*1000.*deltsec*mtspd
+        write(nud,*)'SNOWMELT (mm/d)= ',zfpr9(NPRHOR)*1000.*deltsec*mtspd
        endif
        deallocate(zfpr1)
        deallocate(zfpr2)

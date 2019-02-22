@@ -26,7 +26,7 @@
 
       zsig(:)      = 0.0       ! initialize
       zsig(1:NLEV) = sigmah(:) ! vertical coordinate table
-      zsig(NLEV+1) = n_days_per_year
+      zsig(NLEV+1) = m_days_per_year
 
       open  (40,file=plasim_output,form='unformatted')
       write (40) ihead(:)
@@ -72,7 +72,7 @@
       ihead(5) = NLON
       ihead(6) = NLAT
       ihead(7) = nstep - nstep1
-      ihead(8) = n_days_per_year
+      ihead(8) = m_days_per_year
 
       call mpgagp(zf,pf,1)
 
@@ -107,7 +107,7 @@
       ihead(5) = NRSP
       ihead(6) = 1
       ihead(7) = nstep - nstep1
-      ihead(8) = n_days_per_year
+      ihead(8) = m_days_per_year
 
 !     normalize ECHAM compatible and scale to physical dimensions
 

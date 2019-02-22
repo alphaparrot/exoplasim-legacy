@@ -131,13 +131,16 @@
       integer :: n_start_month   =      01 ! start month
       integer :: n_start_step    =       0 ! start step since 1-Jan-0000
       integer :: n_days_per_month=      30 ! needed for time interpolation
+      integer :: m_days_per_month=      30 ! standard days
       integer :: n_days_per_year =     360 ! set to 365 for real calendar
+      integer :: m_days_per_year =     360 ! standard days
       integer :: n_run_years     =       0 ! years to run
       integer :: n_run_months    =       0 ! months to run
       integer :: n_run_days      =       0 ! days  to run (debugging)
       integer :: n_run_steps     =       0 ! steps to run (debugging)
       integer :: mpstep          =       0 ! minutes/timestep = 1day/ntspd
       integer :: ntspd           =       0 ! number of timesteps per day
+      integer :: mtspd           =       0 ! number of timesteps per standard day
       integer :: nwpd            =       1 ! number of writes per day
       integer :: nlowio          =       0 ! Low I/O mode (0/1)
       integer :: nstpw           =       0 ! Timesteps between writes (0=use nwpd)

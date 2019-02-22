@@ -12,6 +12,7 @@
       integer :: ny004d =   4 * 365 +  1
       integer :: ny001d =       365
       integer :: nud        =  6
+      real    :: day_24hr         = 86400.0 ! [sec]
 
 !     These values are copied from pumamod in subroutine calini
 
@@ -287,7 +288,6 @@
       use calmod
       implicit none
       integer, intent(IN ) :: kstep     ! time step since simulation start
-      integer, intent(IN ) :: ktspd     ! time steps per day
       integer, intent(OUT) :: kdatim(7) ! year,month,day,hour,min,weekday,leapyear
 
       integer :: iyea  ! current year   of simulation
@@ -318,7 +318,7 @@
 !       imon = mod(kstep/(n_days_per_year*ntspd / 12) + 1,12)
       iday  = mod(idall,m_days_per_month) + 1
       istp  = mod(kstep,mtspd)
-      imin  = (istp * day_24hr) / mtspd * 60)
+      imin  = (istp * day_24hr) / (mtspd * 60)
       ihou  = imin / 60
       imin  = mod(imin,60)
 

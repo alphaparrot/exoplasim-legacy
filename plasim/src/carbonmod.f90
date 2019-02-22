@@ -100,9 +100,9 @@
          write(nud,carbonmod_nl)
       endif
       
-      frequency = min(frequency,real(ntspd))
-      interval = int(ntspd/frequency)
-      timeweight = (1.0 / (frequency*n_days_per_year))
+      frequency = min(frequency,real(mtspd))
+      interval = int(mtspd/frequency)
+      timeweight = (1.0 / (frequency*m_days_per_year))
       
       psurf0 = psurf
       

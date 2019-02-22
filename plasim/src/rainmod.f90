@@ -484,7 +484,7 @@
          write(nud,*)'L= ',jlev,' dtdt= ',zprf5(nprhor)                      &
      &         ,' dqdt= ',zprf4(nprhor)
          write(nud,*)'L= ',jlev,' prl (mm/day)= ',zprf6(nprhor)*zprf7(nprhor)&
-     &                                      *0.5*deltsec2*ntspd/ga
+     &                                      *0.5*deltsec2*mtspd/ga
         endif
         deallocate(zprf1)
         deallocate(zprf2)
@@ -1344,7 +1344,7 @@
           zzdq=zprf8(nprhor)*zprf1(nprhor,jlev)/deltsec2
           write(nud,*)'L= ',jlev,' dtdt= ',zzdt,' dqdt= ',zzdq
           write(nud,*)'L= ',jlev,' prc (mm/day)= '                           &
-     &                     ,zprf7(nprhor,jlev)*1000.*ntspd*deltsec2*0.5
+     &                     ,zprf7(nprhor,jlev)*1000.*mtspd*deltsec2*0.5
          endif
         enddo
        endif

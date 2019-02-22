@@ -763,7 +763,7 @@
       call ntomin(nstep,imin,ihou,iday,imon,iyea)
       
       istp = mod(nstep,int(ntspd*slowdown+0.5))
-      imin = (istp * 1440) / int(ntspd*slowdown+0.5)
+      imin = (istp * mpstep*ntspd) / int(ntspd*slowdown+0.5)
       ihou = imin / 60
       imin = mod(imin,60)      
       
@@ -879,7 +879,7 @@
             jh1 = jh2  - NLON + 1 ! horizontal index for start of latitude
             za(jh1:jh2)=a0o3+a1o3*ABS(sid(jlat))                        &
                +aco3*sid(jlat)*cos(TWOPI*(zcday-toffo3)                 &
-               /(n_days_per_year+ndatim(7))) ! ndatim(7) = leap year
+               /(m_days_per_year+ndatim(7))) ! ndatim(7) = leap year
          enddo ! jlat
 
          zconst  = exp(-bo3/co3)
@@ -2260,7 +2260,7 @@
 !     ===================
 
       subroutine orb_decl(calday,eccen,mvelpp,lambm0,obliqr,delta,eccf)
-      use pumamod, only: n_days_per_year,ndatim
+      use pumamod, only: m_days_per_year,ndatim
 !
 !     Compute earth/orbit parameters using formula suggested by
 !     Duane Thresher.
@@ -2318,7 +2318,7 @@
 !
 
       lambm  = lambm0 + (calday - ve)*2.*pie                            &
-             / (n_days_per_year + ndatim(7)) ! ndatim(7) = leap year
+             / (m_days_per_year + ndatim(7)) ! ndatim(7) = leap year
       lmm    = lambm  - mvelpp
 !
 ! The earth's true longitude, in radians, is then found from

@@ -228,10 +228,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(nstep   ) ! current timestep
       call mpbci(mstep   ) ! current timestep in month
       call mpbci(ntspd   ) ! number of timesteps per day
+      call mpbci(mtspd   ) ! number of timesteps per standard day
 
       call mpbci(mpstep)   ! minutes per timestep
       call mpbci(n_days_per_month)
       call mpbci(n_days_per_year)
+      call mpbci(m_days_per_month)
+      call mpbci(m_days_per_year)
       call mpbci(n_run_steps)
       call mpbci(n_run_days)
       call mpbci(n_run_months)
@@ -499,9 +502,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       ikits = nkits
       do jkits=1,ikits
-         deltsec  = (solar_day / ntspd) / (2**nkits)
+         deltsec  = (day_24hr / mtspd) / (2**nkits)
          deltsec2 = deltsec + deltsec
-         delt     = (TWOPI     / ntspd) / (2**nkits)
+         delt     = (TWOPI     / mtspd) / (2**nkits)
          delt2    = delt + delt
 !        if (mypid == NROOT) then
 !           write(nud,*) 'Initial timestep ',jkits,'   delt = ',delt
@@ -519,9 +522,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     * with 1 planetary rotation per sidereal day (2 Pi) of Earth   *
 !     ****************************************************************
 
-      deltsec  = solar_day / ntspd   ! timestep in seconds
+      deltsec  = day_24hr / mtspd   ! timestep in seconds
       deltsec2 = deltsec + deltsec   ! timestep in seconds * 2
-      delt     = TWOPI     / ntspd   ! timestep scaled
+      delt     = TWOPI     / mtspd   ! timestep scaled
       delt2    = delt + delt
       call makebm
 
@@ -533,7 +536,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     or step-countdown (for debugging purposes)
       
       mocd = n_run_months                     ! month countdown
-      nscd = n_run_days * ntspd + n_run_steps ! step countdown
+      nscd = n_run_days * mtspd + n_run_steps ! step countdown
 
       if (nrestart == 0) nstep = n_start_step ! timestep since 01-01-0001
       call updatim(nstep)  ! set date & time array ndatim
@@ -794,7 +797,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call cpu_time(tmstop)
          tmrun = tmstop - tmstart
          if (nstep > nstep1) then 
-            zspy = tmrun * n_days_per_year * real(ntspd) / (nstep-nstep1)
+            zspy = tmrun * m_days_per_year * real(mtspd) / (nstep-nstep1)
             zypd = (24.0 * 3600.0 / zspy)                         ! siy / day
             write(nud,'(/,"****************************************")')
             if (zut > 0.0) &
@@ -1052,21 +1055,30 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       
 !     We won't turn off vegetation for the desert planet, figuring that interested parties
 !     might appreciate having the vegetation naturally respond to low moisture.
-      
+      solar_day = day_24hr
+      sidereal_day = solar_day * (n_days_per_year-1) / n_days_per_year
 
 !     set rotation dependent variables
 
       if (rotspd /= 1.0) then
-         if (n_days_per_year == 365) n_days_per_year = 360
+!          if (n_days_per_year == 365) n_days_per_year = 360
 !          solar_day = solar_day / rotspd
 !          solar_day = (n_days_per_year-1.0)*sidereal_day/n_days_per_year
-         sidereal_day = sidereal_day / rotspd
+         sidereal_day = day_24hr / rotspd
 !          n_days_per_year = n_days_per_year * rotspd
-         n_days_per_month = n_days_per_year / 12
 !          sidereal_day =(n_days_per_year*day_24hr)/(n_days_per_year+1.0)
-         solar_day = (n_days_per_year-1.0)*sidereal_day/n_days_per_year
+         if (n_days_per_year /= 1) then
+           solar_day = sidereal_day * n_days_per_year/(n_days_per_year-1)
+         else
+           solar_day = sidereal_day !In this case the solar day is infinite, so we set it to 1 year
+         endif
 !          day_24hr = 86400.0 ! WHY DOESN'T THIS WORK???
+!        If there's one day per year, then solar_day is zero. But reall, it's infinite
       endif
+      
+      m_days_per_year = nint(n_days_per_year * sidereal_day / day_24hr)
+      n_days_per_month = m_days_per_year / 12
+      
 !       It would appear that day_24hr and sidereal_day cannot be inconsistent with rotspd.
 !       For some reason, keeping day_24hr to 24 hours produces NaNs. Why is this?? As near
 !       as I can tell, it's purely used for time unit conversions.
@@ -1098,20 +1110,21 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Make sure that (mpstep * 60) * ntspd = day_24hr
 
       if (mpstep > 0) then             ! timestep given in [min]
-         ntspd = nint(solar_day) / (mpstep * 60)
-         ntspd = ntspd + mod(ntspd,2)  ! make even
+         mtspd = nint(day_24hr) / (mpstep * 60)
+         mtspd = mtspd + mod(mtspd,2)  ! make even
       endif
-      mpstep = solar_day  / (ntspd * 60)
-      nafter = ntspd
-      if (nwpd > 0 .and. nwpd <= ntspd) then
-         nafter = ntspd / nwpd
+      mpstep = day_24hr  / (mtspd * 60)
+      ntspd = nint(solar_day) / (mpstep * 60)
+      nafter = mtspd
+      if (nwpd > 0 .and. nwpd <= mtspd) then
+         nafter = mtspd / nwpd
       endif
       
       if (nlowio > 0 .and. nstpw > 0) nafter = nstpw
       
-      if (ndiag < 1) ndiag = 10 * ntspd
+      if (ndiag < 1) ndiag = 10 * mtspd
 
-      if (nstps == 0) nstps = ntspd
+      if (nstps == 0) nstps = mtspd
       
 !
 !     for column runs set horizontal diffusion coefficients to 0
@@ -1137,7 +1150,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
                    ,solar_day,0)
 !                  ,day_24hr,0)
-      call cal2step(n_start_step,ntspd,n_start_year,n_start_month,1,0,0)
+      call cal2step(n_start_step,mtspd,n_start_year,n_start_month,1,0,0)
 
 !     Compute simulation time in [months]
 
@@ -1147,39 +1160,39 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
 !     Print some values
 
-      write(nud,'(/,"**********************************")')
-      write(nud,'("* Solar    day      :",f8.1," [s] *")') day_24hr
-      write(nud,'("* Sidereal day      :",f8.1," [s] *")') sidereal_day
-      write(nud,'("* Omega             :",f6.2," [s-6] *")') ww * 1.0e6
-      write(nud,'("* Rotation Speed    :",f8.1,"     *")') rotspd
-      write(nud,'("* Days / Year       :",i6,"       *")') n_days_per_year
-      write(nud,'("* Days / Month      :",i6,"       *")') n_days_per_month
-      write(nud,'("* Timestep          :",i6," [min] *")') mpstep
-      write(nud,'("* Timesteps / write :",i6,"       *")') nafter
-      write(nud,'("* Timesteps / day   :",i6,"       *")') ntspd
+      write(nud,'(/,"*************************************")')
+      write(nud,'("* Solar    day      :",f10.1," [s] *")') solar_day
+      write(nud,'("* Sidereal day      :",f10.1," [s] *")') sidereal_day
+      write(nud,'("* Omega             :",f8.2," [s-6] *")') ww * 1.0e6
+      write(nud,'("* Rotation Speed    :",f10.8,"     *")') rotspd
+      write(nud,'("* Days / Year       :",i8,"       *")') n_days_per_year
+      write(nud,'("* Days / Month      :",i8,"       *")') n_days_per_month
+      write(nud,'("* Timestep          :",i8," [min] *")') mpstep
+      write(nud,'("* Timesteps / write :",i8,"       *")') nafter
+      write(nud,'("* Timesteps / day   :",i8,"       *")') ntspd
       if (iyea  > 1 .and. imon == 0) then
-         write(nud,'("* Simulation time:  ",i5,"  years *")') iyea
+         write(nud,'("* Simulation time:  ",i7,"  years *")') iyea
       else if (iyea == 1 .and. imon == 0) then
-         write(nud,'("* Simulation time:     one year  *")')
+         write(nud,'("* Simulation time:     one year     *")')
       else if (n_run_months > 1) then
-         write(nud,'("* Simulation time:  ",i5," months *")') n_run_months
+         write(nud,'("* Simulation time:  ",i7," months *")') n_run_months
       else if (n_run_months == 1) then
-         write(nud,'("* Simulation time:    one month  *")')
+         write(nud,'("* Simulation time:    one month     *")')
       else if (n_run_days  > 1) then
-         write(nud,'("* Simulation time:  ",i5,"   days *")') n_run_days
+         write(nud,'("* Simulation time:  ",i7,"   days *")') n_run_days
       else if (n_run_days == 1) then
-         write(nud,'("* Simulation time:      one day  *")')
+         write(nud,'("* Simulation time:      one day     *")')
       else if (n_run_steps  > 1) then
-         write(nud,'("* Simulation time:  ",i5,"  steps *")') n_run_steps
+         write(nud,'("* Simulation time:  ",i7,"  steps *")') n_run_steps
       else if (n_run_steps == 1) then
-         write(nud,'("* Simulation time:   single step *")')
+         write(nud,'("* Simulation time:   single step    *")')
       endif
-      write(nud,'("**********************************")')
+      write(nud,'("*************************************")')
 
 !     set sponge layer time scale
 
       if(dampsp > 0.) then
-       if(dampsp < (day_24hr/ntspd)) dampsp=dampsp*day_24hr
+       if(dampsp < (day_24hr/mtspd)) dampsp=dampsp*day_24hr
        dampsp=day_24hr/(TWOPI*dampsp)
       endif
 
@@ -1201,7 +1214,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       character (len=*) :: yn
 
       zmax = maxval(pf(:))
-      if (zmax < (day_24hr / ntspd) .and. zmax > 0.0) then
+      if (zmax < (day_24hr / mtspd) .and. zmax > 0.0) then
          write(nud,*) 'old maxval(',trim(yn),') = ',zmax
          write(nud,*) 'assuming [days] - converting to [sec]'
          pf(:) = pf(:) * day_24hr
