@@ -3242,7 +3242,9 @@ int ReadHeaderRecord(void)
  
 void DecodePumaHeader(void)
 {
+//    printf("grabbing a new header!\n"); 
    PumaCode        = HeadIn[0];
+//    printf("grabbing the header for code %d\n",PumaCode);
    PumaLevel       = HeadIn[1];
    NewDate.tm_year = HeadIn[2] / 10000;
    NewDate.tm_mon  = HeadIn[2] / 100 % 100;
@@ -3259,6 +3261,7 @@ void DecodePumaHeader(void)
       printf("Illegal Code %d in header\n",PumaCode);
       Abort("Code < 0 or Code > CODES found");
    }
+//    printf("grabbed the header for code %d, level %d\n",PumaCode,HeadIn[1]);
    All[PumaCode].detected = TRUE;
 }
 
@@ -4099,6 +4102,7 @@ void CheckContent(void)
 
    for (code = 0; code < 256; code++)
    {
+//       if (All[code].needed) printf("Checking Code %d\n",code);
       if (code == GEOSCODE) continue;
       if (code ==  SLPCODE) continue;
       if (code ==    ZCODE) continue;
@@ -4131,6 +4135,7 @@ void CheckContent(void)
              All[code].hsp.size() == 0 &&
              All[code].hgp.size() == 0)
          {
+            All[code].Status();
             printf("\n ****** E R R O R ******\n");
             printf(" * Code  %3d not found *\n",code);
             printf(" ***********************\n");
@@ -4564,6 +4569,7 @@ void PumaProcess(void)
 #ifdef NETCDF_OUTPUT
    if (TermCount == 1 && NetCDF) NetVarDefine(); // Define NetCDF variables
 #endif
+//    printf("Checking content; PumaCode is %d\n",PumaCode);
    if (MeanCount == 1) CheckContent();           // Everything OK ?
    if (TermCount > 60) Debug = 0;                // Limit debug output
 
@@ -5183,6 +5189,8 @@ void PumaControl(void)
    char tb[COLS+2];
    struct tm D1;
    struct tm D2;
+   
+//    printf("Last month: %2d\n",LastMonth);
 
    while (1)
    {
@@ -5207,6 +5215,7 @@ void PumaControl(void)
          }
       }
 
+//       printf("Time stuff: %d; %d\n",HeadIn[2] / 100 % 100,DayDivisor);
       if ((HeadIn[2] / 100 % 100) > LastMonth && DayDivisor == 0) // Ignore rest of file
       {
          Eof = 1;
@@ -5219,6 +5228,7 @@ void PumaControl(void)
 
       if (Eof) // Process last read term and finish
       {
+//          printf("We have reached the end of the file apparently?\n");
          EndOfMonth = TRUE;
          SetOutputHeader();
          PumaProcess();
@@ -5227,11 +5237,13 @@ void PumaControl(void)
          return;
       }
 
+//       printf("Calling DecodePumaHeader\n");
       DecodePumaHeader();
 
       if (NewMonth < FirstMonth) /* Skip months before FirstMonth */
       {
          SkipPumaArray();
+//          printf("We skipped an array because %d < %d\n",NewMonth,FirstMonth);
          if (Debug)
          {
             if (RepGrib == REP_SPECTRAL) sprintf(tb,"T%04d",Truncation);
@@ -5254,22 +5266,38 @@ void PumaControl(void)
          LeftText(tb);
       }
 
+//       printf("Current month is %d\n",OldMonth);
       if (OldMonth > 0)
       {
+//          printf("%d>0 and we are on Code %d\n",OldMonth,PumaCode);
          EndOfMonth = NewMonth != OldMonth;
          EndOfTerm = memcmp(&NewDate,&OldDate,sizeof(struct tm));
+//          printf("EndOfTerm is %d\n",EndOfTerm);
          if (EndOfTerm && MeanCount == DPM-1) EndOfMonth = 1;
          if (EndOfTerm)
          {
+//             printf("We are at end of term\n");
+//             printf("OldDate was %2.2d.%2.2d.%2.2d   %2.2d:%2.2d\n",
+//                    OldDate.tm_mday,OldDate.tm_mon,OldDate.tm_year,
+//                    OldDate.tm_hour,OldDate.tm_min);
+//             printf("NewDate is %2.2d.%2.2d.%2.2d   %2.2d:%2.2d\n",
+//                    NewDate.tm_mday,NewDate.tm_mon,NewDate.tm_year,
+//                    NewDate.tm_hour,NewDate.tm_min);
             SetOutputHeader();
+//             printf("PumaCode is currently %d\n",PumaCode);
             PumaProcess();
+//             printf("Made it past PumaProcess\n");
             PostProcess();
             Dependencies();
          }
       }
-      OldDate  = NewDate;
-      OldMonth = NewMonth;
-
+      
+      if (PumaCode != 333)
+      {
+        OldDate  = NewDate;
+        OldMonth = NewMonth;
+      }
+      
       if (All[PumaCode].needed)
       {
          if (RepGrib == REP_SPECTRAL) // Spectral array

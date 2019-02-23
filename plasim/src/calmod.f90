@@ -312,7 +312,7 @@
       
       
       idall = kstep / mtspd
-      iyea  = idall / m_days_per_year
+      iyea  = idall / m_days_per_year + 1
       idall = mod(idall,m_days_per_year)
       imon  = idall / m_days_per_month + 1
 !       imon = mod(kstep/(n_days_per_year*ntspd / 12) + 1,12)

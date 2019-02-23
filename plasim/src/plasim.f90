@@ -500,15 +500,18 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     * short initial timesteps *
 !     ***************************
 
+      if (mypid == NROOT) write(nud,*) "Preparing to do initial timesteps: ",nkits
+
       ikits = nkits
       do jkits=1,ikits
-         deltsec  = (day_24hr / mtspd) / (2**nkits)
+         deltsec  = (day_24hr / mtspd) / (2**nkits) !Timestep
          deltsec2 = deltsec + deltsec
-         delt     = (TWOPI     / mtspd) / (2**nkits)
+         delt     = (TWOPI     / ntspd) / (2**nkits) !Fraction of rotation
          delt2    = delt + delt
-!        if (mypid == NROOT) then
-!           write(nud,*) 'Initial timestep ',jkits,'   delt = ',delt
-!        endif
+         if (mypid == NROOT) then
+            write(nud,*) 'Initial timestep ',jkits,'   deltsec = ',deltsec
+            write(nud,*) 'Initial timestep ',jkits,'   delt    = ',delt
+         endif
          call gridpointa
          call makebm
          call spectrala
@@ -516,6 +519,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call spectrald
          nkits = nkits - 1
       enddo
+      
+      if (mypid == NROOT) write(nud,*) "Dynamical core is now spun-up."
 
 !     ****************************************************************
 !     * The scaling factor "ww" is derived from the rotation "omega" *
@@ -524,7 +529,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       deltsec  = day_24hr / mtspd   ! timestep in seconds
       deltsec2 = deltsec + deltsec   ! timestep in seconds * 2
-      delt     = TWOPI     / mtspd   ! timestep scaled
+      delt     = TWOPI     / ntspd   ! timestep scaled
       delt2    = delt + delt
       call makebm
 
@@ -566,10 +571,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
          call gridpointd
 
-         call outaccu
+!          call outaccu
+         naccuout = naccuout + 1
          if (mypid == NROOT) then
             if (mod(nstep,nafter) == 0 .and. noutput > 0 ) then
-!                write(nud,'("* nstep ",i6,"  *")') nstep
                call outsp
             endif
             if (mod(nstep,nstps) == 0 .and. nsnapshot > 0) call snapshotsp
@@ -582,6 +587,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
          if (ngui > 0) call guistep_plasim
          call spectrald
+         call outaccu
 
          if (mod(nstep,nstps) == 0 .and. nsnapshot > 0) then
            call snapshotgp

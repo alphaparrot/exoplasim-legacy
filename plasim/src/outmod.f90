@@ -1646,7 +1646,7 @@
       
       endif
       
-      naccuout=naccuout+1
+!       naccuout=naccuout+1
 !
       return
       end
