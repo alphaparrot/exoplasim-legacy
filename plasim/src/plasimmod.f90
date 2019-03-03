@@ -200,6 +200,7 @@
       integer :: nspinit  = 0   ! switch for LnPs initialization
       integer :: nsponge  = 0   ! switch for top sponge layer
       integer :: nqspec   = 1   ! 1: spectral q   0: gridpoint q (semi-Langrangian)
+      integer :: nrdrag   = 0   ! 1: Apply Rayleigh fraction to 20-layer atmosphere
 !>>> AYP -- NEEDED AS PART OF GLACIERMOD      
       integer :: nglspec = 0
 !>>> AYP      

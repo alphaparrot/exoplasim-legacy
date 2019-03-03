@@ -1017,7 +1017,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , n_run_years , n_run_months  , n_run_days           &
                    , n_days_per_month, n_days_per_year                  &
                    , seed    , sellon     &
-                   , syncstr , synctime                                 &
+                   , syncstr , synctime, nrdrag                         &
                    , dtep    , dtns    , dtrop   , dttrp                &
                    , tdissd  , tdissz  , tdisst  , tdissq  , tgr        &
                    , psurf   , ptop                                     &
@@ -1032,6 +1032,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          tfrc(3:NLEV) =   0.0 * day_24hr !day_24hr
       endif
 !
+
       if(NTRU==42) then
        nhdiff=16
        ndel(:)=4
@@ -1047,6 +1048,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       open(11,file=plasim_namelist,form='formatted')
       read (11,plasim_nl)
+      
+      if ((NLEV==20) .and. (nrdrag==1)) then
+         tfrc(1)      =  20.0 * day_24hr !day_24hr
+         tfrc(2)      =  30.0 * day_24hr
+         tfrc(3)      = 100.0 * day_24hr !day_24hr
+         tfrc(4)      = 100.0 * day_24hr !day_24hr
+         tfrc(5:NLEV) =   0.0 * day_24hr !day_24hr
+      endif
 
       if ((ndesert == 1) .and. (naqua == 1)) then !If both toggled, turn off both
         naqua = 0
