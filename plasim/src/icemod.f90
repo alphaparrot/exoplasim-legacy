@@ -329,17 +329,11 @@
          call iceget
          xiced(:)=xcliced2(:)
          xicec(:)=xclicec2(:)
-         
-         
-!          where (xicec(:) >= 1.)
-!            xicec(:)=1.
-!          end where
-         
-!          where(xicec(:) >= thicec)
-!           xicec(:)=1.
-!          elsewhere
-!           xicec(:)=0.
-!          endwhere
+         where(xicec(:) >= thicec)
+          xicec(:)=1.
+         elsewhere
+          xicec(:)=0.
+         endwhere
 
       else ! (nrestart /= 0)
 !
@@ -693,41 +687,11 @@
 !
 !     make ice mask form compactness
 !
-
-! This is where the fractional sea ice thing comes into play. If sea ice thickness is above a
-! certain fraction, make it 1, otherwise 0. We are assuming basically that this is the minimum 
-! thickness to form coherent ice flows. This probably means thicec should be set to what, 1 meter?
-!
-! It is not actually clear how ice coverage is computed. icec seems to be built prognostically, and
-! when it comes out of mkicec, we do *not* have thickness--we have compactness/coverage already, which
-! has a maximum value of 1. Furthermore, if ice thickness grows by 0.5 meters or more, ice coverage
-! is guaranteed to be 100%. This seems like it must be incorrect. There are definitely icebergs and 
-! floes more than 18 inches thick, and this would tend to promote 100% coverage with little ice growth.
-!
-! The conclusion we are forced to come to is that the description of the sea ice model given in the
-! documentation is fictitious or refers to an old version. The current model does not rely on a 
-! minimum thickness as a masking threshold, and furthermore seems based on a Hippler 1979 paper that
-! doesn't exist. In fact I can't tell if this Hippler fellow himself even exists.
-!
-! It's not Hippler, it's Hibler. doi:10.1175/1520-0485(1979)009<0815:ADTSIM>2.0.CO;2
-
-!       if(mypid==NROOT) then
-!         write(nud,*)"Ice thickness threshold is ",thicec
-!       endif
-!       xicec(:) = xicec(:)/thicec
-      where (xicec(:) >= 0.99)
-        xicec(:)=1.
+      where(xicec(:) >= thicec)
+       xicec(:)=1.
+      elsewhere
+       xicec(:)=0.
       end where
-!       if(mypid==NROOT) then
-!         write(nud,*)"Maximum ice cover ",maxval(xicec)
-!         write(nud,*)"Minimum ice cover ",minval(xicec)
-!       endif
-
-!       where(xicec(:) >= thicec)
-!        xicec(:)=1.
-!       elsewhere
-!        xicec(:)=0.
-!       end where
 !
 !     correct snow with new ice (ice was melted below snow)
 !     and melt snow (modify heat flux)
@@ -1129,8 +1093,7 @@
 !
       real, allocatable :: zprf1(:),zprf2(:),zprf3(:),zprf4(:)
 !
-!     compute new compactness (following Hibler '79; diagnostics)
-!     doi:10.1175/1520-0485(1979)009<0815:ADTSIM>2.0.CO;2
+!     compute new compactness (following Hippler '79; diagnostics)
 !
       where(picedn(:) > picedo(:))
        picec(:)=picec(:)+(1.-picec(:))*(picedn(:)-picedo(:))/zh0
