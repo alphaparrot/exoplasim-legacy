@@ -43,8 +43,8 @@ if __name__=="__main__":
     #rf.close()
 
   njobs=0
-  print "Moving on to normal tasks"
-  print running,nnodes
+  #print "Moving on to normal tasks"
+  #print running,nnodes
   capacityflag = False
   openjobs=True
   while openjobs: #We are using less than our full allocation, and the priority list is empty.
@@ -56,6 +56,7 @@ if __name__=="__main__":
     f.close()
     ready=False
     queued = False
+    print "Getting job...."
     while not ready:       #Search for a job to run 
       for i in range(0,len(tasks)-1):
         if tasks[i]!='':
@@ -71,6 +72,7 @@ if __name__=="__main__":
               break
       if not queued:
           openjobs=False
+          ready=True
           break
       ready=False
       f=open("tasklog.crwl","a")
@@ -113,7 +115,7 @@ if __name__=="__main__":
           f.write(tasks)
           f.close()
       
-      launchsetset.newtask(newjob,dryrun=dryrun)            #Set up the job and submit it
+      launchset.newtask(newjob,dryrun=dryrun)            #Set up the job and submit it
       np.save(newjob.home+'/job.npy',newjob)
       if not dryrun:
           newjob.getID()

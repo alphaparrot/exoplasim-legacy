@@ -10,7 +10,7 @@ class Job:
     self.args = self.args[2:]
     self.ncores = int(self.args[0])
     self.queue = self.args[1]
-    self.fields = header.split()[4:]
+    self.fields = header.split()[3:]
     self.top = os.getcwd()
     self.model = "plasim"
     
@@ -18,6 +18,7 @@ class Job:
     n=0
     for n in range(0,len(self.fields)):
       self.parameters[self.fields[n]] = self.args[n]
+      #print self.fields[n],":",self.args[n]
       
     self.home = resource
     self.jobname = self.name+".cl"

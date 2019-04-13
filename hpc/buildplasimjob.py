@@ -90,7 +90,7 @@ def edit_namelist(home,filename,arg,val):
       fnl.insert(-3,' '+arg+' = '+val+' ')
     else:
       fnl.insert(-3,' '+arg+'= '+val+' ,')
-  f=open(""+workdir+"/"+filename,"w")
+  f=open(home+"/"+filename,"w")
   f.write('\n'.join(fnl))
   f.close() 
 
@@ -116,7 +116,7 @@ def prep(job):
     source = job.parameters["source"]
   
   print "Setting stuff for job "+sig+" in "+workdir
-  print "Arguments are:",fields[2:]
+  print "Arguments are:",fields[:]
   
   notify = 'ae'
   scriptfile = "run.sh"
@@ -130,11 +130,18 @@ def prep(job):
   #os.system("mkdir plasim/errorlogs/")
   #os.system("cp "+workdir+"/*.e* plasim/errorlogs/")
   #os.system("rm "+workdir+"/*")
+  print "copying files....."
+  print "cp "+source+"/* "+workdir+"/"
   os.system("cp "+source+"/* "+workdir+"/")
+  print ("rm "+workdir+"/plasim_restart")
   os.system("rm "+workdir+"/plasim_restart")
+  print ("cp "+scriptfile+" "+workdir+"/")
   os.system("cp "+scriptfile+" "+workdir+"/")
+  print ("cp synthoutput.py "+workdir+"/")
   os.system("cp synthoutput.py "+workdir+"/")
+  print ("cp jobdefs.py "+workdir+"/")
   os.system("cp jobdefs.py "+workdir+"/")
+  print ("cp identity.py "+workdir+"/")
   os.system("cp identity.py "+workdir+"/")
   
   #if "cleanup" in job.parameters:
@@ -474,7 +481,7 @@ def prep(job):
       found=True
       edit_namelist(home,"radmod_namelist","NO3",val)
       
-    if name=="vlog_top":
+    if name=="ptop":
       found=True
       edit_namelist(home,"plasim_namelist","NEQSIG","3")
       edit_namelist(home,"plasim_namelist","PTOP",str(float(val)*100.0))
@@ -483,6 +490,8 @@ def prep(job):
       found=True
       edit_namelist(home,"plasim_namelist","MPSTEP",val)
       edit_namelist(home,"plasim_namelist","NSTPW",str(7200/int(float(val))))
+      edit_namelist(home,"plasim_namelist","NSNAPSHOT","1")
+      edit_namelist(home,"plasim_namelist","NSTPS",str(21600/int(float(val))))
       
     if name=="rayleigh":
       found=True

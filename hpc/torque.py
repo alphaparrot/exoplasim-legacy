@@ -2,7 +2,7 @@
 
 import os
 import numpy as np
-from crawldefs import Job
+from jobdefs import Job
 from identity import *
 
 SUB = "qsub"
