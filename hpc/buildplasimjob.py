@@ -180,8 +180,12 @@ def prep(job):
     if name=="pCO2":
       found=True
       gotpress=False
-      if "pressure" in fields:
-        p0 = float(job.parameters["pressure"])
+      if "pN2" in fields:
+        p0 = float(job.parameters["pN2"])
+        p0 *= 1.0e6
+        p0 += float(val)
+        p0 *= 1.0e-6
+        edit_namelist(home,"plasim_namelist","PSURF",str(p0*1.0e5))
         gotpress=True
       if not gotpress:
         p0 += float(val)
@@ -191,10 +195,13 @@ def prep(job):
       pCO2 = float(val)/(p0*1.0e6)*1.0e6 #ppmv
       edit_namelist(home,"radmod_namelist","CO2",str(pCO2))      
       
-    if name=="pressure":
+    if name=="pN2":
       found=True
       
       p0 = float(val)*1.0e6
+      if "pCO2" in fields:
+          p0 += float(job.parameters["pCO2"])
+          edit_namelist(home,"radmod_namelist","CO2",str(float(job.parameters["pCO2"])/p0*1.0e6))
       edit_namelist(home,"plasim_namelist","PSURF",str(p0*0.1))
        
     if name=="alloutput":
