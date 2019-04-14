@@ -287,11 +287,16 @@ are a large number of predefined arguments. These are described in the next sect
 * Examples *
 ------------
 
+Below are 3 examples of configurations one may want to use. Each example assumes the source is
+in a folder called 'clean'. Each example consists of a header line, followed by a job line.
+In actual practice, you would probably have many job lines following the header line, perhaps
+varying pN2 or pCO2 or flux or something.
+
 1. Modern Earth, with 410 ubars of CO2, run to energy-balance equilibrium, and notifying only on
    abort. Run with 8 cores on hpq.
 
-# JOBNAME STATUS NCORES QUEUE pCO2 pN2 script extra notify
-modern-earth 0 8 hpq 410.0 1.01067 super-equil.sh super_relax.py a
+# JOBNAME STATUS NCORES QUEUE pCO2 script extra notify
+modern-earth 0 8 hpq 410.0 super-equil.sh super_relax.py a
 
 2. Aquaplanet with 8 bars of N2 with a pinned linear-like scheme, layer-by-layer Rayleigh 
    scattering, run to energy-balance, notifying on start, abort, or end, run on 16 cores on sandyq.
