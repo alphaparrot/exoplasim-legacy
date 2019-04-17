@@ -16,7 +16,11 @@ _BATCHSCRIPT = ("#!/bin/bash -l                                                 
               "#PBS -N %s                                                       \n"
               "# EVERYTHING ABOVE THIS COMMENT IS NECESSARY, SHOULD ONLY CHANGE"+
               " nodes,ppn,walltime and my_job_name VALUES                       \n"+
-              "cd $PBS_O_WORKDIR                                                \n")
+              "cd $PBS_O_WORKDIR                                                \n"+
+              "module load "+GCCMOD              +"                            \n"+
+              "module load "+PYTHONMOD           +"                            \n"+
+              "module load "+INTELMOD            +"                              \n"+
+              "module load "+MPIMOD              +"                              \n")
 
 def BATCHSCRIPT(job,notify):
     return _BATCHSCRIPT%(1,job.ncores,job.queue,notify,job.name)

@@ -58,6 +58,7 @@ if __name__=="__main__":
     queued = False
     print "Getting job...."
     while not ready:       #Search for a job to run 
+      queued = False
       for i in range(0,len(tasks)-1):
         if tasks[i]!='':
           if tasks[i][0]!="#":
@@ -72,7 +73,8 @@ if __name__=="__main__":
               break
       if not queued:
           openjobs=False
-          ready=True
+          ready=False
+          print "We have run out of jobs and ARE TRYING TO BREAK"
           break
       ready=False
       f=open("tasklog.crwl","a")

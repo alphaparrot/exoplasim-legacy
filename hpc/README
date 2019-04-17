@@ -10,6 +10,23 @@ about you. The most basic installation is to simply run:
 
 This will get your username from the operating system, and write a file called identity.py
 which stores that in a variable for later use. Job submission scripts will use this information.
+
+NOTE: This will use default module versions for openmpi, python, gcc, and the intel compiler.
+The assumption is you will use python-2.7.9, gcc-4.9.1, intel-17, and openmpi v2.0.1-intel-17. 
+IF THIS IS NOT YOUR ENVIRONMENT, you will need to specify that. Individual module versions can
+be specified directly:
+
+    python buildhpc.py gcc=4.9.1 python=2.7.9 intel=intel-17 openmpi=2.0.1-intel-17
+    
+But they can also be generated automatically if you already have your modules loaded. A "sane"
+installation workflow would therefore be to FIRST compile PlaSim, using your desired build
+environment, and then without unloading any modules, run buildhpc.py with the 'automod' flag:
+
+    python buildhpc.py automod
+    
+This will pull the list of loaded modules, and use the versions of GCC, Python, Intel, and 
+OpenMPI that you're actually using. 
+
 If you use a system like Slurm which also requires an account name and an email address, you
 can build the system with that information by running:
 

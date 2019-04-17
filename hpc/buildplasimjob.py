@@ -499,6 +499,7 @@ def prep(job):
       edit_namelist(home,"plasim_namelist","NSTPW",str(7200/int(float(val))))
       edit_namelist(home,"plasim_namelist","NSNAPSHOT","1")
       edit_namelist(home,"plasim_namelist","NSTPS",str(21600/int(float(val))))
+      nsn = True
       
     if name=="rayleigh":
       found=True
@@ -620,10 +621,6 @@ def prep(job):
   
   # You may have to change this part
   jobscript =(BATCHSCRIPT(job,notify)+
-              "module load gcc/4.9.1                                          \n"+
-              "module load python/2.7.9                                       \n"+
-              "module load intel/intel-17                                       \n"+
-              "module load openmpi/2.0.1-intel-17                               \n"+
               "rm keepgoing                                                     \n"+
               "mkdir /mnt/node_scratch/"+USER+"/"+home+"            \n")
   if nsn:
@@ -658,7 +655,8 @@ def prep(job):
   rs.close()
   
 def submit(job):
-  os.system("cd "+workdir+" && "+SUB+" runplasim && cd "+job.top)
+    
+  os.system("cd "+job.home+" && "+SUB+" runplasim && cd "+job.top)
   time.sleep(1.0)
   tag = job.getID()
   job.write()
