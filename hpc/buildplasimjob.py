@@ -93,6 +93,22 @@ def edit_namelist(home,filename,arg,val):
   f=open(home+"/"+filename,"w")
   f.write('\n'.join(fnl))
   f.close() 
+  
+def edit_postnamelist(home,filename,arg,val):
+  with open(home+"/"+filename,"r") as f:
+      pnl = f.read().split('\n')
+  flag=False
+  pnl = [y for y in pnl if y!='']
+  for n in range(len(pnl)):
+      if pnl[n].split('=')[0].strip()==arg:
+          pnl[n]=arg+"="+val
+          flag=True
+          break
+  if not flag:
+      pnl.append(arg+'='+val)
+  pnl.append('')
+  with open(home+"/"+filename,"w") as f:
+      f.write('\n'.join(pnl))
 
 
 def prep(job):
@@ -291,10 +307,14 @@ def prep(job):
     if name=="gravity":
       found=True
       edit_namelist(home,"planet_namelist","GA",val) 
+      edit_postnamelist(home,"example.nl","gravity",val)
+      edit_postnamelist(home,"snapshot.nl","gravity",val)
        
     if name=="radius":
       found=True
-      edit_namelist(home,"planet_namelist","PLARAD",str(float(val)*6371220.0)) 
+      edit_namelist(home,"planet_namelist","PLARAD",str(float(val)*6371220.0))
+      edit_postnamelist(home,"example.nl","radius",str(float(val)*6371220.0))
+      edit_postnamelist(home,"snapshot.nl","radius",str(float(val)*6371220.0))
      
     if name=="eccen":
       found=True
