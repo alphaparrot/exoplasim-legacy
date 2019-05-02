@@ -3,6 +3,7 @@ import numpy as np
 import time
 from batch_system import SUB, BATCHSCRIPT
 from identity import USER
+import glob
 
 # Options:
 #   noutput
@@ -307,14 +308,18 @@ def prep(job):
     if name=="gravity":
       found=True
       edit_namelist(home,"planet_namelist","GA",val) 
-      edit_postnamelist(home,"example.nl","gravity",val)
-      edit_postnamelist(home,"snapshot.nl","gravity",val)
+      postnls = glob.glob(home+"/*.nl")
+      for postf in postnls:
+        pf = postf.split("/")[-1]
+        edit_postnamelist(home,pf,"gravity",val)
        
     if name=="radius":
       found=True
       edit_namelist(home,"planet_namelist","PLARAD",str(float(val)*6371220.0))
-      edit_postnamelist(home,"example.nl","radius",str(float(val)*6371220.0))
-      edit_postnamelist(home,"snapshot.nl","radius",str(float(val)*6371220.0))
+      postnls = glob.glob(home+"/*.nl")
+      for postf in postnls:
+        pf = postf.split("/")[-1]
+        edit_postnamelist(home,pf,"radius",str(float(val)*6371220.0))
      
     if name=="eccen":
       found=True
