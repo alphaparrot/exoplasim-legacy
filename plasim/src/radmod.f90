@@ -42,6 +42,7 @@
       integer :: nsol    = 1      ! switch for solang (1/0=yes/no)
       integer :: nswr    = 1      ! switch for swr (1/0=yes/no)
       integer :: nlwr    = 1      ! switch for lwr (1/0=yes/no)
+      integer :: npbroaden = 1    ! switch for pressure-broadening (1/0=yes/no)
       integer :: nclouds = 1      ! switch for cloud sw effects (1/0=yes/no)
       integer :: nswrcl  = 1      ! switch for computed cloud props.(1/0=y/n)
       integer :: nrscat  = 1      ! switch for rayleigh scat. (1/0=yes/no)
@@ -143,7 +144,7 @@
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
      &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown          &
-     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc      &
+     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,npbroaden      &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn
 !
@@ -179,9 +180,6 @@
 !     gsol0   : solar constant (w/m2)
 !
 
-      pn2 = psurf*(1.0 - co2*1e-6)
-      pfac = pn2/1.0E5
-      call mpbcr(pfac)
       
       jtune=0
       if(ndheat > 0) then 
@@ -271,10 +269,18 @@
          write(nud,'(" * Namelist RADMOD_NL from <radmod_namelist> *")')
          write(nud,'(" *********************************************")')
          write(nud,radmod_nl)
+         
+         if (npbroaden .lt. 0.5) then
+            pn2 = psurf*(1.0 - co2*1e-6)
+            pfac = pn2/1.0E5
+         else
+            pfac = 1.0
+         endif
       endif ! (mypid==NROOT)
 !
 !     broadcast namelist parameter
 !
+      call mpbcr(pfac)
       call mpbci(ndcycle)
       call mpbci(ncstsol)
       call mpbci(no3)
