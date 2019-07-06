@@ -303,7 +303,11 @@ def prep(job):
       
     if name=="year_init":
       found=True
-      yearini = int(val)
+      yearini = int(val)      
+      
+    if name=="pressurebroaden":
+      found=True
+      edit_namelist(home,"radmod_namelist","NPBROADEN",val)
      
     if name=="gravity":
       found=True
