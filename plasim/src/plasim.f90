@@ -572,7 +572,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call gridpointd
 
 !          call outaccu
-         naccuout = naccuout + 1
+!          naccuout = naccuout + 1
          if (mypid == NROOT) then
             if (mod(nstep,nafter) == 0 .and. noutput > 0 ) then
                call outsp
@@ -671,6 +671,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
       if (mypid == NROOT) then
          call restart_prepare(plasim_status)
+         
+         if (mod(naccuout,nstpw)==0) naccuout = 0
+         
          call put_restart_integer('nstep'   ,nstep   )
          call put_restart_integer('naccuout',naccuout)
          call put_restart_integer('nlat'    ,NLAT    )
