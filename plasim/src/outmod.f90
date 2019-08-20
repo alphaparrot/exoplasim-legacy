@@ -184,16 +184,16 @@
         
         
 !         write(nud,'("* nstep ",i6,"  *")') nstep
-!         write(nud,*) real(naccuout)
+!         write(nud,*) real(max(1,naccuout))
 !         write(nud,*) aaso(:)
-        aaso(:) = aaso(:) / real(naccuout)
+        aaso(:) = aaso(:) / real(max(1,naccuout))
         call writesp(40,aaso,129,0,CV*CV,0.)
         
 !       ************
 !       * pressure *
 !       ************
         
-        aasp(:) = aasp(:) / real(naccuout)
+        aasp(:) = aasp(:) / real(max(1,naccuout))
         call writesp(40,aasp,152,0,1.0,log(psurf))
         
 !       ***************
@@ -201,7 +201,7 @@
 !       ***************
         
         do jlev = 1 , NLEV
-           aast(:,jlev) = aast(:,jlev) / real(naccuout)
+           aast(:,jlev) = aast(:,jlev) / real(max(1,naccuout))
            call writesp(40,aast(1,jlev),130,jlev,ct,t0(jlev) * ct)
         enddo
         
@@ -211,7 +211,7 @@
         
         if (nqspec == 1) then
            do jlev = 1 , NLEV
-              aasqout(:,jlev) = aasqout(:,jlev) / real(naccuout)
+              aasqout(:,jlev) = aasqout(:,jlev) / real(max(1,naccuout))
               call writesp(40,aasqout(1,jlev),133,jlev,1.0,0.0)
            enddo
         endif
@@ -221,7 +221,7 @@
 !       **************
         
         do jlev = 1 , NLEV
-           aasd(:,jlev) = aasd(:,jlev) / real(naccuout)
+           aasd(:,jlev) = aasd(:,jlev) / real(max(1,naccuout))
            call writesp(40,aasd(1,jlev),155,jlev,ww,0.0)
         enddo
         
@@ -230,7 +230,7 @@
 !       *************
         
         do jlev = 1 , NLEV
-           aasz(:,jlev) = aasz(:,jlev) / real(naccuout)
+           aasz(:,jlev) = aasz(:,jlev) / real(max(1,naccuout))
            zsave = aasz(3,jlev)
            aasz(3,jlev) = aasz(3,jlev) - plavor
            call writesp(40,aasz(1,jlev),138,jlev,ww,0.0)
@@ -313,9 +313,25 @@
 !       * surface temperature *
 !       ***********************
         
-        do jlev=1,NLEP
-          aadt(:,jlev) = aadt(:,jlev)/real(naccuout)
-        enddo
+!         thyng = SUM(aadt(:,NLEP))/NHOR/real(naccuout)
+!         if (thyng .lt. 15.0) then
+!            open(unit=79,file='surftemp_error.log',position='append',status='unknown')
+!            write(79,*) nstep, thyng
+!            write(79,*) aadt(1,NLEP),naccuout,dt(1,NLEP),mypid
+!            close(79)
+!         endif
+        if (aadt(1,NLEP) .ne. dt(1,NLEP)) then
+          do jlev=1,NLEP
+            aadt(:,jlev) = aadt(:,jlev)/real(naccuout)
+          enddo
+        endif
+!         thyng = SUM(aadt(:,NLEP))/NHOR
+!         if (thyng .lt. 15.0) then
+!            open(unit=79,file='surftemp_error.log',position='append',status='unknown')
+!            write(79,*) nstep, thyng
+!            write(79,*) aadt(1,NLEP),naccuout,dt(1,NLEP),mypid
+!            close(79)
+!         endif
         call writegp(40,aadt(1,NLEP),139,0)
         
 !       ****************
@@ -1646,7 +1662,7 @@
       
       endif
       
-!       naccuout=naccuout+1
+      naccuout=naccuout+1
 !
       return
       end
