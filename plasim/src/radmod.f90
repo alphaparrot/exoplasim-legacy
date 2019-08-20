@@ -42,7 +42,6 @@
       integer :: nsol    = 1      ! switch for solang (1/0=yes/no)
       integer :: nswr    = 1      ! switch for swr (1/0=yes/no)
       integer :: nlwr    = 1      ! switch for lwr (1/0=yes/no)
-      integer :: npbroaden = 1    ! switch for pressure-broadening (1/0=yes/no)
       integer :: nclouds = 1      ! switch for cloud sw effects (1/0=yes/no)
       integer :: nswrcl  = 1      ! switch for computed cloud props.(1/0=y/n)
       integer :: nrscat  = 1      ! switch for rayleigh scat. (1/0=yes/no)
@@ -144,7 +143,7 @@
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
      &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown          &
-     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,npbroaden      &
+     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc      &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn
 !
@@ -179,8 +178,6 @@
 !
 !     gsol0   : solar constant (w/m2)
 !
-
-      
       jtune=0
       if(ndheat > 0) then 
        if(NTRU==21 .or. NTRU==1) then
@@ -269,18 +266,10 @@
          write(nud,'(" * Namelist RADMOD_NL from <radmod_namelist> *")')
          write(nud,'(" *********************************************")')
          write(nud,radmod_nl)
-         
-         if (npbroaden .lt. 0.5) then
-            pn2 = psurf*(1.0 - co2*1e-6)
-            pfac = pn2/1.0E5
-         else
-            pfac = 1.0
-         endif
       endif ! (mypid==NROOT)
 !
 !     broadcast namelist parameter
 !
-      call mpbcr(pfac)
       call mpbci(ndcycle)
       call mpbci(ncstsol)
       call mpbci(no3)
@@ -1552,7 +1541,7 @@
 !
       do jlev=1,NLEV
        jlep=jlev+1
-       zzf1=sigma(jlev)*dsigma(jlev)/ga/(pfac*100000.) !is this a problem?
+       zzf1=sigma(jlev)*dsigma(jlev)/ga/100000.
        zzf2=zpv2pm*1.E-6                        !get co2 in pp mass (kg/kg-stp)
        zzf3=-1.66*acllwr*1000.*dsigma(jlev)/ga
        zsfac(:)=zzf1*zps2(:)
@@ -1565,18 +1554,6 @@
         ztaucc0(:,jlev)=1.-dcc(:,jlev)*(1.-exp(zzf3*dql(:,jlev)*dp(:)))
        endif
       enddo
-      
-      ! zzf1 = (sigma * dsigma)/g
-      ! zps2 = ps^2
-      ! zzf1*zps2 = ps*sigma * ps*dsigma/g = p*dm
-      ! zq = f * qh2o*(p*dm) = f*ph2o*dm
-      
-      ! That dm will scale with surface pressure, so unless it was meant to be dmh2o...
-      ! It could also be that this should have been zq = f*mh2o*dp
-      ! And then if we're integrating from surface to TOA, that makes some more sense?
-      
-      ! same problem for CO2 and ozone, no?
-      
 !
 !     b) transmissivities, effective radiations and fluxes
 !
@@ -1594,11 +1571,6 @@
         zsumwv(:)=zsumwv(:)+zq(:,jlev2)
         zsumo3(:)=zsumo3(:)+zqo3(:,jlev2)
         zsumco2(:)=zsumco2(:)+zqco2(:,jlev2)
-        
-        ! Building up an integral: integral of (f*u_abs*dp)
-        
-! Absorber column mass at level p' is f/g*integral(q*(p/p0)*dp) from ps to p'.
-        
 !
 !     clear sky transmisivity
 !
