@@ -1,7 +1,7 @@
 GPLASIM
 ======
 
-Gerneral Circulation Models Planet Simulator (PlaSim) and PUMA
+General Circulation Models Planet Simulator (PlaSim) and PUMA
 
 This repository has all necessary components to run the models.
 
