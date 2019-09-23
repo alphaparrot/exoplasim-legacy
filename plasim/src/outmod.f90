@@ -485,6 +485,8 @@
 !       **********
       
         call writegp(40,dalb,175,0)
+        call writegp(40,dsalb(1,:),174,0)
+        call writegp(40,dsalb(2,:),184,0)
         
       else
       
@@ -514,7 +516,10 @@
 !       **********
       
         aadalb(:) = aadalb(:)/real(naccuout)
+        aadsalb1(:) = aadsalb1(:)/real(naccuout)
         call writegp(40,aadalb,175,0)
+        call writegp(40,aadsalb1,174,0)
+        call writegp(40,aadsalb2,184,0)
         
       endif
 
@@ -1143,6 +1148,8 @@
 !       **********
       
         call writegp(140,dalb,175,0)
+        call writegp(140,dsalb(1,:),174,0)
+        call writegp(140,dsalb(2,:),184,0)
         
 
 !     ***************************
@@ -1546,6 +1553,8 @@
         aadls(:)        = 0.
         aadz0(:)        = 0.
         aadalb(:)       = 0.
+        aadsalb1(:)     = 0.
+        aadsalb2(:)     = 0.
         aadtsoil(:)     = 0.
         aadtd2(:)       = 0.
         aadtd3(:)       = 0.
@@ -1647,7 +1656,9 @@
         aadtd5(:)       = aadtd5(:)       + dtd5(:)      
         aadls(:)        = aadls(:)        + dls(:)       
         aadz0(:)        = aadz0(:)        + dz0(:)       
-        aadalb(:)       = aadalb(:)       + dalb(:)      
+        aadalb(:)       = aadalb(:)       + dalb(:)
+        aadsalb1(:)     = aadsalb1(:)     + dsalb(1,:)
+        aadsalb2(:)     = aadsalb2(:)     + dsalb(2,:)
         aadtsoil(:)     = aadtsoil(:)     + dtsoil(:)    
         aadtd2(:)       = aadtd2(:)       + dtd2(:)      
         aadtd3(:)       = aadtd3(:)       + dtd3(:)      

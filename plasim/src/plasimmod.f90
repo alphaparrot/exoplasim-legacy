@@ -329,6 +329,15 @@
 !     *************
 
       real :: dalb(NHOR)               ! albedo
+      real :: dsalb(2,NHOR)               ! spectral weighted albedo
+      real :: dsnowalb(2)           = 0.6  ! spectral weighted snow albedo
+      real :: dgroundalb(2)         = 0.2  ! spectral weighted ground albedo
+      real :: doceanalb(2)          = 0.069  ! spectral weighted ocean albedo
+      real :: dsnowalbmx(2)         = 0.8
+      real :: dsnowalbmn(2)         = 0.4
+      real :: dicealbmx(2)          = 0.7
+      real :: dicealbmn(2)          = 0.5
+      real :: dglacalbmn(2)         = 0.6
       real :: dswfl(NHOR,NLEP)         ! net solar radiation
       real :: dlwfl(NHOR,NLEP)         ! net thermal radiation
       real :: dflux(NHOR,NLEP)         ! net radiation (SW + LW)
@@ -466,6 +475,8 @@
       real :: aadls(NHOR)         = 0.
       real :: aadz0(NHOR)         = 0.
       real :: aadalb(NHOR)        = 0.
+      real :: aadsalb1(NHOR)        = 0.
+      real :: aadsalb2(NHOR)        = 0.
       real :: aadtsoil(NHOR)      = 0.
       real :: aadtd2(NHOR)        = 0.
       real :: aadtd3(NHOR)        = 0.
