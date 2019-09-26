@@ -438,7 +438,7 @@
        call mpgetgp('dz0climo',dz0climo,NHOR,     1)
        call mpgetgp('dalbcl'  ,dalbcl  ,NHOR,    14)
        call mpgetgp('dalbcl1' ,dalbcl1 ,NHOR,    14)
-       call mpgetgp('dalbcl2' ,dlabcl2 ,NHOR,    14)
+       call mpgetgp('dalbcl2' ,dalbcl2 ,NHOR,    14)
 
        n_sea_points = ncountsea(dls)
        
@@ -517,7 +517,7 @@
         if(dsnow(jhor) > 0.) then
          zalbmax=dforest(jhor)*albsmaxf+(1.-dforest(jhor))*albsmax
          zalbmin=dforest(jhor)*albsminf+(1.-dforest(jhor))*albsmin
-         zdalb=(zalbmax1-zalbmin1)*(dts(jhor)-263.16)/(tmelt-263.16)
+         zdalb=(zalbmax-zalbmin)*(dts(jhor)-263.16)/(tmelt-263.16)
          zalbsnow=MAX(zalbmin,MIN(zalbmax,zalbmax-zdalb))
          zalbmax1=dforest(jhor)*albsmaxf1+(1.-dforest(jhor))*albsmax1
          zalbmin1=dforest(jhor)*albsminf1+(1.-dforest(jhor))*albsmin1

@@ -208,8 +208,11 @@
         enddo
         z1 = z1 + 0.5*(bb1(1024)+bb2(1))*(wv2(1)-wv1(1024))
         
-        a1 = 0.01*a1/z1 !Percent -> Decimal; normalization
-        a2 = 0.01*a2/z2
+        zdenom1 = 0.01/z1
+        zdenom2 = 0.01/z2
+        
+        a1 = zdenom1*a1 !Percent -> Decimal; normalization
+        a2 = zdenom2*a2
         
         znet = z1+z2
         
@@ -242,6 +245,8 @@
             a2 = a2 + 0.5*(bb3(k)*iceblendmin(k)+bb3(k+1)*iceblendmin(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = zdenom1*a1 !Percent -> Decimal; normalization
+        a2 = zdenom2*a2
         
         dsnowalbmn(1) = a1
         dsnowalbmn(2) = a2
@@ -260,6 +265,8 @@
             a2 = a2 + 0.5*(bb3(k)*iceblendmax(k)+bb3(k+1)*iceblendmax(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = zdenom1*a1 !Percent -> Decimal; normalization
+        a2 = zdenom2*a2
         
         dsnowalbmx(1) = a1
         dsnowalbmx(2) = a2
@@ -278,6 +285,8 @@
             a2 = a2 + 0.5*(bb3(k)*seaicemin(k)+bb3(k+1)*seaicemin(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = zdenom1*a1 !Percent -> Decimal; normalization
+        a2 = zdenom2*a2
         
         dicealbmn(1) = a1
         dicealbmn(2) = a2
@@ -296,6 +305,8 @@
             a2 = a2 + 0.5*(bb3(k)*seaicemax(k)+bb3(k+1)*seaicemax(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = zdenom1*a1 !Percent -> Decimal; normalization
+        a2 = zdenom2*a2
         
         dicealbmx(1) = a1
         dicealbmx(2) = a2
@@ -314,6 +325,8 @@
             a2 = a2 + 0.5*(bb3(k)*glacalbmin(k)+bb3(k+1)*glacalbmin(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = zdenom1*a1 !Percent -> Decimal; normalization
+        a2 = zdenom2*a2
         
         dglacalbmn(1) = a1
         dglacalbmn(2) = a2
@@ -332,6 +345,8 @@
             a2 = a2 + 0.5*(bb3(k)*groundblend(k)+bb3(k+1)*groundblend(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = zdenom1*a1 !Percent -> Decimal; normalization
+        a2 = zdenom2*a2
         
         dgroundalb(1) = a1
         dgroundalb(2) = a2
@@ -350,6 +365,8 @@
             a2 = a2 + 0.5*(bb3(k)*oceanblend(k)+bb3(k+1)*oceanblend(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = zdenom1*a1 !Percent -> Decimal; normalization
+        a2 = zdenom2*a2
         
         doceanalb(1) = a1
         doceanalb(2) = a2
@@ -359,9 +376,16 @@
         write(nud,*) "Overall ocean albedo:",z1*doceanalb(1)+z2*doceanalb(2)
         
         
-        
-        
-!         call put_restart_array("zsolars",zsolars,2,2,1)
+        call put_restart_array("zsolars",zsolars,2,2,1)
+        call put_restart_array('dsnowalb',dsnowalb,2,2,1)
+        call put_restart_array('dsnowalbmn',dsnowalbmn,2,2,1)
+        call put_restart_array('dsnowalbmx',dsnowalbmx,2,2,1)
+        call put_restart_array('dicealbmn',dicealbmn,2,2,1)
+        call put_restart_array('dicealbmx',dicealbmx,2,2,1)
+        call put_restart_array('dglacalbmn',dglacalbmn,2,2,1)
+        call put_restart_array('dgroundalb',dgroundalb,2,2,1)
+        call put_restart_array('doceanalb',doceanalb,2,2,1)
+                               
         
       endif
       
@@ -379,15 +403,15 @@
       call mpbcrn(dgroundalb,2)
       call mpbcrn(doceanalb,2)
       
-      call mpputgp('zsolars',zsolars,2,1)
-      call mpputgp('dsnowalb',dsnowalb,2,1)
-      call mpputgp('dsnowalbmn',dsnowalbmn,2,1)
-      call mpputgp('dsnowalbmx',dsnowalbmx,2,1)
-      call mpputgp('dicealbmn',dicealbmn,2,1)
-      call mpputgp('dicealbmx',dicealbmx,2,1)
-      call mpputgp('dglacalbmn',dglacalbmn,2,1)
-      call mpputgp('dgroundalb',dgroundalb,2,1)
-      call mpputgp('doceanalb',doceanalb,2,1)
+!       call mpputgp('zsolars',zsolars,2,1)
+!       call mpputgp('dsnowalb',dsnowalb,2,1)
+!       call mpputgp('dsnowalbmn',dsnowalbmn,2,1)
+!       call mpputgp('dsnowalbmx',dsnowalbmx,2,1)
+!       call mpputgp('dicealbmn',dicealbmn,2,1)
+!       call mpputgp('dicealbmx',dicealbmx,2,1)
+!       call mpputgp('dglacalbmn',dglacalbmn,2,1)
+!       call mpputgp('dgroundalb',dgroundalb,2,1)
+!       call mpputgp('doceanalb',doceanalb,2,1)
       
       end subroutine solarini
       
@@ -588,39 +612,64 @@
 !     determine stellar parameters      
 !
       if (nstartemp > 0) then
-        if (nrestart > 0.) then
-          call mpgetgp('zsolars',zsolars,2,1)
-          call mpgetgp('dsnowalb',dsnowalb,2,1)
-          call mpgetgp('dgroundalb',dgroundalb,2,1)
-          call mpgetgp('doceanalb',doceanalb,2,1)
-          if (mypid == NROOT) then
+!         if (nrestart > 0.) then
+!           if (mypid == NROOT) then
 !             call get_restart_array("zsolars",zsolars,2,2,1)
-            zsolar1 = zsolars(1)
-            zsolar2 = zsolars(2)
-            write(nud,*) "Read zsolar1 from restart: ",zsolar1
-            write(nud,*) "Read zsolar2 from restart: ",zsolar2
-            write(nud,*) "Read snow albedo <0.75 um from restart: ",dsnowalb(1)
-            write(nud,*) "Read snow albedo >0.75 um from restart: ",dsnowalb(2)
-            write(nud,*) "Read ground albedo <0.75 um from restart: ",dgroundalb(1)
-            write(nud,*) "Read ground albedo >0.75 um from restart: ",dgroundalb(2)
-            write(nud,*) "Read ocean albedo <0.75 um from restart: ",doceanalb(1)
-            write(nud,*) "Read ocean albedo >0.75 um from restart: ",doceanalb(2)
-          endif
-          call mpbcr(zsolar1)
-          call mpbcr(zsolar2)
-          call mpbcrn(dsnowalb)
-          call mpbcrn(dgroundalb)
-          call mpbcrn(doceanalb)
-!           call mpputgp(
-        else
-          call solarini 
-        endif
+!             call get_restart_array('dsnowalb',dsnowalb,2,2,1)
+!             call get_restart_array('dsnowalbmn',dsnowalbmn,2,2,1)
+!             call get_restart_array('dsnowalbmx',dsnowalbmx,2,2,1)
+!             call get_restart_array('dicealbmn',dicealbmn,2,2,1)
+!             call get_restart_array('dicealbmx',dicealbmx,2,2,1)
+!             call get_restart_array('dglacalbmn',dglacalbmn,2,2,1)
+!             call get_restart_array('dgroundalb',dgroundalb,2,2,1)
+!             call get_restart_array('doceanalb',doceanalb,2,2,1)
+!             zsolar1 = zsolars(1)
+!             zsolar2 = zsolars(2)
+!             write(nud,*) "Read zsolar1 from restart: ",zsolar1
+!             write(nud,*) "Read zsolar2 from restart: ",zsolar2
+!             write(nud,*) "Read snow albedo <0.75 um from restart: ",dsnowalb(1)
+!             write(nud,*) "Read snow albedo >0.75 um from restart: ",dsnowalb(2)
+!             write(nud,*) "Read snow min albedo <0.75 um from restart: ",dsnowalbmn(1)
+!             write(nud,*) "Read snow min albedo >0.75 um from restart: ",dsnowalbmn(2)
+!             write(nud,*) "Read snow max albedo <0.75 um from restart: ",dsnowalbmx(1)
+!             write(nud,*) "Read snow max albedo >0.75 um from restart: ",dsnowalbmx(2)
+!             write(nud,*) "Read glacier min albedo <0.75 um from restart: ",dglacalbmn(1)
+!             write(nud,*) "Read glacier min albedo >0.75 um from restart: ",dglacalbmn(2)
+!             write(nud,*) "Read sea ice min albedo <0.75 um from restart: ",dicealbmn(1)
+!             write(nud,*) "Read sea ice min albedo >0.75 um from restart: ",dicealbmn(2)
+!             write(nud,*) "Read sea ice max albedo <0.75 um from restart: ",dicealbmx(1)
+!             write(nud,*) "Read sea ice max albedo >0.75 um from restart: ",dicealbmx(2)
+!             write(nud,*) "Read ground albedo <0.75 um from restart: ",dgroundalb(1)
+!             write(nud,*) "Read ground albedo >0.75 um from restart: ",dgroundalb(2)
+!             write(nud,*) "Read ocean albedo <0.75 um from restart: ",doceanalb(1)
+!             write(nud,*) "Read ocean albedo >0.75 um from restart: ",doceanalb(2)
+!           endif
+!           call mpbcr(zsolar1)
+!           call mpbcr(zsolar2)
+!           call mpbcrn(dsnowalb,2)
+!           call mpbcrn(dsnowalbmn,2)
+!           call mpbcrn(dsnowalbmx,2)
+!           call mpbcrn(dglacalbmn,2)
+!           call mpbcrn(dicealbmn,2)
+!           call mpbcrn(dicealbmx,2)
+!           call mpbcrn(dgroundalb,2)
+!           call mpbcrn(doceanalb,2)
+! !           call mpputgp(
+!         else
+!           call solarini 
+!         endif
+        call solarini
       else
         call mpbcr(zsolar1)
         call mpbcr(zsolar2)
-        call mpbcrn(dsnowalb)
-        call mpbcrn(dgroundalb)
-        call mpbcrn(doceanalb)
+        call mpbcrn(dsnowalb,2)
+        call mpbcrn(dsnowalbmn,2)
+        call mpbcrn(dsnowalbmx,2)
+        call mpbcrn(dglacalbmn,2)
+        call mpbcrn(dicealbmn,2)
+        call mpbcrn(dicealbmx,2)
+        call mpbcrn(dgroundalb,2)
+        call mpbcrn(doceanalb,2)
       endif
 !
 !     determine orbital parameters
