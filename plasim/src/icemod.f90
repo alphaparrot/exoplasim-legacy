@@ -204,7 +204,9 @@
 
       if (zmax < 0.0) then ! xclicec was not read
          xclicec(:,:) = 0.0
+         if (nice > 0.5) then
          where (xclsst(:,:) <= TFREEZE) xclicec(:,:) = 1.0
+         endif
          if (mypid == NROOT) &
          write(nud,*) 'ice cover {xclicec} constructed from SST'
       endif
