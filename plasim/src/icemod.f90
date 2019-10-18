@@ -184,9 +184,10 @@
       call mpsurfgp('xls',xls,NHOR,1)
 
       call mpsurfgp('xclsst' ,xclsst ,NHOR,14)
+      if (nice .ge. 0) then
       call mpsurfgp('xclicec',xclicec,NHOR,14)
       call mpsurfgp('xcliced',xcliced,NHOR,14)
-
+      endif
 !     make sure, that land sea mask values are 0 or 1
 
       where (xls(:) > 0.5)
@@ -196,6 +197,7 @@
       endwhere
 
       call mpmaxval(xclicec,NHOR,14,zmax)
+      if (nice .ge. 0) then
       if (zmax > 5.0) then
          xclicec(:,:) = xclicec(:,:) * 0.01
          if (mypid == NROOT) &
@@ -215,7 +217,7 @@
          if (mypid == NROOT) &
          write(nud,*) 'ice thickness {xcliced} computed from ice cover'
       endif
-
+      endif
 !     correct climatological ice with land-sea mask
 
       do jm = 0 , 13
@@ -613,6 +615,12 @@
         deallocate(zprf1)
         deallocate(zprf2)
        endif
+       
+      else if (nice < 0) then
+        xiced(:) = 0.
+        xcflux(:) = 0.
+        xicec(:) = 0.
+        xflxice2(:) = 0.
 !
       else
 !
