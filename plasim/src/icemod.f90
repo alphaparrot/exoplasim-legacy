@@ -16,7 +16,6 @@
       parameter(NHOR = NLON * NLPP)     ! Horizontal part
       parameter(NROOT = 0)              ! Master node
 !
-      parameter(TFREEZE=271.25)         ! freezing temp. for sea ice at S=34.7
       parameter(TMELT=273.16)           ! melting temp. for snow (0 deg C)
                                         ! ALL DENSITIES IN (kg/m**3)
       parameter(CRHOS = 1030.)          ! DENSITY OF SEA WATER AT S=34.7
@@ -34,6 +33,7 @@
 !     namelist parameters
 !
       integer :: nice       = 1    ! compute ice yes/no (1/0)
+      integer :: nseaice    = 1    ! Toggle sea ice (1/0)
       integer :: newsurf    = 0    ! 1: read surface data after restart
       integer :: nsnow      = 1    ! allow snow on ice yes/no (1/0)
       integer :: ntskin     = 1    ! compute skin temperature (0=clim.)
@@ -51,6 +51,8 @@
       integer :: ngui   = 0        ! switch for gui
       integer :: naout  = 0        ! no additional output fields 
 !
+      real :: TFREEZE   =  271.25  ! freezing temp. for sea ice at S=34.7
+      
       real :: taunc         =  0.  ! time scale for newtonian cooling
       real :: xmind         = 0.1  ! minimal ice thickness (m)
       real :: xmaxd         = 9.0  ! maximal ice thickness (m; neg. = no limit)
@@ -188,6 +190,12 @@
       call mpsurfgp('xclicec',xclicec,NHOR,14)
       call mpsurfgp('xcliced',xcliced,NHOR,14)
       endif
+      
+      if (nseaice == 0) then
+         xclicec(:,:) = 0.
+         xcliced(:,:) = 0.
+      endif
+      
 !     make sure, that land sea mask values are 0 or 1
 
       where (xls(:) > 0.5)
@@ -217,6 +225,11 @@
          if (mypid == NROOT) &
          write(nud,*) 'ice thickness {xcliced} computed from ice cover'
       endif
+      endif
+      
+      if (nseaice == 0) then
+         xclicec(:,:) = 0.0
+         xcliced(:,:) = 0.0
       endif
 !     correct climatological ice with land-sea mask
 
@@ -258,8 +271,8 @@
       logical :: lxsnow
 !
       namelist/icemod_nl/nout,nfluko,nperpetual_ice,ntspd,nprint,nprhor &
-     &               ,nentropy,nice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
-     &               ,xmind,xmaxd,thicec,newsurf,naout
+     &               ,nentropy,nice,nseaice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
+     &               ,xmind,xmaxd,thicec,TFREEZE,newsurf,naout
 !
 !     copy input parameter to icemod
 !
@@ -297,11 +310,15 @@
          write(nud,'(" * Namelist ICEMOD_NL from <",a15,"> *")') trim(icemod_namelist)
          write(nud,'(" *********************************************")')
          write(nud,icemod_nl)
+         
+         if (nseaice == 0) TFREEZE = 0.0
+         
       endif
 
       call mpbci(nout)
       call mpbci(nfluko)
       call mpbci(nice)
+      call mpbci(nseaice)
       call mpbci(newsurf)
       call mpbci(nsnow)
       call mpbci(ntskin)
@@ -316,6 +333,7 @@
       call mpbcr(xmind)
       call mpbcr(xmaxd)
       call mpbcr(thicec)
+      call mpbcr(TFREEZE)
 !
 !     set time step
 !
@@ -413,7 +431,7 @@
 !     initialize ocean
 !
       call oceanini(nstep,nrestart,noutput,kdpy,ngui,xsst,xmld,xoheat   &
-     &             ,ntspd,solar_day,oceanmod_namelist,ocean_output)
+     &             ,ntspd,solar_day,oceanmod_namelist,ocean_output,TFREEZE)
 !
       xoflux(:)=xoheat(:)
 !
@@ -616,6 +634,13 @@
         deallocate(zprf2)
        endif
        
+       if (nseaice == 0) then
+         xiced(:) = 0.
+         xicec(:) = 0.
+         xflxice2(:) = 0.
+         xcflux(:) = 0.
+       endif
+       
       else if (nice < 0) then
         xiced(:) = 0.
         xcflux(:) = 0.
@@ -648,6 +673,15 @@
        endif
 !
       endif
+      
+      if (nseaice == 0) then
+        xicec(:) = 0.
+        xiced(:) = 0.
+        xflxice2(:) = 0.
+        ximelt(:) = 0.
+      endif
+      
+      
 !
 !     correct sea ice to a maximum of xmaxd 
 !     get the needed hflx from the global ocean/ice 
@@ -700,6 +734,15 @@
       elsewhere
        xicec(:)=0.
       end where
+      
+      if (nseaice == 0) then
+        xicec(:) = 0.
+        xiced(:) = 0.
+        xflxice2(:) = 0.
+        ximelt(:) = 0.
+        xsnow(:) = 0.
+      endif
+      
 !
 !     correct snow with new ice (ice was melted below snow)
 !     and melt snow (modify heat flux)
