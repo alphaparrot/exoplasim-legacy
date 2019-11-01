@@ -24,7 +24,10 @@
 !
 
       real    :: starbbtemp = 5607.9 ! Star's blackbody surface temperature (K)
-
+      logical :: lstarfile = .false.
+      integer :: nstarfile = 0      ! integer version of the logical
+      character(len=80) :: starfile = " " !Name of input stellar spectrum file
+      
       real    :: gsol0   = 1367.0 ! solar constant (set in planet module)
       real    :: solclat = 1.0    ! cos of lat of insolation if ncstsol=1
       real    :: solcdec = 1.0    ! cos of dec of insolation if ncstsol=1
@@ -149,42 +152,73 @@
       real :: bb1(1024) !Planck function for x<0.75 microns
       real :: bb2(1024) !Planck function for x>0.75 microns
       real :: bb3(965) !Planck function for albedo wavelengths
+      real :: kdata(2048,2)
       
-      real dl1,dl2,hinge,const1,const2,z1,z2,znet,wmin,lwmin
-      integer k
+      
+      real dl1,dl2,hinge,const1,const2,z1,z2,znet,wmin,lwmin,w1,w2,f1,f2,x
+      integer k,nw,j,nw
      
       if (mypid == NROOT) then
         
-        !snowalbedos(:) = 0.25*(fsnowalb(:)+2.0*msnowalb(:)+csnowalb(:)) !assume mostly med-grain
-        
-        wmin = const/(starbbtemp*36.841361) !Wavelength where exponential term is <=1.0e-16
-        lwmin = log10(wmin)
-      
-        hinge = log10(7.5e-7) !We care about amounts above and below 0.75 microns
-        dl1 = (hinge-lwmin)/1024.0
-        dl2 = (-4-hinge)/1024.0
-        
-        do k=1,1024
-          wv1(k) = 10**(lwmin+(k-1)*dl1)
-          wv2(k) = 10**(hinge+(k-1)*dl2)
-        enddo
-        do k=1,1024
-          wvm1(k) = (1.0e6 * wv1(k))**5
-          wvm2(k) = (1.0e6 * wv2(k))**5
-        enddo
-        
-!         const1 = 2*planckh*(cc**2)
-        const2 = const/starbbtemp
-        
-        do k=1,1024 !Compute the Planck function
-          bb1(k) = 1.0/wvm1(k) * 1.0/(exp(const2/wv1(k))-1) !const1/wv1(k)**5
-          bb2(k) = 1.0/wvm2(k) * 1.0/(exp(const2/wv2(k))-1)
-!           write(nud,*) wv1(k),bb1(k),wv2(k),bb2(k)
-        enddo      !The scaling and units don't actually matter, because we're going to normalize
-        
-        do k=1,965 !Compute the Planck function for the wavelengths at which we have albedo data
-          bb3(k) = 1.0/(wavelengths(k))**5 * 1.0/(exp(1.0e6*const2/wavelengths(k))-1)
-        enddo
+        if (lstarfile) then ! Specific input spectrum was given
+           call readdat(starfile,2,2048,kdata) !We keep the hi-res stuff for energy fractions
+           wv1(:) = kdata(1:1024,1)
+           bb1(:) = kdata(1:1024,2)
+           wv2(:) = kdata(1025:2048,1)
+           bb2(:) = kdata(1025:2048,2)
+           
+           ! Scan through high-res wavelengths and re-sample to bb3 wavelengths
+           nw=1
+           do k=1,965
+              wc = wavelengths(k)
+              do j=nw,2048
+                 if (kdata(j,1) .ge. wc) then
+                    nw = j-1
+                    exit
+                 endif
+              enddo
+              w1 = kdata(nw,1)
+              f1 = kdata(nw,2)
+              w2 = kdata(nw+1,1)
+              f2 = kdata(nw+1,2)
+              x = (wc-w1)/(w2-w1)
+              bb3(k) = f1*(1-x) + f2*x !linear interpolation
+            enddo
+            
+        else   ! Use blackbody spectrum
+              
+           !snowalbedos(:) = 0.25*(fsnowalb(:)+2.0*msnowalb(:)+csnowalb(:)) !assume mostly med-grain
+           
+           wmin = const/(starbbtemp*36.841361) !Wavelength where exponential term is <=1.0e-16
+           lwmin = log10(wmin)
+           
+           hinge = log10(7.5e-7) !We care about amounts above and below 0.75 microns
+           dl1 = (hinge-lwmin)/1024.0
+           dl2 = (-4-hinge)/1024.0
+           
+           do k=1,1024
+             wv1(k) = 10**(lwmin+(k-1)*dl1)
+             wv2(k) = 10**(hinge+(k-1)*dl2)
+           enddo
+           do k=1,1024
+             wvm1(k) = (1.0e6 * wv1(k))**5
+             wvm2(k) = (1.0e6 * wv2(k))**5
+           enddo
+           
+!            const1 = 2*planckh*(cc**2)
+           const2 = const/starbbtemp
+           
+           do k=1,1024 !Compute the Planck function
+             bb1(k) = 1.0/wvm1(k) * 1.0/(exp(const2/wv1(k))-1) !const1/wv1(k)**5
+             bb2(k) = 1.0/wvm2(k) * 1.0/(exp(const2/wv2(k))-1)
+!              write(nud,*) wv1(k),bb1(k),wv2(k),bb2(k)
+           enddo      !The scaling and units don't actually matter, because we're going to normalize
+           
+           do k=1,965 !Compute the Planck function for the wavelengths at which we have albedo data
+             bb3(k) = 1.0/(wavelengths(k))**5 * 1.0/(exp(1.0e6*const2/wavelengths(k))-1)
+           enddo
+           
+        endif
         a1 = 0.0
         a2 = 0.0
         do k=1,41 !Compute insolation-weighted albedo below 0.75 microns
@@ -444,7 +478,8 @@
      &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown          &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc      &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
-     &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp
+     &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
+     &               ,nstarfile,starfile
 !
 !     namelist parameter:
 !
@@ -607,11 +642,12 @@
 
       call mpbcr(starbbtemp)
       call mpbci(nstartemp)
+      call mpbci(nstarfile)
 
 !      
 !     determine stellar parameters      
 !
-      if (nstartemp > 0) then
+      if (nstarfile > 0) then
 !         if (nrestart > 0.) then
 !           if (mypid == NROOT) then
 !             call get_restart_array("zsolars",zsolars,2,2,1)
@@ -658,6 +694,9 @@
 !         else
 !           call solarini 
 !         endif
+        lstarfile = .true.
+        call solarini
+      else if (nstartemp > 0) then
         call solarini
       else
         call mpbcr(zsolar1)
