@@ -98,14 +98,14 @@ def writedat(wvls,fluxes,name):
 if __name__=="__main__":
     sfile = sys.argv[1]
     name = sys.argv[2]
-    wave0 = float(sys.argv[3]) #microns
-    wave1 = float(sys.argv[4]) #microns
+    #wave0 = float(sys.argv[3]) #microns
+    #wave1 = float(sys.argv[4]) #microns
     try:
-        numw = int(sys.argv[5])
+        numw = int(sys.argv[3])
     except:
-        numw = 884
+        numw = 2048
     try:
-        norm = sys.argv[6]
+        norm = sys.argv[4]
     except:
         norm = False
     w,f,u = readspec(sfile)
@@ -114,7 +114,18 @@ if __name__=="__main__":
     plt.xscale('log')
     plt.yscale('log')
     plt.show()
-    w2,f2 = coarsen(w,f,wave0,wave1,num=numw)
+    #wc,fc = coarsen(w,f,wave0,wave1,num=numw*4)
+    #plt.plot(wc,fc)
+    #plt.xscale('log')
+    #plt.yscale('log')
+    #plt.xlabel("$\lambda$ [$\mu$m]")
+    #plt.ylabel("$F_\lambda$ [W/m$^2$/$\mu$m]")
+    #plt.show()
+    w2 = np.concatenate([np.geomspace(0.2,0.75,num=numw/2+1)[:-1],np.geomspace(0.75,100.0,num=numw/2)])
+    plt.plot(w2)
+    plt.yscale('log')
+    plt.show()
+    f2 = np.interp(w2,w,f)
     E0 = np.trapz(f,x=w)
     E1 = np.trapz(f2,x=w2)
     print abs(E0-E1)/E0
@@ -123,7 +134,9 @@ if __name__=="__main__":
         f2*=factor
         print np.trapz(f2,x=w2)
         print np.trapz(normalize(w,f),x=w)
+    #print f2[np.argwhere(w2>40.0)],w[-10:]
     plt.plot(w2,f2)
+    #plt.plot(wc,fc)
     plt.xscale('log')
     plt.yscale('log')
     plt.xlabel("$\lambda$ [$\mu$m]")
