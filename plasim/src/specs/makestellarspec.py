@@ -89,7 +89,7 @@ def normalize(wvls,fluxes):
 
 def writedat(wvls,fluxes,name):
     f=open(name+".dat","w")
-    sdat = ''
+    sdat = ' Wavelength    Flux  \n'
     for n in range(0,len(wvls)):
         sdat+=str(wvls[n])+' '+str(fluxes[n])+'\n'
     f.write(sdat)

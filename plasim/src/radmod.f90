@@ -156,7 +156,7 @@
       
       
       real dl1,dl2,hinge,const1,const2,z1,z2,znet,wmin,lwmin,w1,w2,f1,f2,x
-      integer k,nw,j,nw
+      integer k,nw,j
      
       if (mypid == NROOT) then
         
