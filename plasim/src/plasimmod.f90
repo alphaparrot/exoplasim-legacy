@@ -199,6 +199,7 @@
       integer :: nsela    = 0   ! enable (1) or disable (0) Semi Lagrangian Advection
       integer :: nspinit  = 0   ! switch for LnPs initialization
       integer :: nsponge  = 0   ! switch for top sponge layer
+      integer :: nstratosponge = 0 ! Switch for Newtonian cooling in hybrid stratosphere
       integer :: nqspec   = 1   ! 1: spectral q   0: gridpoint q (semi-Langrangian)
       integer :: nrdrag   = 0   ! 1: Apply Rayleigh fraction to 20-layer atmosphere
 !>>> AYP -- NEEDED AS PART OF GLACIERMOD      
@@ -223,8 +224,9 @@
       real :: dttrp =     2.0
       real :: tgr   =   288.0  ! Temperature ground in mean profile
       real :: psurf =101100.0  ! global mean surface pressure
-      real :: ptop  =  7500.0  ! Upper pressure to use to anchor upper levels
+      real :: ptop  =  7500.0  ! Upper pressure to use to anchor upper levels (Pa)
                                ! (actual top pressure is ~0.5 this value)
+      real :: ptop2 =     1.0  ! TOA pressure (Pa) for hybrid scheme with stratosphere                         
       real :: pfac  =       1  ! pN2 / 1.0e5
       real :: time0 =     0.0  ! start time (for performance estimates)
       real :: co2   =   360.0  ! atm. co2 concentration (ppmv)
@@ -235,6 +237,8 @@
       real :: evap  =     0.0  ! diagnostic evaporation
       real :: olr   =     0.0  ! Outgoing longwave radiation
       real :: dampsp=     0.0  ! damping time (days) for sponge layer
+      real :: taucool=   10.0  ! Cooling timescale for stratosphere (days)
+      
 
 !     **************************
 !     * Global Spectral Arrays *
@@ -261,7 +265,7 @@
       real :: szt(NSPP,NLEV) = 0.0 ! Spectral Vorticity   Tendency
       real :: sqt(NSPP,NLEV) = 0.0 ! Spectral S.Humidity  Tendency
       real :: spt(NSPP)      = 0.0 ! Spectral Pressure    Tendency
-
+      
       real :: sdm(NSPP,NLEV) = 0.0 ! Spectral Divergence  Minus
       real :: stm(NSPP,NLEV) = 0.0 ! Spectral Temperature Minus
       real :: szm(NSPP,NLEV) = 0.0 ! Spectral Vorticity   Minus
@@ -323,6 +327,8 @@
       real :: du0(NHOR,NLEP)  = 0.     ! zonal wind at time t 
       real :: dv0(NHOR,NLEP)  = 0.     ! meridional wind at time t 
       real :: dtrace(NLON,NLAT,NLEV,NTRACE) = 1.0 ! Trace array
+      
+      real :: mint(NHOR) = 0.0 !Minimum troposphere temperature 
 
 !     *************
 !     * Radiation *

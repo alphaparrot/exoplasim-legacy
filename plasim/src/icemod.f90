@@ -184,7 +184,7 @@
       use icemod
 
       call mpsurfgp('xls',xls,NHOR,1)
-
+      if (nice .ge. 0) then
       call mpsurfgp('xclsst' ,xclsst ,NHOR,14)
       if (nice .ge. 0) then
       call mpsurfgp('xclicec',xclicec,NHOR,14)
@@ -214,7 +214,9 @@
 
       if (zmax < 0.0) then ! xclicec was not read
          xclicec(:,:) = 0.0
+         if (nice > 0.5) then
          where (xclsst(:,:) <= TFREEZE) xclicec(:,:) = 1.0
+         endif
          if (mypid == NROOT) &
          write(nud,*) 'ice cover {xclicec} constructed from SST'
       endif
@@ -226,7 +228,7 @@
          write(nud,*) 'ice thickness {xcliced} computed from ice cover'
       endif
       endif
-      
+
       if (nseaice == 0) then
          xclicec(:,:) = 0.0
          xcliced(:,:) = 0.0

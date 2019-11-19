@@ -267,6 +267,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(nperpetual) ! day of perpetual integration
       call mpbci(ndheat)     ! switch for heating due to momentum dissipation
       call mpbci(nsponge)    ! switch for top sponge layer
+      call mpbci(nstratosponge) ! Switch for stratospheric newtonian cooling
 
       call mpbcr(acpd    )   ! Specific heat for dry air
       call mpbcr(adv     )
@@ -286,6 +287,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbcr(pnu21   )
       call mpbcr(psurf   )
       call mpbcr(ptop    )
+      call mpbcr(ptop2   )
       call mpbcr(ra1     )
       call mpbcr(ra2     )
       call mpbcr(ra4     )
@@ -301,6 +303,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbcr(mvelp)
       call mpbcr(plavor)
       call mpbcr(dampsp)
+      call mpbcr(taucool)
 
       call mpbcin(ndel  ,NLEV) ! ndel
       call mpbcin(ndl   ,NLEV)
@@ -1027,8 +1030,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , syncstr , synctime, nrdrag                         &
                    , dtep    , dtns    , dtrop   , dttrp                &
                    , tdissd  , tdissz  , tdisst  , tdissq  , tgr        &
-                   , psurf   , ptop                                     &
-                   , restim  , t0      , tfrc                           &
+                   , psurf   , ptop    , ptop2   , taucool              &
+                   , restim  , t0      , tfrc    , nstratosponge        &
                    , sigh    , nenergy , nener3d , nsponge , dampsp
 !
 !     preset namelist parameter according to model set up
@@ -1056,12 +1059,17 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       open(11,file=plasim_namelist,form='formatted')
       read (11,plasim_nl)
       
-      if ((NLEV==20) .and. (nrdrag==1)) then
+      if ((NLEV==20) .and. (nrdrag==1) .and. (neqsig.ne.5)) then
          tfrc(1)      =  20.0 * day_24hr !day_24hr
          tfrc(2)      =  30.0 * day_24hr
          tfrc(3)      = 100.0 * day_24hr !day_24hr
          tfrc(4)      = 100.0 * day_24hr !day_24hr
          tfrc(5:NLEV) =   0.0 * day_24hr !day_24hr
+      else if ((NLEV==20) .and. (nrdrag==1) .and. (neqsig==5)) then
+         tfrc(1:NLEV-10) = 0.0 * day_24hr
+         tfrc(NLEV-9)  =  20.0 * day_24hr
+         tfrc(NLEV-8)  = 100.0 * day_24hr
+         tfrc(NLEV-7:NLEV) =   0.0 * day_24hr
       endif
 
       if ((ndesert == 1) .and. (naqua == 1)) then !If both toggled, turn off both
@@ -1269,11 +1277,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       if(neqsig==-1) then
        sigmah(:)=sigh(:)
+       
       elseif(neqsig==1) then
        do jlev = 1 , NLEV
         sigmah(jlev) = real(jlev) / NLEV
        enddo
+       
       elseif(neqsig==2) then
+      
        zsk0 = log10(ptop/psurf) + 1
        zskf = 0.99
        dzsk = (zskf - zsk0) / REAL(NLEV-1)
@@ -1284,7 +1295,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        sigma(1) = 0.5*sigma(2)
        sigmah(NLEV) = 1.0
        sigmah(1:NLEV-1) = 0.5*(sigma(1:NLEV-1)+sigma(2:NLEV))
+       
       elseif(neqsig==3) then
+      
        zsk0 = log10(ptop/psurf) + 1
        zskf = 0.99
        dzsk = (zskf - zsk0) / REAL(NLEV-1)
@@ -1297,7 +1310,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        sigma(1) = 0.5*sigma(2)
        sigmah(NLEV) = 1.0
        sigmah(1:NLEV-1) = 0.5*(sigma(1:NLEV-1)+sigma(2:NLEV))
+       
       elseif(neqsig==4) then
+      
        do jlev=1,NLEV
         zsk=REAL(jlev)/REAL(NLEV)
         sigmah(jlev)=0.75*zsk+1.75*zsk**3-1.5*zsk**4
@@ -1306,11 +1321,37 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        sigmah(:) = sigmah(:) - sigmah(1)
        sigmah(:) = sigmah(:)/sigmah(NLEV)
        sigmah(:) = sigmah(:)*(1.0-zsk) + zsk
+       
+      elseif ((neqsig==5) .and. (NLEV .gt. 10)) then
+       
+       !Bottom atmosphere (PlaSim's normal domain)
+       do jlev=NLEV-10,NLEV
+         zsk=REAL(jlev-(NLEV-9+1))/10.0  !As if it was a 10-layer atmosphere
+         sigmah(jlev)=0.75*zsk+1.75*zsk**3-1.5*zsk**4
+       enddo
+       zsk = ptop/psurf
+       sigmah(NLEV-9:) = sigmah(NLEV-9:) - sigmah(NLEV-9)
+       sigmah(NLEV-9:) = sigmah(NLEV-9:)/sigmah(NLEV)
+       sigmah(NLEV-9:) = sigmah(NLEV-9:)*(1.0-zsk) + zsk
+       
+       !Upper atmosphere (stratosphere)
+       zsk0 = log10(ptop2/psurf) + 1 !Top at 1 hPa
+       zskf = sigmah(NLEV-10)
+       dzsk = (zskf - zsk0) / REAL(NLEV-8)
+       do jlev = 2 , NLEV-8
+          zsk = zsk0 + (jlev-1)*dzsk - 1
+          sigma(jlev) = 10**zsk
+       enddo
+       sigma(NLEV-8) = 0.5*(sigmah(NLEV-9)+sigmah(NLEV-8))
+       sigma(1) = 0.5*sigma(2)
+       sigmah(1:NLEV-9) = 0.5*(sigma(1:NLEV-9)+sigma(2:NLEV-8))
+         
       else
        do jlev=1,NLEV
         zsk=REAL(jlev)/REAL(NLEV)
         sigmah(jlev)=0.75*zsk+1.75*zsk**3-1.5*zsk**4
        enddo
+       
       end if
 
       dsigma(1     ) = sigmah(1)
@@ -3004,6 +3045,19 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 
       call carbonstep
+      
+      
+!
+!     g) newtonian cooling of stratosphere
+!
+      
+      if (nstratosponge > 0) then
+         mint(:) = minval(dt(:,:NLEV-12),2)
+         do k=1,NLEV-12
+            dtdt(:,k) = dtdt(:,k) + (mint(:) - (dt(:,k)+dtdt(:,k)))/(taucool*day_24hr)
+         enddo
+      endif
+      
 
 !
 !     END OF PARAMETERISATION ROUTINES
