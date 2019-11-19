@@ -184,7 +184,6 @@
       use icemod
 
       call mpsurfgp('xls',xls,NHOR,1)
-      if (nice .ge. 0) then
       call mpsurfgp('xclsst' ,xclsst ,NHOR,14)
       if (nice .ge. 0) then
       call mpsurfgp('xclicec',xclicec,NHOR,14)
