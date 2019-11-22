@@ -778,7 +778,7 @@
       zmuz    = 0.0
       zdawn = sin(dawn * PI / 180.0) ! compute dawn/dusk angle 
       zrlon = TWOPI / NLON           ! scale lambda to radians
-      zrtim = TWOPI / 1440.0         ! scale time   to radians
+      zrtim = rotspd * TWOPI / 1440.0         ! scale time   to radians
       zmins = ihou * 60 + imin
       
       if (nfixed==1) zmins = 1440.0 * (1.0 - (fixedlon/360.))
