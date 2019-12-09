@@ -21,7 +21,6 @@
       parameter(CRHOI=920.)             ! Density of sea ice (kg/m**3)
       parameter(CPS=4180.)              ! Specific heat of sea water (J/kg*K)
       parameter(CLFI  = 3.28E5)         ! Heat of fusion of ice (J/kg)
-      parameter(TFREEZE=271.25)         ! Freezing point (K)
       parameter(PLARAD=6.371E6)         ! Earth radius (m)
       parameter(PI = 3.14159265359D0)   ! PI
 !
@@ -46,6 +45,7 @@
 
 !
       real :: dlayer(NLEV_OCE)  = 50.   ! layer depth (m)
+      real :: mldepth           = 50.   ! mixed layer depth (scalar) (m)
       real :: taunc             =  0.   ! newtonian cooling timescale (d)
       real :: vdiffkl(NLEV_OCE) = 1.E-4 ! vertikal diffusion coeff. [m**2/s]
       real :: hdiffk(NLEV_OCE)  = 1.E3  ! horizontal diffusion coeff. [m**2/s]
@@ -64,6 +64,8 @@
       real :: dtmix                     ! time step (s)
       real :: solar_day    = 86400.0    ! 24 * 60 * 60 (for Earth)
 !
+      real :: TFREEZE  = 271.25         ! Freezing point (K)
+      
       real :: dlam                      ! delta longitude
       real :: dphi(NLAT)                ! delta latitude
       real :: cphi(NLAT)                ! cos(latitude)
@@ -130,9 +132,10 @@
 !
       subroutine oceanini(kstep,krestart,koutput,kdpy,kgui,psst,pmld    &
      &                   ,piflux,ktspd,psolday,oceanmod_namelist        &
-     &                   ,ocean_output)
+     &                   ,ocean_output, ifreezet)
       use oceanmod
 !
+      real :: ifreezet
       real :: psst(NHOR),pmld(NHOR),piflux(NHOR)
       real (kind=8) :: zsi(NLAT)
       real (kind=8) :: zgw(NLAT)
@@ -143,7 +146,7 @@
       character (*) :: ocean_output
 !
       namelist/oceanmod_nl/ndiag,nout,nfluko,ntspd,nocean,nprint,nprhor    &
-    &                  ,nperpetual_ocean,naomod,nlsg,taunc,dlayer       &
+    &                  ,nperpetual_ocean,naomod,nlsg,taunc,dlayer,mldepth       &
     &                  ,vdiffkl,newsurf,hdiffk,nentropy,nhdiff
 !
 !     get process id
@@ -186,6 +189,8 @@
       ngui      = kgui
       ntspd     = ktspd
       solar_day = psolday
+      
+      TFREEZE = ifreezet
 !
 !     read and print namelist and distribute it
 !
@@ -200,6 +205,7 @@
          write(nud,'("*************************************************")')
          write(nud,oceanmod_nl)
          close(12)
+         dlayer(NLEV_OCE) = mldepth
       endif
 
       call mpbci(ndiag)
@@ -220,6 +226,7 @@
       call mpbcrn(vdiffkl,NLEV_OCE)
       call mpbcrn(hdiffk,NLEV_OCE)
       call mpbcrn(dlayer,NLEV_OCE)
+      call mpbcr(TFREEZE)
 !
       do jlev=1,NLEV_OCE
          ymld(:,jlev) = dlayer(jlev)

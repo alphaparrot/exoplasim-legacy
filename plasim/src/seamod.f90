@@ -141,6 +141,10 @@
        drhs(:)=drhssea*(1.-dicec(:))+drhsice*dicec(:)
        dalb(:)=albsea*(1.-dicec(:))   &
      &         +dicec(:)*AMIN1(albice,0.5+0.025*(273.-dts(:)))
+       dsalb(1,:)=doceanalb(1)*(1.-dicec(:))   &
+     &         +dicec(:)*AMIN1(dicealbmx(1),dicealbmn(1)+0.025*(273.-dts(:)))
+       dsalb(2,:)=doceanalb(2)*(1.-dicec(:))   &
+     &         +dicec(:)*AMIN1(dicealbmx(2),dicealbmn(2)+0.025*(273.-dts(:)))
        dz0(:)=dz0sea*(1.-dicec(:))+dz0ice*dicec(:)
       endwhere
       endif
@@ -249,6 +253,10 @@
        drhs(:)=drhssea*(1.-dicec(:))+drhsice*dicec(:)
        dalb(:)=albsea*(1.-dicec(:))                                     &
      &           +dicec(:)*AMIN1(albice,0.5+0.025*(273.-dts(:)))
+       dsalb(1,:)=doceanalb(1)*(1.-dicec(:))                                     &
+     &           +dicec(:)*AMIN1(dicealbmx(1),dicealbmn(1)+0.025*(273.-dts(:)))
+       dsalb(2,:)=doceanalb(2)*(1.-dicec(:))                                     &
+     &           +dicec(:)*AMIN1(dicealbmx(2),dicealbmn(2)+0.025*(273.-dts(:)))
        dz0(:)=zz0(:)*(1.-dicec(:))+dz0ice*dicec(:)
       endwhere
 !

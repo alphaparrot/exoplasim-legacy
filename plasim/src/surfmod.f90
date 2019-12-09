@@ -242,6 +242,8 @@
       call surfcode( 173,'dz0clim' )
       call surfcode(1730,'dz0climo')
       call surfcode( 174,'dalbcl'  )   ! background albedo
+      call surfcode( 175,'dalbcl1' )   ! background albedo (<0.75 um)
+      call surfcode( 176,'dalbcl2' )   ! background albedo (>0.75 um)
       call surfcode(1740,'dalbcls' )   ! albedo for bare soil
       call surfcode(1741,'dalbclv' )   ! albedo for vegetation
       call surfcode( 232,'dglac'   )   
