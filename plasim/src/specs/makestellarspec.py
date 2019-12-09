@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
+cc = 299792458.0 #Speed of light
+
 def readspec(sfile,cgs=False):
     f=open(sfile,"r")
     ftxt = f.read()
@@ -142,8 +144,11 @@ if __name__=="__main__":
     plt.xlabel("$\lambda$ [$\mu$m]")
     plt.ylabel("$F_\lambda$ [W/m$^2$/$\mu$m]")
     plt.show()
-    writedat(w2,f2,name)
-    plt.plot(w2,f2*w2)
+    wvref = np.loadtxt("wvref.txt")
+    f3 = np.interp(wvref,w2,f2)
+    writedat(w2,f2/cc,name+"_hr")
+    writedat(wvref,f3/cc,name)
+    plt.plot(wvref,f3)
     plt.xscale('log')
     plt.yscale('log')
     plt.xlabel("$\lambda$ [$\mu$m]")

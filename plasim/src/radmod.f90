@@ -27,6 +27,7 @@
       logical :: lstarfile = .false.
       integer :: nstarfile = 0      ! integer version of the logical
       character(len=80) :: starfile = " " !Name of input stellar spectrum file
+      character(len=80) :: starfilehr = " " !Name of hi-res version of input spectrum
       
       real    :: gsol0   = 1367.0 ! solar constant (set in planet module)
       real    :: solclat = 1.0    ! cos of lat of insolation if ncstsol=1
@@ -153,6 +154,7 @@
       real :: bb2(1024) !Planck function for x>0.75 microns
       real :: bb3(965) !Planck function for albedo wavelengths
       real :: kdata(2048,2)
+      real :: kdata2(965,2)
       
       
       real dl1,dl2,hinge,const1,const2,z1,z2,znet,wmin,lwmin,w1,w2,f1,f2,x
@@ -161,29 +163,15 @@
       if (mypid == NROOT) then
         
         if (lstarfile) then ! Specific input spectrum was given
-           call readdat(starfile,2,2048,kdata) !We keep the hi-res stuff for energy fractions
-           wv1(:) = kdata(1:1024,1)
+           call readdat(starfilehr,2,2048,kdata) !We keep the hi-res stuff for energy fractions
+           wv1(:) = kdata(1:1024,1)*1.0e-6
            bb1(:) = kdata(1:1024,2)
-           wv2(:) = kdata(1025:2048,1)
+           wv2(:) = kdata(1025:2048,1)*1.0e-6
            bb2(:) = kdata(1025:2048,2)
            
            ! Scan through high-res wavelengths and re-sample to bb3 wavelengths
-           nw=1
-           do k=1,965
-              wc = wavelengths(k)
-              do j=nw,2048
-                 if (kdata(j,1) .ge. wc) then
-                    nw = j-1
-                    exit
-                 endif
-              enddo
-              w1 = kdata(nw,1)
-              f1 = kdata(nw,2)
-              w2 = kdata(nw+1,1)
-              f2 = kdata(nw+1,2)
-              x = (wc-w1)/(w2-w1)
-              bb3(k) = f1*(1-x) + f2*x !linear interpolation
-            enddo
+           call readdat(starfile,2,965,kdata2)
+           bb3(:) = kdata2(:,2)
             
         else   ! Use blackbody spectrum
               
@@ -479,7 +467,7 @@
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc      &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
-     &               ,nstarfile,starfile
+     &               ,nstarfile,starfile,starfilehr
 !
 !     namelist parameter:
 !
