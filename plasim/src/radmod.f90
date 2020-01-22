@@ -1180,8 +1180,11 @@
       zrtim = rotspd * TWOPI / 1440.0         ! scale time   to radians
       zmins = ihou * 60 + imin
       
-      if (nfixed==1) zmins = 1440.0 * (1.0 - (fixedlon/360.))
-      
+      if (nfixed==1) then 
+        zrtim = TWOPI
+        zmins = 1.0 - (fixedlon/360.)  !Think about how to fix this: there's a dep
+        zdecl = obliqr                 !on rotspd. Maybe zrtim = TWOPI/1440.0?
+      endif
       jhor = 0
       if (ncstsol==0) then
        do jlat = 1 , NLPP
