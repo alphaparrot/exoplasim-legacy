@@ -12,3 +12,4 @@ yellowloam	soil.aridisol.calciorthid.none.all.79p1536.jhu.becknic.spectrum.txt
 yellowsand	soil.aridisol.camborthid.none.all.89p1772.jhu.becknic.spectrum.txt
 brownsand	soil.entisol.quartzipsamment.none.all.87p706.jhu.becknic.spectrum.txt
 dunesand	soil.entisol.torripsamment.none.all.0015.jhu.becknic.spectrum.txt
+seafoam 	water.seawater.none.liquid.tir.seafoam.jhu.becknic.spectrum.txt 	

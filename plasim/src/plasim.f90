@@ -1336,7 +1336,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        
        !Upper atmosphere (stratosphere)
        zsk0 = log10(ptop2/psurf) + 1 !Top at 1 hPa
-       zskf = sigmah(NLEV-10)
+       zskf = sigmah(max(NLEV-10,1)) !Have to add this max statement so it'll compile with debug flag
        dzsk = (zskf - zsk0) / REAL(NLEV-8)
        do jlev = 2 , NLEV-8
           zsk = zsk0 + (jlev-1)*dzsk - 1
