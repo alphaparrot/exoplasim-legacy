@@ -1,5 +1,5 @@
  &carbonmod_nl
- NCARBON     =     0
+ NCARBON     =     1
  VOLCANCO2   =     1.0
  KACT        =     0.09
  KRUN        =     0.045
