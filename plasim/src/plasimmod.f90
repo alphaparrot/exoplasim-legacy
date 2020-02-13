@@ -238,6 +238,7 @@
       real :: olr   =     0.0  ! Outgoing longwave radiation
       real :: dampsp=     0.0  ! damping time (days) for sponge layer
       real :: taucool=   10.0  ! Cooling timescale for stratosphere (days)
+      real :: frcmod=     1.0  ! modifier for rayleigh drag timescale
       
 
 !     **************************

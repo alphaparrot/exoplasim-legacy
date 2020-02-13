@@ -24,6 +24,35 @@
 #
 #      -d:   Compile in debug mode (will produce line-number tracebacks on crash)
 #
+helptext=$(cat <<-END
+               EXOPLASIM COMPILATION SCRIPT
+
+  Usage:
+       ./compile.sh -p 8 -r T21 -v 10 -n 16 -O mavx 
+
+
+  Options:
+
+      -p:   Set floating point precision. Argument should be either 4 or 8. Default: 4
+
+      -r:   Set resolution. Can be T21/T42/T63, or alternatively the number of latitudes.
+            Default: T21
+
+      -v:   Set number of vertical levels. Default: 10
+
+      -n:   Number of processing cores (MPI threads) to use. Default: 4
+
+      -t:   Number of years to use in most_plasim_run script. Default: 10
+
+      -O:   Specify additional compiler optimization flags, like -mavx (leave out prepended
+            hyphen).
+
+      -d:   Compile in debug mode (will produce line-number tracebacks on crash)
+
+      -h:   Output this text
+END
+)
+
 
 prec=4
 resolution="t21"
@@ -36,7 +65,7 @@ optimization=""
 nopt=0
 years=10
 
-while getopts "p:r:v:n:O:t:d" opt; do
+while getopts "p:r:v:n:O:t:dh" opt; do
     case $opt in
         p)
             case $OPTARG in
@@ -107,6 +136,10 @@ while getopts "p:r:v:n:O:t:d" opt; do
         O)
             optimization="-"$OPTARG
             nopt=1
+            ;;
+        h)
+            echo "$helptext"
+            exit 0
             ;;
         \?)
             echo "UNRECOGNIZED ARGUMENT PASSED: "$OPTARG

@@ -1027,7 +1027,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , n_run_years , n_run_months  , n_run_days           &
                    , n_days_per_month, n_days_per_year                  &
                    , seed    , sellon     &
-                   , syncstr , synctime, nrdrag                         &
+                   , syncstr , synctime, nrdrag  , frcmod               &
                    , dtep    , dtns    , dtrop   , dttrp                &
                    , tdissd  , tdissz  , tdisst  , tdissq  , tgr        &
                    , psurf   , ptop    , ptop2   , taucool              &
@@ -1037,9 +1037,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     preset namelist parameter according to model set up
 !
       if (NLEV==10) then
-         tfrc(1)      =  20.0 * day_24hr !day_24hr
-         tfrc(2)      = 100.0 * day_24hr !day_24hr
-         tfrc(3:NLEV) =   0.0 * day_24hr !day_24hr
+         tfrc(1)      =  20.0 * day_24hr * frcmod !day_24hr
+         tfrc(2)      = 100.0 * day_24hr * frcmod !day_24hr
+         tfrc(3:NLEV) =   0.0 * day_24hr * frcmod !day_24hr
       endif
 !
 
