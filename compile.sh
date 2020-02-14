@@ -232,8 +232,23 @@ fi
 echo "   [ -e Abort_Message ] && exit 1                          ">>plasim/run/most_plasim_run
 echo "   [ -e plasim_output ] && mv plasim_output \$DATANAME     ">>plasim/run/most_plasim_run
 echo "   [ -e plasim_snapshot ] && mv plasim_snapshot \$SNAPNAME ">>plasim/run/most_plasim_run
+echo "   [[ -e burn7.x && -e example.nl && -e \$DATANAME ]] && ./burn7.x -n <example.nl>burnout \$DATANAME \$DATANAME.nc ">>plasim/run/most_plasim_run
+echo "   [[ -e burn7.x && -e snapshot.nl && -e \$SNAPNAME ]] && ./burn7.x -n <snapshot.nl>snapout \$SNAPNAME \$SNAPNAME.nc ">>plasim/run/most_plasim_run
 echo "   [ -e plasim_diag ] && mv plasim_diag \$DIAGNAME         ">>plasim/run/most_plasim_run
 echo "   [ -e plasim_status ] && cp plasim_status plasim_restart ">>plasim/run/most_plasim_run
 echo "   [ -e plasim_status ] && mv plasim_status \$RESTNAME     ">>plasim/run/most_plasim_run
 echo "   [ -e restart_snow ] && mv restart_snow \$SNOWNAME       ">>plasim/run/most_plasim_run
 echo "done                                                       ">>plasim/run/most_plasim_run
+
+if [ -e postprocessor/burn7.x ] 
+then
+  cp postprocessor/burn7.x plasim/run/
+  cp postprocessor/*.nl plasim/run/
+else
+  cd postprocessor
+  ./build_init.sh
+  [ ! -e burn7.x ] && exit 1
+  cd ../
+  cp postprocessor/burn7.x plasim/run/
+  cp postprocessor/*.nl plasim/run/
+fi

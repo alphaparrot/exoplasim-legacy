@@ -18,6 +18,8 @@ do
    [ -e Abort_Message ] && exit 1                          
    [ -e plasim_output ] && mv plasim_output $DATANAME     
    [ -e plasim_snapshot ] && mv plasim_snapshot $SNAPNAME 
+   [[ -e burn7.x && -e example.nl && -e $DATANAME ]] && ./burn7.x -n <example.nl>burnout $DATANAME $DATANAME.nc 
+   [[ -e burn7.x && -e snapshot.nl && -e $SNAPNAME ]] && ./burn7.x -n <snapshot.nl>snapout $SNAPNAME $SNAPNAME.nc 
    [ -e plasim_diag ] && mv plasim_diag $DIAGNAME         
    [ -e plasim_status ] && cp plasim_status plasim_restart 
    [ -e plasim_status ] && mv plasim_status $RESTNAME     
