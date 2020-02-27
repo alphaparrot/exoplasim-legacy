@@ -3,3 +3,5 @@ vtype=s
 htype=g
 mean=3
 netcdf=1
+radius=3396200.0
+gravity=3.728
