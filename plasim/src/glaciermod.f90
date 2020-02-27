@@ -412,7 +412,7 @@
 !
 !     iterate to remove local minima, but only if we're not already flat.
 !
-       if (ndesert < 0.5 .and. naqua < 0.5 .and. ((maxval(zoro)-minval(zoro))/ga>0.01)) then
+       if (ndesert < 0.5 .and. naqua < 0.5 .and. mars < 0.5 .and. ((maxval(zoro)-minval(zoro))/ga>0.01)) then
 
  1000   continue
         jconv=0
