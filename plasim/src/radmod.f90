@@ -23,7 +23,7 @@
 !*    2.2) namelist parameters (see *sub* radini)
 !
 
-      real    :: starbbtemp = 5607.9 ! Star's blackbody surface temperature (K)
+      real    :: starbbtemp = 5772.0 ! Star's blackbody surface temperature (K)
       logical :: lstarfile = .false.
       integer :: nstarfile = 0      ! integer version of the logical
       character(len=80) :: starfile = " " !Name of input stellar spectrum file
@@ -168,6 +168,9 @@
            bb1(:) = kdata(1:1024,2)
            wv2(:) = kdata(1025:2048,1)*1.0e-6
            bb2(:) = kdata(1025:2048,2)
+           do k=1,1024
+              if (wv1(k) .lt. 3.16036116751e-7) bb1(k)=0. !Remove flux at wavelengths below 316 nm.
+           enddo
            
            ! Scan through high-res wavelengths and re-sample to bb3 wavelengths
            call readdat(starfile,2,965,kdata2)
@@ -177,7 +180,9 @@
               
            !snowalbedos(:) = 0.25*(fsnowalb(:)+2.0*msnowalb(:)+csnowalb(:)) !assume mostly med-grain
            
-           wmin = const/(starbbtemp*36.841361) !Wavelength where exponential term is <=1.0e-16
+           !wmin = const/(starbbtemp*36.841361) !Wavelength where exponential term is <=1.0e-16
+           wmin = 3.16036116751e-7 ! Set minimum wavelength to 316 nm; we don't include UV. 
+                             ! This produces zsolar1=0.517 at Teff=5772 K.
            lwmin = log10(wmin)
            
            hinge = log10(7.5e-7) !We care about amounts above and below 0.75 microns
