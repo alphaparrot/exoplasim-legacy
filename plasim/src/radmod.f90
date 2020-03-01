@@ -64,8 +64,11 @@
       real    :: fixedlon = 0.0   ! Longitude of fixed solar zenith
       real    :: slowdown = 1.0   ! Factor by which to change diurnal insolation cycle
       
+      real    :: minwavel = 316.036116751 ! Minimum wavelength to use when computing spectra [nm]
+      
       integer :: nstartemp = 0    ! Switch for using the star's bb temp to determine sw (0/1)
-
+      integer :: nsimplealbedo = 1  ! Compute broadband albedo and use it for both bands
+      
       real :: rcl1(3)=(/0.15,0.30,0.60/) ! cloud albedos spectral range 1
       real :: rcl2(3)=(/0.15,0.30,0.60/) ! cloud albedos spectral range 2
       real :: acl2(3)=(/0.05,0.10,0.20/) ! cloud absorptivities spectral range 2
@@ -169,7 +172,7 @@
            wv2(:) = kdata(1025:2048,1)*1.0e-6
            bb2(:) = kdata(1025:2048,2)
            do k=1,1024
-              if (wv1(k) .lt. 3.16036116751e-7) bb1(k)=0. !Remove flux at wavelengths below 316 nm.
+              if (wv1(k) .lt. minwavel) bb1(k)=0. !Remove flux at wavelengths below 316 nm.
            enddo
            
            ! Scan through high-res wavelengths and re-sample to bb3 wavelengths
@@ -181,7 +184,7 @@
            !snowalbedos(:) = 0.25*(fsnowalb(:)+2.0*msnowalb(:)+csnowalb(:)) !assume mostly med-grain
            
            !wmin = const/(starbbtemp*36.841361) !Wavelength where exponential term is <=1.0e-16
-           wmin = 3.16036116751e-7 ! Set minimum wavelength to 316 nm; we don't include UV. 
+           wmin = minwavel ! Set minimum wavelength to 316 nm; we don't include UV. 
                              ! This produces zsolar1=0.517 at Teff=5772 K.
            lwmin = log10(wmin)
            
@@ -262,6 +265,8 @@
         write(nud,*) "Snow albedo above 0.75 microns:",dsnowalb(2)
         write(nud,*) "Overall snow albedo:",z1*dsnowalb(1)+z2*dsnowalb(2)
         
+        if (nsimplealbedo>0.5) dsnowalb(:) = z1*a1 + z2*a2
+        
         a1 = 0.0
         a2 = 0.0
         do k=1,41 !Compute insolation-weighted albedo below 0.75 microns
@@ -281,6 +286,8 @@
         write(nud,*) "Minimum snow albedo below 0.75 microns:",dsnowalbmn(1)
         write(nud,*) "Minimum snow albedo above 0.75 microns:",dsnowalbmn(2)
         write(nud,*) "Overall minimum snow albedo:",z1*dsnowalbmn(1)+z2*dsnowalbmn(2)
+        
+        if (nsimplealbedo>0.5) dsnowalbmn(:) = z1*a1 + z2*a2
         
         a1 = 0.0
         a2 = 0.0
@@ -302,6 +309,8 @@
         write(nud,*) "Maximum snow albedo above 0.75 microns:",dsnowalbmx(2)
         write(nud,*) "Overall maximum snow albedo:",z1*dsnowalbmx(1)+z2*dsnowalbmx(2)
                 
+        if (nsimplealbedo>0.5) dsnowalbmx(:) = z1*a1 + z2*a2
+        
         a1 = 0.0
         a2 = 0.0
         do k=1,41 !Compute insolation-weighted albedo below 0.75 microns
@@ -321,6 +330,8 @@
         write(nud,*) "Minimum sea ice albedo below 0.75 microns:",dicealbmn(1)
         write(nud,*) "Minimum sea ice albedo above 0.75 microns:",dicealbmn(2)
         write(nud,*) "Overall minimum sea ice albedo:",z1*dicealbmn(1)+z2*dicealbmn(2)
+        
+        if (nsimplealbedo>0.5) dicealbmn(:) = z1*a1 + z2*a2
         
         a1 = 0.0
         a2 = 0.0
@@ -342,6 +353,8 @@
         write(nud,*) "Maximum sea ice albedo above 0.75 microns:",dicealbmx(2)
         write(nud,*) "Overall maximum sea ice albedo:",z1*dicealbmx(1)+z2*dicealbmx(2)
         
+        if (nsimplealbedo>0.5) dicealbmx(:) = z1*a1 + z2*a2
+        
         a1 = 0.0
         a2 = 0.0
         do k=1,41 !Compute insolation-weighted albedo below 0.75 microns
@@ -361,6 +374,8 @@
         write(nud,*) "Minimum glacier albedo below 0.75 microns:",dglacalbmn(1)
         write(nud,*) "Minimum glacier albedo above 0.75 microns:",dglacalbmn(2)
         write(nud,*) "Overall minimum glacier albedo:",z1*dglacalbmn(1)+z2*dglacalbmn(2)
+        
+        if (nsimplealbedo>0.5) dglacalbmn(:) = z1*a1 + z2*a2
         
         a1 = 0.0
         a2 = 0.0
@@ -382,6 +397,8 @@
         write(nud,*) "Ground albedo above 0.75 microns:",dgroundalb(2)
         write(nud,*) "Overall ground albedo:",z1*dgroundalb(1)+z2*dgroundalb(2)
         
+        if (nsimplealbedo>0.5) dgroundalb(:) = z1*a1 + z2*a2
+        
         a1 = 0.0
         a2 = 0.0
         do k=1,41 !Compute insolation-weighted albedo below 0.75 microns
@@ -401,6 +418,8 @@
         write(nud,*) "Ocean albedo below 0.75 microns:",doceanalb(1)
         write(nud,*) "Ocean albedo above 0.75 microns:",doceanalb(2)
         write(nud,*) "Overall ocean albedo:",z1*doceanalb(1)+z2*doceanalb(2)
+        
+        if (nsimplealbedo>0.5) doceanalb(:) = z1*a1 + z2*a2
         
         
         call put_restart_array("zsolars",zsolars,2,2,1)
@@ -472,7 +491,7 @@
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc      &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
-     &               ,nstarfile,starfile,starfilehr
+     &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel
 !
 !     namelist parameter:
 !
@@ -593,6 +612,8 @@
          write(nud,'(" * Namelist RADMOD_NL from <radmod_namelist> *")')
          write(nud,'(" *********************************************")')
          write(nud,radmod_nl)
+         
+         minwavel = minwavel*1.0e-9
       endif ! (mypid==NROOT)
 !
 !     broadcast namelist parameter
@@ -635,7 +656,9 @@
 
       call mpbcr(starbbtemp)
       call mpbci(nstartemp)
+      call mpbci(nsimplealbedo)
       call mpbci(nstarfile)
+      call mpbcr(minwavel)
 
 !      
 !     determine stellar parameters      
