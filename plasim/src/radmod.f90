@@ -99,7 +99,8 @@
       
       real :: zsolar1 = 0.517    ! spectral partitioning 1 (wl < 0.75mue)
       real :: zsolar2 = 0.483    ! spectral partitioning 2 (wl > 0.75mue)
-
+      real :: rcoeff = 1.0       ! Rayleigh scattering coefficient for cross section dependence
+      
 !
 !     2.5 orbital parameters
 !
@@ -148,6 +149,7 @@
 !       parameter(boltzk = 1.38064852e-23 )
 !       parameter(cc = 299792458.0        )
       parameter(const = 0.0143877735383)    !hc/k
+      !parameter(chig0 = 11.234333860319996) !spectrum-weighted optical depth coefficient for 5772K
       
       real :: wv1(1024) !Wavelengths in meters up to 0.75 microns
       real :: wv2(1024) !Wavelength in meters starting at 0.75 microns
@@ -155,6 +157,8 @@
       real :: wvm2(1024) !Wavelength in microns starting at 0.75 microns
       real :: bb1(1024) !Planck function for x<0.75 microns
       real :: bb2(1024) !Planck function for x>0.75 microns
+      real :: bbg1(1024) !Planck function for x<0.75 microns
+      real :: bbg2(1024) !Planck function for x>0.75 microns
       real :: bb3(965) !Planck function for albedo wavelengths
       real :: kdata(2048,2)
       real :: kdata2(965,2)
@@ -164,6 +168,31 @@
       integer k,nw,j
      
       if (mypid == NROOT) then
+        
+        constg = const/5772.0 !G star
+        
+        !wmin = const/(starbbtemp*36.841361) !Wavelength where exponential term is <=1.0e-16
+        wmin = minwavel ! Set minimum wavelength to 316 nm; we don't include UV. 
+                          ! This produces zsolar1=0.517 at Teff=5772 K.
+        lwmin = log10(wmin)
+        
+        hinge = log10(7.5e-7) !We care about amounts above and below 0.75 microns
+        dl1 = (hinge-lwmin)/1024.0
+        dl2 = (-4-hinge)/1024.0
+        
+        do k=1,1024
+          wv1(k) = 10**(lwmin+(k-1)*dl1)
+          wv2(k) = 10**(hinge+(k-1)*dl2)
+        enddo
+        do k=1,1024
+          wvm1(k) = (1.0e6 * wv1(k))**5
+          wvm2(k) = (1.0e6 * wv2(k))**5
+        enddo
+        
+        do k=1,1024
+           bbg1(k) = 1.0/wvm1(k) * 1.0/(exp(constg/wv1(k))-1)
+           bbg2(k) = 1.0/wvm2(k) * 1.0/(exp(constg/wv2(k))-1)
+        enddo
         
         if (lstarfile) then ! Specific input spectrum was given
            call readdat(starfilehr,2,2048,kdata) !We keep the hi-res stuff for energy fractions
@@ -182,24 +211,6 @@
         else   ! Use blackbody spectrum
               
            !snowalbedos(:) = 0.25*(fsnowalb(:)+2.0*msnowalb(:)+csnowalb(:)) !assume mostly med-grain
-           
-           !wmin = const/(starbbtemp*36.841361) !Wavelength where exponential term is <=1.0e-16
-           wmin = minwavel ! Set minimum wavelength to 316 nm; we don't include UV. 
-                             ! This produces zsolar1=0.517 at Teff=5772 K.
-           lwmin = log10(wmin)
-           
-           hinge = log10(7.5e-7) !We care about amounts above and below 0.75 microns
-           dl1 = (hinge-lwmin)/1024.0
-           dl2 = (-4-hinge)/1024.0
-           
-           do k=1,1024
-             wv1(k) = 10**(lwmin+(k-1)*dl1)
-             wv2(k) = 10**(hinge+(k-1)*dl2)
-           enddo
-           do k=1,1024
-             wvm1(k) = (1.0e6 * wv1(k))**5
-             wvm2(k) = (1.0e6 * wv2(k))**5
-           enddo
            
 !            const1 = 2*planckh*(cc**2)
            const2 = const/starbbtemp
@@ -232,11 +243,45 @@
         
         z1 = 0.0
         z2 = 0.0
+        
+        zg1 = 0.0
+        zg2 = 0.0
+        
+        zcross1 = 0.0
+        zcross2 = 0.0
+        
+        zgcross1 = 0.0
+        zgcross2 = 0.0
+        
         do k=1,1023    !Do a trapezoidal integration above and below 0.75 microns
           z1 = z1 + 0.5*(bb1(k)+bb1(k+1))*(wv1(k+1)-wv1(k))
           z2 = z2 + 0.5*(bb2(k)+bb2(k+1))*(wv2(k+1)-wv2(k))
+          zg1 = zg1 + 0.5*(bbg1(k)+bbg1(k+1))*(wv1(k+1)-wv1(k))
+          zg2 = zg2 + 0.5*(bbg2(k)+bbg2(k+1))*(wv2(k+1)-wv2(k))
+          zcross1 = zcross1 + 0.5*(bb1(k)/((wv1(k)*1.0e6)**4)+bb1(k+1)/((wv1(k+1)*1.0e6)**4)) &
+     &                         *(wv1(k+1)-wv1(k))
+          zcross2 = zcross2 + 0.5*(bb2(k)/((wv2(k)*1.0e6)**4)+bb2(k+1)/((wv2(k+1)*1.0e6)**4)) &
+     &                         *(wv2(k+1)-wv2(k))
+          zgcross1 = zgcross1+0.5*(bbg1(k)/((wv1(k)*1.0e6)**4)+bbg1(k+1)/((wv1(k+1)*1.0e6)**4)) &
+     &                         *(wv1(k+1)-wv1(k))
+          zgcross2 = zgcross2+0.5*(bbg2(k)/((wv2(k)*1.0e6)**4)+bbg2(k+1)/((wv2(k+1)*1.0e6)**4)) &
+     &                         *(wv2(k+1)-wv2(k))
         enddo
         z1 = z1 + 0.5*(bb1(1024)+bb2(1))*(wv2(1)-wv1(1024))
+        zcross1 = zcross1+0.5*(bb1(1024)/((wv1(1024)*1.0e6)**4)+bb2(1)/((wv2(1)*1.0e6)**4)) &
+     &                         *(wv2(1)-wv1(1024))
+        zg1 = zg1 + 0.5*(bbg1(1024)+bbg2(1))*(wv2(1)-wv1(1024))
+        zgcross1 = zgcross1+0.5*(bbg1(1024)/((wv1(1024)*1.0e6)**4)+bbg2(1)/((wv2(1)*1.0e6)**4)) &
+     &                         *(wv2(1)-wv1(1024))
+        
+        zg = zg1+zg2
+        zgcross = zgcross1 + zgcross2
+        zchi = zgcross / zg !spectrum-weighted cross section for 5772 K
+        rcoeff = (zcross1 + zcross2) * zsolar1 / z1 / zchi !Using default zsolar=0.517 here
+        
+        ! effective optical depth is the spectral average of the cross-section, normalized to 
+        ! 5772 K input blackbody. There's already a spectral dependence due to z1/z2 partitioning,
+        ! so we compute the true weighting and normalize to the partitioning and solar result
         
         zdenom1 = 0.01/z1
         zdenom2 = 0.01/z2
@@ -254,7 +299,8 @@
         
         write(nud,*) "Energy fraction below 0.75 microns:",zsolar1
         write(nud,*) "Energy fraction above 0.75 microns:",zsolar2
-
+        write(nud,*) "Rayleigh scattering coefficient:",rcoeff
+        
         zsolars(1) = zsolar1
         zsolars(2) = zsolar2
         
@@ -440,6 +486,7 @@
       call mpbcrn(zsolars,2)
       call mpbcr(zsolar1)
       call mpbcr(zsolar2)
+      call mpbcr(rcoeff)
       call mpbcrn(dsnowalb,2)
       call mpbcrn(dsnowalbmn,2)
       call mpbcrn(dsnowalbmx,2)
@@ -717,6 +764,7 @@
       else
         call mpbcr(zsolar1)
         call mpbcr(zsolar2)
+        call mpbcr(rcoeff)
         call mpbcrn(dsnowalb,2)
         call mpbcrn(dsnowalbmn,2)
         call mpbcrn(dsnowalbmx,2)
@@ -725,6 +773,28 @@
         call mpbcrn(dicealbmx,2)
         call mpbcrn(dgroundalb,2)
         call mpbcrn(doceanalb,2)
+      endif
+      
+      if (mypid==NROOT) then
+         write(nud,*) "==========Finalized Albedos=========="
+         write(nud,*) "-----For lambda < 0.75 microns------ "
+         write(nud,*) "Ground:",dgroundalb(1)
+         write(nud,*) "Ocean<;",doceanalb(1) 
+         write(nud,*) "Snow:",dsnowalb(1)
+         write(nud,*) "Snow max:",dsnowalbmx(1)
+         write(nud,*) "Snow min:",dsnowalbmn(1)
+         write(nud,*) "Sea ice max:",dicealbmx(1) 
+         write(nud,*) "Sea ice min:",dicealbmn(1) 
+         write(nud,*) "Glacier min:",dglacalbmn(1)
+         write(nud,*) "-----For lambda > 0.75 microns------ "
+         write(nud,*) "Ground:",dgroundalb(2)
+         write(nud,*) "Ocean<<<;",doceanalb(2) 
+         write(nud,*) "Snow:",dsnowalb(2)
+         write(nud,*) "Snow max:",dsnowalbmx(2)
+         write(nud,*) "Snow min:",dsnowalbmn(2)
+         write(nud,*) "Sea ice max:",dicealbmx(2) 
+         write(nud,*) "Sea ice min:",dicealbmn(2) 
+         write(nud,*) "Glacier min:",dglacalbmn(2)
       endif
 !
 !     determine orbital parameters
@@ -1628,7 +1698,7 @@
 !
 !      R = 1 - e^((ps/p0)*ln(T0))
 !
-       zscf(:) = dp(:)/101100.0*9.80665/ga
+       zscf(:) = rcoeff*dp(:)/101100.0*9.80665/ga
        zrcsu(:,NLEV)=zrcsu(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-0.144))) &
      &                                *(1-newrsc)*nrscat*(1-dcc(:,NLEV)*nclouds)
        zrcs(:,NLEV)= zrcs(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-(0.219/(1.+0.816*zmu0(:))))))&
