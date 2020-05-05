@@ -65,7 +65,7 @@
       use seamod
 !
       namelist/seamod_nl/albsea,albice,dz0sea,dz0ice,drhssea,drhsice       &
-     &               ,ncpl_atmos_ice,charnock
+     &               ,ncpl_atmos_ice,charnock,doceanalb,dicealbmn,dicealbmx
 !
 !     read namelist
 !

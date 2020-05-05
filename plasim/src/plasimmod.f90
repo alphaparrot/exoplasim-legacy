@@ -72,6 +72,7 @@
       character (256) :: surfmod_namelist    = "surfmod_namelist"
       character (256) :: plasim_output       = "plasim_output"
       character (256) :: plasim_snapshot     = "plasim_snapshot"
+      character (256) :: plasim_hcadence     = "plasim_hcadence"
       character (256) :: plasim_diag         = "plasim_diag"
       character (256) :: plasim_restart      = "plasim_restart"
       character (256) :: plasim_status       = "plasim_status"
@@ -124,6 +125,7 @@
 !     ***************
 
       integer :: nstep           =       0 ! current timestep
+      integer :: nhcstp            =     1 ! Timestep relative to run start
       integer :: nstep1          =       0 ! start timestep for this run
       integer :: mstep           =       0 ! timestep # in current month
       integer :: mocd            =       0 ! month countdown
@@ -158,6 +160,10 @@
       integer :: mars     =  0  ! global switch for planet mars
       integer :: noutput  =  1  ! master switch for output: 0=no output
       integer :: nsnapshot = 0  ! switch for snapshot output
+      integer :: nhcadence = 1  ! Switch for high-cadence snapshot output
+      integer :: hcstartstep = -1 ! Timestep to start high-cadence output
+      integer :: hcendstep = -1 ! Timestep on which to end high-cadence output (exclusive)
+      integer :: hcinterval = 1 ! Number of timesteps per high-cadence output
       integer :: nafter   =  0  ! write data interval: 0 = once per day
       integer :: naqua    =  0  ! 1: switch to aqua planet mode
       integer :: ndesert  =  0  ! 1: switch to desert planet mode

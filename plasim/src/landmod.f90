@@ -160,7 +160,7 @@
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
      &                ,rnbiocats,nwetsoil,soilcap                       &
-     &                ,newsurf,rinifor,nwatcini,dwatcini
+     &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb
 !
       dtclsoil(:) = tmelt
       dsoilt(:,:) = tmelt

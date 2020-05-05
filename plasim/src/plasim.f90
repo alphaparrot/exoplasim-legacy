@@ -215,6 +215,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(nwpd    ) ! number of writes per day
       call mpbci(nsnapshot) ! Switch for writing snapshots
       call mpbci(nstps   ) ! number of steps per snapshot
+      call mpbci(nhcadence) ! Switch for a burst of high-cadence output
+      call mpbci(hcstartstep) ! Timestep to start high-cadence output
+      call mpbci(hcendstep)   ! Timestep to end high-cadence output (exclusive)
+      call mpbci(hcinterval)  ! Number of timesteps per high-cadence write
       call mpbci(ncoeff  ) ! number of modes to print
       call mpbci(ndiag   ) ! write diagnostics interval
       call mpbci(ndivdamp) ! divergence damping countdown
@@ -338,7 +342,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !                  ,day_24hr,-1)
       if (nrestart == 0) nstep = n_start_step ! timestep since 01-01-0001
       call updatim(nstep)  ! set date & time array ndatim
-
 !
 !     allocate additional diagnostic arrays, if switched on
 !
@@ -551,6 +554,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       nstep1 = nstep ! Remember start step for timing stats
       
+      nhcstp = 1
+      
 !       if (mypid == NROOT) write(nud,'("*  nstep1: ",i6,"   *")') nstep1
 
       do while (mocd > 0 .or. nscd > 0)  ! main loop
@@ -581,6 +586,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                call outsp
             endif
             if (mod(nstep,nstps) == 0 .and. nsnapshot > 0) call snapshotsp
+            if (nhcadence>0 .and. hcstartstep>0 .and. hcendstep>0) then
+            !We use this triple condition to be really sure that this doesn't get
+            !turned on by accident--this has the potential to not only create huge
+            !amounts of output if misused, but also to actually damage computing infrastructure.
+              if ((nhcstp .ge. hcstartstep) .and. (nhcstp<hcendstep)) then
+                if (mod(nhcstp-hcstartstep,hcinterval)==0) call hcadencesp
+              endif
+            endif
             if (mod(nstep,ndiag) == 0 ) then
                call diag
             elseif (ngui > 0) then
@@ -598,8 +611,23 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
      &             +nentropy+nenergy
            if(koutdiag > 0) call snapshotdiag
          endif
+         if (nhcadence>0 .and. hcstartstep>0 .and. hcendstep>0) then
+            !We use this triple condition to be really sure that this doesn't get
+            !turned on by accident--this has the potential to not only create huge
+            !amounts of output if misused, but also to actually damage computing infrastructure.
+           if ((nhcstp .ge. hcstartstep) .and. (nhcstp<hcendstep)) then
+             write(nud,*) "HC OUTPUT step",nhcstp
+             if (mod(nhcstp-hcstartstep,hcinterval)==0) then
+                call hcadencegp
+                koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
+     &                   +nentropy+nenergy
+                if(koutdiag > 0) call hcadencediag
+             endif
+           endif
+         endif
          if (mod(nstep,nafter) == 0) then
           if(noutput > 0) then
+           write(nud,*) "High-cadence step",nhcstp
            call outgp
            koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
      &             +nentropy+nenergy
@@ -612,6 +640,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          iyea  = ndatim(1)    ! current year
          imon  = ndatim(2)    ! current month
          nstep = nstep + 1
+         nhcstp = nhcstp + 1
          mstep = mstep + 1
          call updatim(nstep)  ! set date & time array ndatim
          if (imon /= ndatim(2)) then
@@ -664,7 +693,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     close snapshot file
 !
       if (nsnapshot > 0 .and. mypid == NROOT) close(140)
-
+      if (nhcadence > 0 .and. mypid == NROOT) close(141)
 !
 !     close efficiency diagnostic file
 !
@@ -1026,6 +1055,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , n_start_year , n_start_month, n_run_steps          &
                    , n_run_years , n_run_months  , n_run_days           &
                    , n_days_per_month, n_days_per_year                  &
+                   , nhcadence, hcstartstep, hcendstep, hcinterval      &
                    , seed    , sellon     &
                    , syncstr , synctime, nrdrag  , frcmod               &
                    , dtep    , dtns    , dtrop   , dttrp                &

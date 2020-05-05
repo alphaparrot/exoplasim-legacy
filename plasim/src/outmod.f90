@@ -37,7 +37,13 @@
         write(140) ihead(:)
         write(140) zsig(:)
       endif
-
+      
+      if (nhcadence > 0) then
+        open (141,file=plasim_hcadence,form='unformatted')
+        write(141) ihead(:)
+        write(141) zsig(:)
+      endif
+    
       return
       end
 
@@ -1002,6 +1008,66 @@
       return
       end
 
+!     ======================
+!     SUBROUTINE HCADENCESP
+!     ======================
+
+      subroutine hcadencesp
+      use pumamod
+
+      
+!       ************
+!       * orograpy *
+!       ************
+       
+        call writesp(141,so,129,0,CV*CV,0.)
+       
+!       ************
+!       * pressure *
+!       ************
+       
+        call writesp(141,sp,152,0,1.0,log(psurf))
+       
+!       ***************
+!       * temperature *
+!       ***************
+       
+        do jlev = 1 , NLEV
+           call writesp(141,st(1,jlev),130,jlev,ct,t0(jlev) * ct)
+        enddo
+       
+!       *********************
+!       * specific humidity *
+!       *********************
+       
+        if (nqspec == 1) then
+           do jlev = 1 , NLEV
+              call writesp(141,sqout(1,jlev),133,jlev,1.0,0.0)
+           enddo
+        endif
+       
+!       **************
+!       * divergence *
+!       **************
+       
+        do jlev = 1 , NLEV
+           call writesp(141,sd(1,jlev),155,jlev,ww,0.0)
+        enddo
+       
+!       *************
+!       * vorticity *
+!       *************
+       
+        do jlev = 1 , NLEV
+           zsave = sz(3,jlev)
+           sz(3,jlev) = sz(3,jlev) - plavor
+           call writesp(141,sz(1,jlev),138,jlev,ww,0.0)
+           sz(3,jlev) = zsave
+        enddo
+
+      
+      return
+      end
 
 !     =====================
 !     SUBROUTINE SNAPSHOTGP
@@ -1375,6 +1441,381 @@
       return
       end
 
+
+!     =====================
+!     SUBROUTINE HCADENCEGP
+!     =====================
+
+      subroutine hcadencegp
+      use pumamod
+      use carbonmod
+      use radmod
+      use glaciermod
+
+!       *********************
+!       * specific humidity *
+!       *********************
+        
+        if (nqspec == 0) then ! Semi Langrangian advection active
+           do jlev = 1 , NLEV
+              call writegp(141,dq(1,jlev),133,jlev)
+           enddo
+        endif
+        
+!       **********************************
+!       * mixed-layer depth (from ocean) *
+!       **********************************
+        
+        call writegp(141,dmld,110,0)
+        
+!       ***********************
+!       * surface temperature *
+!       ***********************
+        
+        call writegp(141,dt(1,NLEP),139,0)
+        
+!       ****************
+!       * soil wetness *
+!       ****************
+        
+        call writegp(141,dwatc,140,0)
+        
+!       **************
+!       * snow depth *
+!       **************
+        
+        call writegp(141,dsnow,141,0)
+     
+      
+!     **********************
+!     * large scale precip *
+!     **********************
+
+      call writegp(141,dprl,142,0)
+
+!     *********************
+!     * convective precip *
+!     *********************
+
+      call writegp(141,dprc,143,0)
+
+!     *************
+!     * snow fall *
+!     *************
+
+      call writegp(141,dprs,144,0)
+
+!     **********************
+!     * sensible heat flux *
+!     **********************
+
+      call writegp(141,dshfl,146,0)
+
+!     ********************
+!     * latent heat flux *
+!     ********************
+
+      call writegp(141,dlhfl,147,0)
+
+!       ************************
+!       * liquid water content *
+!       ************************
+     
+        do jlev = 1 , NLEV
+           call writegp(141,dql(1,jlev),161,jlev)
+        enddo
+     
+!       *************
+!       * u-star**3 *
+!       *************
+     
+        call writegp(141,dust3,159,0)
+     
+     
+!     **********
+!     * runoff *
+!     **********
+
+      call writegp(141,drunoff,160,0)
+
+!     ***************
+!     * cloud cover *
+!     ***************
+
+!         cl
+        do jlev = 1 , NLEV
+          call writegp(141,dcc(1,jlev),162,jlev)
+        enddo
+        
+!         clt        
+      call writegp(141,dcc(:,NLEP),164,0)
+     
+
+!     ***************************
+!     * surface air temperature *
+!     ***************************
+
+      call writegp(141,dtsa,167,0)
+
+!     ******************************
+!     * surface temperature (accu) *
+!     ******************************
+
+      call writegp(141,dt(:,NLEP),169,0)
+
+      
+!       *************************
+!       * deep soil temperature *
+!       *************************
+      
+        call writegp(141,dtd5,170,0)
+      
+!       *****************
+!       * land sea mask *
+!       *****************
+      
+        call writegp(141,dls,172,0)
+      
+!       *********************
+!       * surface roughness *
+!       *********************
+      
+        call writegp(141,dz0,173,0)
+      
+!       **********
+!       * albedo *
+!       **********
+      
+        call writegp(141,dalb,175,0)
+        call writegp(141,dsalb(1,:),174,0)
+        call writegp(141,dsalb(2,:),184,0)
+        
+
+!     ***************************
+!     * surface solar radiation *
+!     ***************************
+
+      call writegp(141,dswfl(:,NLEP),176,0)
+
+!     *****************************
+!     * surface thermal radiation *
+!     *****************************
+
+      call writegp(141,dlwfl(:,NLEP),177,0)
+
+!     ***********************
+!     * top solar radiation *
+!     ***********************
+
+      call writegp(141,dswfl(:,1),178,0)
+
+!     *************************
+!     * top thermal radiation *
+!     *************************
+
+      call writegp(141,dlwfl(:,1),179,0)
+
+!     ************
+!     * u-stress *
+!     ************
+
+      call writegp(141,dtaux,180,0)
+
+!     *************
+!     * v- stress *
+!     *************
+
+      call writegp(141,dtauy,181,0)
+
+!     ***************
+!     * evaporation *
+!     ***************
+
+      call writegp(141,devap,182,0)
+
+!     *********************
+!     * soil temperature *
+!     *********************
+      
+        call writegp(141,dtsoil,183,0)
+      
+      
+!     ***********************************
+!     * maximum surface air temperature *
+!     ***********************************
+
+      call writegp(141,atsama,201,0)
+
+!     ***********************************
+!     * minimum surface air temperature *
+!     ***********************************
+
+      call writegp(141,atsami,202,0)
+
+!     ********************
+!     * top solar upward *
+!     ********************
+
+      call writegp(141,dfu(:,1),203,0)
+
+!     ************************
+!     * surface solar upward *
+!     ************************
+
+      call writegp(141,dfu(:,NLEP),204,0)
+      
+!     ************************
+!     * radiation level data *
+!     ************************
+
+      do jlev=1,NLEP
+        call writegp(141,dfu(:,jlev),404,jlev)
+        call writegp(141,dfd(:,jlev),405,jlev)
+        call writegp(141,dftu(:,jlev),406,jlev)
+        call writegp(141,dftd(:,jlev),407,jlev)
+      enddo
+      do jlev=1,NLEV
+        call writegp(141,dtdtlwr(:,jlev)+dtdtswr(:,jlev),408,jlev)
+        call writegp(141,dconv(:,jlev),409,jlev)
+      enddo
+
+!     **************************
+!     * surface thermal upward *
+!     **************************
+
+      call writegp(141,dftu(:,NLEP),205,0)
+
+!       *******************************
+!       * soil temperatures level 2-4 *
+!       *******************************
+       
+        call writegp(141,dtd2,207,0)
+        call writegp(141,dtd3,208,0)
+        call writegp(141,dtd4,209,0)
+       
+!       *****************
+!       * sea ice cover *
+!       *****************
+       
+        call writegp(141,dicec,210,0)
+       
+!       *********************
+!       * sea ice thickness *
+!       *********************
+       
+        call writegp(141,diced,211,0)
+       
+!       ****************
+!       * forest cover *
+!       ****************
+       
+        call writegp(141,dforest,212,0)
+       
+      
+       
+!     *************
+!     * snow melt *
+!     *************
+
+      call writegp(141,dsmelt,218,0)
+
+!     *********************
+!     * snow depth change *
+!     *********************
+
+!       asndch(:)=asndch(:)/real(naccuout)
+      call writegp(141,dsndch,221,0)
+
+!     ******************
+!     * field capacity *
+!     ******************
+        call writegp(141,dwmax,229,0)
+        
+        
+!     *****************************************
+!     * vertical integrated specific humidity *
+!     *****************************************
+
+      call writegp(141,dqvi,230,0)
+
+!     ****************
+!     * glacier mask *
+!     ****************
+
+      call writegp(141,dglac,232,0)
+        
+!     *********************
+!     ***   S I M B A   ***
+!     *********************
+
+      
+      if (nveg > 0) call vegout
+
+!     ***********************
+!     * Ozone concentration *
+!     ***********************
+
+        do jlev = 1 , NLEV
+           call writegp(141,dqo3(1,jlev),265,jlev)
+        enddo
+      
+!     ********************
+!     * local weathering *
+!     ********************
+
+      call writegp(141,localweathering,266,0)
+
+      
+!       ********************
+!       * ground elevation *
+!       ********************
+       
+        call writegp(141,groundoro,267,0)
+       
+!       *********************
+!       * glacier elevation *
+!       *********************
+       
+        call writegp(141,glacieroro,301,0)
+       
+        
+!       *********************
+!       *    net elevation  *
+!       *********************
+        netoro(:) = groundoro(:) + glacieroro(:)
+        call writegp(141,netoro,302,0)
+        
+       
+!     ********************
+!     * Cos Solar Zenith *
+!     ********************
+         
+      call writegp(141,gmu0,318,0)
+      
+!     *****************************
+!     * Weatherable Precipitation *
+!     *****************************
+        
+      call writegp(141,asigrain,319,0)
+
+!     ***********************
+!     * Minimum Temperature *
+!     ***********************
+         
+      call writegp(141,tempmin,320,0)
+
+!     ***********************
+!     * Maximum Temperature *
+!     ***********************
+         
+      call writegp(141,tempmax,321,0)
+                  
+            
+      return
+      end
+      
+      
+      
 !     ==================
 !     SUBROUTINE SNAPSHOTDIAG
 !     ==================
@@ -1479,6 +1920,118 @@
         jcode=459+jdiag
         do jlev=1,NLEV
          call writegp(140,dener3d(1,jlev,jdiag),jcode,jlev)
+        enddo
+       enddo
+      end if
+!
+      return
+      end
+      
+     
+!     ==================
+!     SUBROUTINE HCADENCEDIAG
+!     ==================
+
+      subroutine hcadencediag
+      use pumamod
+
+!     *****************************************
+!     * 2-D diagnostic arrays, if switched on *
+!     *****************************************
+
+      if(ndiagsp2d > 0 .and. mypid == NROOT) then
+       do jdiag=1,ndiagsp2d
+        jcode=50+jdiag
+        call writesp(141,dsp2d(1,jdiag),jcode,0,1.,0.0)
+       enddo
+      end if
+
+!     *****************************************
+!     * 3-D diagnostic arrays, if switched on *
+!     *****************************************
+
+      if(ndiagsp3d > 0 .and. mypid == NROOT) then
+       do jdiag=1,ndiagsp3d
+        jcode=60+jdiag
+        do jlev=1,NLEV
+         call writesp(141,dsp3d(1,jlev,jdiag),jcode,jlev,1.,0.0)
+        enddo
+       enddo
+      end if
+
+!     *****************************************
+!     * 2-D diagnostic arrays, if switched on *
+!     *****************************************
+
+      if(ndiaggp2d > 0) then
+       do jdiag=1,ndiaggp2d
+        jcode=jdiag
+        call writegp(141,dgp2d(1,jdiag),jcode,0)
+       enddo
+      end if
+
+!     *****************************************
+!     * 3-D diagnostic arrays, if switched on *
+!     *****************************************
+
+      if(ndiaggp3d > 0) then
+       do jdiag=1,ndiaggp3d
+        jcode=20+jdiag
+        do jlev=1,NLEV
+         call writegp(141,dgp3d(1,jlev,jdiag),jcode,jlev)
+        enddo
+       enddo
+      end if
+
+!     ************************************************
+!     * cloud forcing (clear sky fluxes) diagnostics *
+!     ************************************************
+
+      if(ndiagcf > 0) then
+       call writegp(141,dclforc(1,1),101,0)
+       call writegp(141,dclforc(1,2),102,0)
+       call writegp(141,dclforc(1,3),103,0)
+       call writegp(141,dclforc(1,4),104,0)
+       call writegp(141,dclforc(1,5),105,0)
+       call writegp(141,dclforc(1,6),106,0)
+       call writegp(141,dclforc(1,7),107,0)
+      end if
+
+!     **************************************
+!     * entropy diagnostics if switched on *
+!     **************************************
+
+      if(nentropy > 0) then
+       do jdiag=1,36
+        jcode=319+jdiag
+        if(jcode == 333) cycle                      !333 is reserved
+        call writegp(141,dentropy(1,jdiag),jcode,0)
+       enddo
+      end if
+      if(nentro3d > 0) then
+       do jdiag=1,23
+        jcode=419+jdiag
+        do jlev=1,NLEV
+         call writegp(141,dentro3d(1,jlev,jdiag),jcode,jlev)
+        enddo
+       enddo
+      end if
+
+!     *************************************
+!     * energy diagnostics if switched on *
+!     *************************************
+
+      if(nenergy > 0) then
+       do jdiag=1,28
+        jcode=359+jdiag
+        call writegp(141,denergy(1,jdiag),jcode,0)
+       enddo
+      end if
+      if(nener3d > 0) then
+       do jdiag=1,28
+        jcode=459+jdiag
+        do jlev=1,NLEV
+         call writegp(141,dener3d(1,jlev,jdiag),jcode,jlev)
         enddo
        enddo
       end if
