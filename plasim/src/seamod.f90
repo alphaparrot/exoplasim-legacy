@@ -90,6 +90,9 @@
       call mpbcr(drhsice)
       call mpbci(ncpl_atmos_ice)
       call mpbcr(charnock)
+      call mpbcrn(doceanalb,2)
+      call mpbcrn(dicealbmn,2)
+      call mpbcrn(dicealbmx,2)
 !
 !     initialize ice (and ocean)
 !

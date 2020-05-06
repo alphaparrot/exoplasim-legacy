@@ -434,6 +434,31 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 
       call surfini
+      
+
+      if (mypid==NROOT) then
+         write(nud,*) "==========Finalized Albedos=========="
+         write(nud,*) "-----For lambda < 0.75 microns------ "
+         write(nud,*) "Ground:",dgroundalb(1)
+         write(nud,*) "Ocean<;",doceanalb(1) 
+         write(nud,*) "Snow:",dsnowalb(1)
+         write(nud,*) "Snow max:",dsnowalbmx(1)
+         write(nud,*) "Snow min:",dsnowalbmn(1)
+         write(nud,*) "Sea ice max:",dicealbmx(1) 
+         write(nud,*) "Sea ice min:",dicealbmn(1) 
+         write(nud,*) "Glacier min:",dglacalbmn(1)
+         write(nud,*) "-----For lambda > 0.75 microns------ "
+         write(nud,*) "Ground:",dgroundalb(2)
+         write(nud,*) "Ocean<<<;",doceanalb(2) 
+         write(nud,*) "Snow:",dsnowalb(2)
+         write(nud,*) "Snow max:",dsnowalbmx(2)
+         write(nud,*) "Snow min:",dsnowalbmn(2)
+         write(nud,*) "Sea ice max:",dicealbmx(2) 
+         write(nud,*) "Sea ice min:",dicealbmn(2) 
+         write(nud,*) "Glacier min:",dglacalbmn(2)
+      endif      
+      
+      
 
 !
 !*    reset psurf according to orography
@@ -619,15 +644,15 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
              write(nud,*) "HC OUTPUT step",nhcstp
              if (mod(nhcstp-hcstartstep,hcinterval)==0) then
                 call hcadencegp
-                koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
-     &                   +nentropy+nenergy
-                if(koutdiag > 0) call hcadencediag
+!                 koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
+!      &                   +nentropy+nenergy
+!                 if(koutdiag > 0) call hcadencediag
              endif
            endif
          endif
          if (mod(nstep,nafter) == 0) then
           if(noutput > 0) then
-           write(nud,*) "High-cadence step",nhcstp
+!            write(nud,*) "High-cadence step",nhcstp
            call outgp
            koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
      &             +nentropy+nenergy

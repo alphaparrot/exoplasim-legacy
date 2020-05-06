@@ -775,27 +775,6 @@
         call mpbcrn(doceanalb,2)
       endif
       
-      if (mypid==NROOT) then
-         write(nud,*) "==========Finalized Albedos=========="
-         write(nud,*) "-----For lambda < 0.75 microns------ "
-         write(nud,*) "Ground:",dgroundalb(1)
-         write(nud,*) "Ocean<;",doceanalb(1) 
-         write(nud,*) "Snow:",dsnowalb(1)
-         write(nud,*) "Snow max:",dsnowalbmx(1)
-         write(nud,*) "Snow min:",dsnowalbmn(1)
-         write(nud,*) "Sea ice max:",dicealbmx(1) 
-         write(nud,*) "Sea ice min:",dicealbmn(1) 
-         write(nud,*) "Glacier min:",dglacalbmn(1)
-         write(nud,*) "-----For lambda > 0.75 microns------ "
-         write(nud,*) "Ground:",dgroundalb(2)
-         write(nud,*) "Ocean<<<;",doceanalb(2) 
-         write(nud,*) "Snow:",dsnowalb(2)
-         write(nud,*) "Snow max:",dsnowalbmx(2)
-         write(nud,*) "Snow min:",dsnowalbmn(2)
-         write(nud,*) "Sea ice max:",dicealbmx(2) 
-         write(nud,*) "Sea ice min:",dicealbmn(2) 
-         write(nud,*) "Glacier min:",dglacalbmn(2)
-      endif
 !
 !     determine orbital parameters
 !

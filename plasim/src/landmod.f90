@@ -152,11 +152,7 @@
 !     initialize land surface
 !
       namelist/landmod_nl/nlandt,nlandw,albland,dz0land,drhsland        &
-     &                ,albsmin,albsmax,albsminf,albsmaxf                &
-     &                ,albgmin,albgmax,nwetsoil,oroscale                &
-     &                ,albsmin1,albsmax1,albsminf1,albsmaxf1            &
-     &                ,albgmin1,albgmax1,albsmin2,albsmax2              &
-     &                ,albsminf2,albsmaxf2,albgmin2,albgmax2            &
+     &                ,dsnowalbmn,dsnowalbmx,dglacalbmn,dsnowalb        &
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
      &                ,rnbiocats,nwetsoil,soilcap                       &
@@ -257,6 +253,13 @@
       call mpbcr(rinifor)
       call mpbcr(rnbiocats)
       call mpbcrn(dsoilz,NLSOIL)
+      
+      call mpbcrn(dsnowalbmn,2)
+      call mpbcrn(dsnowalbmx,2)
+      call mpbcrn(dglacalbmn,2)
+      call mpbcrn(dsnowalb,2)
+      call mpbcrn(dgroundalb,2)
+      
 
 !     scale taus from years to seconds
 

@@ -160,7 +160,7 @@
       integer :: mars     =  0  ! global switch for planet mars
       integer :: noutput  =  1  ! master switch for output: 0=no output
       integer :: nsnapshot = 0  ! switch for snapshot output
-      integer :: nhcadence = 1  ! Switch for high-cadence snapshot output
+      integer :: nhcadence = 0  ! Switch for high-cadence snapshot output
       integer :: hcstartstep = -1 ! Timestep to start high-cadence output
       integer :: hcendstep = -1 ! Timestep on which to end high-cadence output (exclusive)
       integer :: hcinterval = 1 ! Number of timesteps per high-cadence output
