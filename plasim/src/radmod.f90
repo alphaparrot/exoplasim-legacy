@@ -1807,22 +1807,20 @@
        zra1s(:)=dalb(:)*(1-nstartemp) + dsalb(1,:)*nstartemp
        zra2s(:)=dalb(:)*(1-nstartemp) + dsalb(2,:)*nstartemp
        
-       if (necham < 1) then
 !
-!      set albedo for the direct beam (for ocean use ECHAM3 param)
-         dsalb(1,:)=dls(:)*dsalb(1,:)+(1.-dls(:))*dicec(:)*dsalb(1,:)              &
-     &             +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)
-         dsalb(2,:)=dls(:)*dsalb(2,:)+(1.-dls(:))*dicec(:)*dsalb(2,:)              &
-     &             +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)
+!      set albedo for the direct beam (for ocean use ECHAM3 param unless necham=0)
+       dsalb(1,:)=dls(:)*dsalb(1,:)+(1.-dls(:))*dicec(:)*dsalb(1,:)              &
+     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham &
+     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*dsalb(1,:)
+       dsalb(2,:)=dls(:)*dsalb(2,:)+(1.-dls(:))*dicec(:)*dsalb(2,:)              &
+     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham &
+     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*dsalb(2,:)
        
-         dalb(:) = (zsolars(1)*dsalb(1,:) + zsolars(2)*dsalb(2,:))*nstartemp + &
-     &             (dls(:)*dalb(:)+(1.-dls(:))*dicec(:)*dalb(:)              &
-     &             +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15))*(1-nstartemp)
-     
-       else !Use prescribed albedos
-         dalb(:) = (zsolars(1)*dsalb(1,:) + zsolars(2)*dsalb(2,:))*nstartemp + &
-     &             dalb(:)*(1-nstartemp)
-       endif  
+       dalb(:) = (zsolars(1)*dsalb(1,:) + zsolars(2)*dsalb(2,:))*nstartemp + &
+     &           (dls(:)*dalb(:)+(1.-dls(:))*dicec(:)*dalb(:)              &
+     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham &
+     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*dalb(:))*(1-nstartemp)
+       
      
        zra1(:)=dsalb(1,:)*nstartemp + dalb(:)*(1-nstartemp)
        zra2(:)=dsalb(2,:)*nstartemp + dalb(:)*(1-nstartemp)
