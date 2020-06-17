@@ -702,6 +702,7 @@
       call mpbci(nrscat)
       call mpbci(nswrcl)
       call mpbci(nclouds)
+      call mpbci(necham)
 
       call mpbcr(starbbtemp)
       call mpbci(nstartemp)
