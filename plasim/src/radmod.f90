@@ -50,6 +50,8 @@
       integer :: nsol    = 1      ! switch for solang (1/0=yes/no)
       integer :: nswr    = 1      ! switch for swr (1/0=yes/no)
       integer :: nlwr    = 1      ! switch for lwr (1/0=yes/no)
+      integer :: necham  = 1      ! switch for using ECHAM-3 solar zenith angle 
+                                  ! dependence for ocean albedo (1/0=yes/no)
       integer :: nclouds = 1      ! switch for cloud sw effects (1/0=yes/no)
       integer :: nswrcl  = 1      ! switch for computed cloud props.(1/0=y/n)
       integer :: nrscat  = 1      ! switch for rayleigh scat. (1/0=yes/no)
@@ -535,7 +537,7 @@
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
      &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown          &
-     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc      &
+     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham   &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
      &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel
@@ -1804,16 +1806,23 @@
 
        zra1s(:)=dalb(:)*(1-nstartemp) + dsalb(1,:)*nstartemp
        zra2s(:)=dalb(:)*(1-nstartemp) + dsalb(2,:)*nstartemp
+       
+       if (necham < 1) then
 !
 !      set albedo for the direct beam (for ocean use ECHAM3 param)
-       dsalb(1,:)=dls(:)*dsalb(1,:)+(1.-dls(:))*dicec(:)*dsalb(1,:)              &
-     &        +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)
-       dsalb(2,:)=dls(:)*dsalb(2,:)+(1.-dls(:))*dicec(:)*dsalb(2,:)              &
-     &        +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)
+         dsalb(1,:)=dls(:)*dsalb(1,:)+(1.-dls(:))*dicec(:)*dsalb(1,:)              &
+     &             +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)
+         dsalb(2,:)=dls(:)*dsalb(2,:)+(1.-dls(:))*dicec(:)*dsalb(2,:)              &
+     &             +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)
        
-       dalb(:) = (zsolars(1)*dsalb(1,:) + zsolars(2)*dsalb(2,:))*nstartemp + &
-     &          (dls(:)*dalb(:)+(1.-dls(:))*dicec(:)*dalb(:)              &
-     &        +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15))*(1-nstartemp)
+         dalb(:) = (zsolars(1)*dsalb(1,:) + zsolars(2)*dsalb(2,:))*nstartemp + &
+     &             (dls(:)*dalb(:)+(1.-dls(:))*dicec(:)*dalb(:)              &
+     &             +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15))*(1-nstartemp)
+     
+       else !Use prescribed albedos
+         dalb(:) = (zsolars(1)*dsalb(1,:) + zsolars(2)*dsalb(2,:))*nstartemp + &
+     &             dalb(:)*(1-nstartemp)
+       endif  
      
        zra1(:)=dsalb(1,:)*nstartemp + dalb(:)*(1-nstartemp)
        zra2(:)=dsalb(2,:)*nstartemp + dalb(:)*(1-nstartemp)
