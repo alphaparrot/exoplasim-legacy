@@ -178,22 +178,22 @@
          dwater(:) = 0.0
       endif
       
-      if (mypid==NROOT) then
-        
-       albsmax1 = dsnowalbmx(1)
-       albgmax1 = dsnowalbmx(1)
-       albsmax2 = dsnowalbmx(2)
-       albgmax2 = dsnowalbmx(2)
-       albsmaxf1 = 0.5*albsmax1
-       albsmaxf2 = 0.5*albsmax2
-       albsmin1 = dsnowalbmn(1)
-       albsmin2 = dsnowalbmn(2)
-       albgmin1 = dglacalbmn(1)
-       albgmin2 = dglacalbmn(2)
-       albsminf1 = 0.75*albsmaxf1
-       albsminf2 = 0.75*albsmaxf2
-       
-      endif
+!       if (mypid==NROOT) then
+!         
+!        albsmax1 = dsnowalbmx(1)
+!        albgmax1 = dsnowalbmx(1)
+!        albsmax2 = dsnowalbmx(2)
+!        albgmax2 = dsnowalbmx(2)
+!        albsmaxf1 = 0.5*albsmax1
+!        albsmaxf2 = 0.5*albsmax2
+!        albsmin1 = dsnowalbmn(1)
+!        albsmin2 = dsnowalbmn(2)
+!        albgmin1 = dglacalbmn(1)
+!        albgmin2 = dglacalbmn(2)
+!        albsminf1 = 0.75*albsmaxf1
+!        albsminf2 = 0.75*albsmaxf2
+!        
+!       endif
       
       if (mypid == NROOT) then
       open(12,file=landmod_namelist)
@@ -206,6 +206,20 @@
       write(nud,'("***********************************************")')
       write(nud,landmod_nl)
       close(12)
+      
+      albsmax1 = dsnowalbmx(1)
+      albgmax1 = dsnowalbmx(1)
+      albsmax2 = dsnowalbmx(2)
+      albgmax2 = dsnowalbmx(2)
+      albsmaxf1 = 0.5*albsmax1
+      albsmaxf2 = 0.5*albsmax2
+      albsmin1 = dsnowalbmn(1)
+      albsmin2 = dsnowalbmn(2)
+      albgmin1 = dglacalbmn(1)
+      albgmin2 = dglacalbmn(2)
+      albsminf1 = 0.75*albsmaxf1
+      albsminf2 = 0.75*albsmaxf2
+      
       endif
 
       if (wsmax < 0.0) wsmax = 0.0 ! Catch user error

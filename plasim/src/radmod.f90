@@ -52,10 +52,13 @@
       integer :: nlwr    = 1      ! switch for lwr (1/0=yes/no)
       integer :: necham  = 1      ! switch for using ECHAM-3 solar zenith angle 
                                   ! dependence for ocean albedo (1/0=yes/no)
+      integer :: necham6  = 0     ! switch for using ECHAM-6 solar zenith angle 
+                                  ! dependence for ocean albedo (overrides necham) (1/0=yes/no)
       integer :: nclouds = 1      ! switch for cloud sw effects (1/0=yes/no)
       integer :: nswrcl  = 1      ! switch for computed cloud props.(1/0=y/n)
       integer :: nrscat  = 1      ! switch for rayleigh scat. (1/0=yes/no)
       integer :: newrsc  = 0      ! switch for layer-by-layer rayleigh scat. (1/0=yes/no)
+      integer :: nradice = 1      ! Whether to include sea ice reflectance (1/0=yes/no)
       integer :: ndcycle = 1      ! switch for daily cycle of insolation
                                   !  0 = daily mean insolation)
       integer :: ncstsol = 0      ! switch to set constant insolation
@@ -536,8 +539,8 @@
 !**   0) define namelist
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
-     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown          &
-     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham   &
+     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown,nradice          &
+     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
      &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel
@@ -663,6 +666,8 @@
          write(nud,radmod_nl)
          
          minwavel = minwavel*1.0e-9
+         
+         if ((necham.eq.1).and.(necham6.eq.1)) necham=0 !necham6 overrides necham
       endif ! (mypid==NROOT)
 !
 !     broadcast namelist parameter
@@ -703,6 +708,8 @@
       call mpbci(nswrcl)
       call mpbci(nclouds)
       call mpbci(necham)
+      call mpbci(necham6)
+      call mpbci(nradice)
 
       call mpbcr(starbbtemp)
       call mpbci(nstartemp)
@@ -850,6 +857,7 @@
 
       real zdtdt(NHOR,NLEV)    ! temperature tendency due to rad (K/s)
       real zdh(NHOR,NLEV)      ! Thickness of an atmospheric layer (m)
+      real zfice(NHOR)         ! Temporary backup sea ice array
 !
 !     allocatable arrays for diagnostic
 !
@@ -886,6 +894,11 @@
       dlwfl(:,:) = 0.0         ! total long wave radiation
       dftue1(:,:)= 0.0         ! entropy
       dftue2(:,:)= 0.0         ! entropy
+      
+      if (nradice==0) then
+        zfice(:) = dicec(:)
+        dicec(:) = 0.0
+      endif
 !
 !**   2) compute cosine of solar zenit angle for each gridpoint
 !
@@ -990,6 +1003,12 @@
      &              /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))
        dconv(:,jlev) = (dflux(:,jlev)-dflux(:,jlep))/(zdh(:,jlev)+1.0e-9) !add small in case of zero zdh
       enddo
+      
+!
+!**   7a) Restore sea ice distribution if applicable
+!
+      if (nradice==0) dicec(:) = zfice(:)
+        
 
 !
 !**   8) dbug printout if nprint=2 (see pumamod)
@@ -1811,16 +1830,22 @@
 !
 !      set albedo for the direct beam (for ocean use ECHAM3 param unless necham=0)
        dsalb(1,:)=dls(:)*dsalb(1,:)+(1.-dls(:))*dicec(:)*dsalb(1,:)              &
-     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham &
-     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*dsalb(1,:)
+     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
+     &           +(1.-dls(:))*(1.-dicec(:))*(1-necham)*necham6 &
+     &  *(0.026/(zmu0(:)**1.7+0.065)+0.15*(zmu0(:)-1)*(zmu0(:)-0.5)*(zmu0(:)-0.1)+0.0082) &
+     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*(1-necham6)*dsalb(1,:)
        dsalb(2,:)=dls(:)*dsalb(2,:)+(1.-dls(:))*dicec(:)*dsalb(2,:)              &
-     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham &
-     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*dsalb(2,:)
+     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
+     &           +(1.-dls(:))*(1.-dicec(:))*(1-necham)*necham6 &
+     &  *(0.026/(zmu0(:)**1.7+0.065)+0.15*(zmu0(:)-1)*(zmu0(:)-0.5)*(zmu0(:)-0.1)+0.0082) &
+     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*(1-necham6)*dsalb(2,:)
        
        dalb(:) = (zsolars(1)*dsalb(1,:) + zsolars(2)*dsalb(2,:))*nstartemp + &
      &           (dls(:)*dalb(:)+(1.-dls(:))*dicec(:)*dalb(:)              &
-     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham &
-     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*dalb(:))*(1-nstartemp)
+     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
+     &           +(1.-dls(:))*(1.-dicec(:))*(1-necham)*necham6 &
+     &  *(0.026/(zmu0(:)**1.7+0.065)+0.15*(zmu0(:)-1)*(zmu0(:)-0.5)*(zmu0(:)-0.1)+0.0082) &
+     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*(1-necham6)*dalb(:))*(1-nstartemp)
        
      
        zra1(:)=dsalb(1,:)*nstartemp + dalb(:)*(1-nstartemp)
