@@ -616,9 +616,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             !turned on by accident--this has the potential to not only create huge
             !amounts of output if misused, but also to actually damage computing infrastructure.
               if ((nhcstp .ge. hcstartstep) .and. (nhcstp<hcendstep)) then
-                if (mod(nhcstp-hcstartstep,hcinterval)==0) call hcadencesp
+                if (mod(nhcstp-hcstartstep,hcinterval)==0) call hcadencesp(141)
               endif
             endif
+            if (nwritehurricane>0 .and. mod(nhcstp,hcinterval)==0) call hcadencesp(142)
+            
             if (mod(nstep,ndiag) == 0 ) then
                call diag
             elseif (ngui > 0) then
@@ -643,13 +645,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            if ((nhcstp .ge. hcstartstep) .and. (nhcstp<hcendstep)) then
              write(nud,*) "HC OUTPUT step",nhcstp
              if (mod(nhcstp-hcstartstep,hcinterval)==0) then
-                call hcadencegp
+                call hcadencegp(141)
 !                 koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
 !      &                   +nentropy+nenergy
 !                 if(koutdiag > 0) call hcadencediag
              endif
            endif
          endif
+         if (nwritehurricane>0 .and. mod(nhcstp,hcinterval)==0) call hcadencegp(142)
          if (mod(nstep,nafter) == 0) then
           if(noutput > 0) then
 !            write(nud,*) "High-cadence step",nhcstp
@@ -856,6 +859,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call restart_stop
       endif
 
+      
+      call hurricanestop
 !
 !     time consumption
 !

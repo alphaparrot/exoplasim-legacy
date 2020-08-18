@@ -211,6 +211,7 @@
 !>>> AYP -- NEEDED AS PART OF GLACIERMOD      
       integer :: nglspec = 0
 !>>> AYP      
+      integer :: nhurricane = 0 ! 1/0=On/Off switch for hurricane metrics and monitoring
 
 !     ***********************
 !     * Global Real Scalars *
@@ -246,6 +247,12 @@
       real :: taucool=   10.0  ! Cooling timescale for stratosphere (days)
       real :: frcmod=     1.0  ! modifier for rayleigh drag timescale
       
+      real :: gpimax   =  0.0  ! Maximum Genesis Potential Index
+      real :: ventimin =  0.0  ! Maximum Ventilation Index
+      real :: laavmax  =  0.0  ! Maximum Lower Atmospheric Absolute Vorticity
+      real :: mpotimax =  0.0  ! Global maximum of max potential intensity
+      real :: vrmpimax =  0.0  ! Global maximum of ventilation-reduced max potential intensity
+      integer :: nwritehurricane = 0 ! Do we write hurricane output on this timestep?
 
 !     **************************
 !     * Global Spectral Arrays *
@@ -336,6 +343,24 @@
       real :: dtrace(NLON,NLAT,NLEV,NTRACE) = 1.0 ! Trace array
       
       real :: mint(NHOR) = 0.0 !Minimum troposphere temperature 
+      
+      ! Hurricane metrics
+      real :: gpi(NHOR)    =    0.0  ! Genesis Potential Index
+      real :: venti(NHOR)  =    0.0  ! Ventilation Index
+      real :: laav(NHOR)   =    0.0  ! Lower Atmospheric Absolute Vorticity
+      real :: mpoti(NHOR)  =    0.0  ! Max Potential Intensity
+      real :: vrmpi(NHOR)  =    0.0  ! Ventilation-reduced maximum potential intensity
+      real :: capen(NHOR)  =   -1.0  ! Convective Available Potential Energy
+      real :: lnb(NHOR)    =   -1.0  ! Level of neutral buoyancy (hPa)
+      real :: chim(NHOR)   =   -1.0  ! Tropospheric entropy deficit
+      real :: agpi(NHOR)    =    0.0  ! Acc. Genesis Potential Index
+      real :: aventi(NHOR)  =    0.0  ! Acc. Ventilation Index
+      real :: alaav(NHOR)   =    0.0  ! Acc. Lower Atmospheric Absolute Vorticity
+      real :: ampoti(NHOR)  =    0.0  ! Acc. Max Potential Intensity
+      real :: avrmpi(NHOR)  =    0.0  ! Acc. Ventilation-reduced maximum potential intensity
+      real :: acapen(NHOR)  =    0.0  ! Acc. Convective Available Potential Energy
+      real :: alnb(NHOR)    =    0.0  ! Acc. Level of neutral buoyancy (hPa)
+      real :: achim(NHOR)   =    0.0  ! Acc. Tropospheric entropy deficit
 
 !     *************
 !     * Radiation *
