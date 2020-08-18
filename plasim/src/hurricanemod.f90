@@ -1,6 +1,7 @@
 
       module hurricanemod
       use resmod
+      use pumamod, only: NHOR, NLEV, NLEP, NUGP
       
 !       parameter(NLEV = 10)
 !       parameter(NHOR = 64)
@@ -194,7 +195,7 @@
      &             mpoti(jhor),capen(jhor),lnb(jhor))
          call ventilation(shear(jhor),chim(jhor),mpoti(jhor),venti(jhor))
          call absvorticity(sigma,gz(jhor,:),ww,laav(jhor))
-         call vreducedvamx(venti(jhor),vrmpi(jhor))
+         call vreducedvmax(venti(jhor),vrmpi(jhor))
          call gpot(pp,MSL,dt(jhor,1:NLEV),laav(jhor),mpoti(jhor),dq(jhor,1:NLEV),shear(jhor), &
      &             gpi(NHOR))
      
@@ -395,6 +396,7 @@
       real, intent(in ) :: R(NLEV)
       real, intent(in ) :: P(NLEV)
       real, intent(in ) :: SST
+      real, intent(in ) :: MSL
       real, intent(out) :: xhi
       
       integer :: i600 = 0
@@ -404,7 +406,7 @@
       real TC(NLEV)
       real smin, svp, smr, sms, sme, smb, smo
       
-      sigma(:) = pressures(:)/MSL
+      sigma(:) = P(:)/MSL
       
       smin = 1.0
       do jlev=1,NLEV
@@ -435,6 +437,7 @@
       
 ! Get absolute dimensional voriticity from undimensionalized z and omega at sigma=0.85
       subroutine absvorticity(sigma,undimz,omega,avorticity)
+      use hurricanemod
       real, intent(in ) :: sigma(NLEV)
       real, intent(in ) :: undimz(NLEV)
       real, intent(in ) :: omega
@@ -443,7 +446,6 @@
       integer :: i850 = 0
       
       integer jlev
-      real sigma(NLEV)
       real smin
       
       smin = 1.0
@@ -461,6 +463,8 @@
       
 ! Get tropospheric wind shear
       subroutine getshear(hwind,sigma,ushear)
+      use hurricanemod
+      
       real, intent(in ) :: hwind(NLEV)
       real, intent(in ) :: sigma(NLEV)
       real, intent(out) :: ushear
@@ -469,7 +473,6 @@
       integer :: i200 = 0
       
       integer jlev
-      real sigma(NLEV)
       real smin1, smin2
       
       smin1 = 1.0
@@ -1128,7 +1131,7 @@
 !  Genesis Potential Index
 ! =====================================================
 
-      subroutine gpot(pressures,MSL,airtemp,avort,vmax,spechum,shear,gpi)
+      subroutine gpot(pressures,MSL,airtemp,avort,vmax,spechum,ushear,gpi)
       use hurricanemod
       
       real, intent(in ) :: pressures(NLEV)
@@ -1137,7 +1140,7 @@
       real, intent(in ) :: avort(NLEV)
       real, intent(in ) :: vmax
       real, intent(in ) :: spechum(NLEV)
-      real, intent(in ) :: shear
+      real, intent(in ) :: ushear
       real, intent(out) :: gpi
       
       integer :: i850 = 0
@@ -1169,7 +1172,7 @@
       thing = abs(avort(i850)*1e5)**1.5
       thing = thing * (relhum*2.0)**3
       thing = thing * (vmax/70.0)**3
-      gpi   = thing / (1+0.1*shear)**2
+      gpi   = thing / (1+0.1*ushear)**2
       
       RETURN
       end subroutine gpot

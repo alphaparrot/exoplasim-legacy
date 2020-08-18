@@ -1539,10 +1539,12 @@
       ! Ventilation index
       call writegp(140,venti,327,0)      
       ! Ventilation-reduced Maximum Potential Intensityreturn
-      call writegp(140,vrmpi,328,0)end
+      call writegp(140,vrmpi,328,0)
       ! Genesis Potential Index
       call writegp(140,gpi,329,0)
       
+      return
+      end
       
 !     =====================
 !     SUBROUTINE HCADENCEGP
@@ -1928,14 +1930,12 @@
       ! Ventilation index
       call writegp(kunit,venti,327,0)      
       ! Ventilation-reduced Maximum Potential Intensityreturn
-      call writegp(kunit,vrmpi,328,0)end
+      call writegp(kunit,vrmpi,328,0)
       ! Genesis Potential Index
       call writegp(kunit,gpi,329,0)               
             
       return
       end
-      
-      
       
 !     ==================
 !     SUBROUTINE SNAPSHOTDIAG

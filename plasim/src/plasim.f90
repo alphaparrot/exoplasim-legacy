@@ -457,8 +457,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          write(nud,*) "Sea ice min:",dicealbmn(2) 
          write(nud,*) "Glacier min:",dglacalbmn(2)
       endif      
-      
-      
+  
+!
+!*    initialize hurricane/storm diagnostics
+!
+     
+      call hurricaneini
 
 !
 !*    reset psurf according to orography
@@ -3117,6 +3121,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             dtdt(:,k) = dtdt(:,k) + (mint(:) - (dt(:,k)+dtdt(:,k)))/(taucool*day_24hr)
          enddo
       endif
+      
+!
+!     h) hurricane/storm diagnostics
+!
+      
+      call hurricanestep
+      
       
 
 !
