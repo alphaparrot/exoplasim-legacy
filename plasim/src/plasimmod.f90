@@ -140,7 +140,7 @@
       integer :: n_run_months    =       0 ! months to run
       integer :: n_run_days      =       0 ! days  to run (debugging)
       integer :: n_run_steps     =       0 ! steps to run (debugging)
-      integer :: mpstep          =       0 ! minutes/timestep = 1day/ntspd
+      real :: mpstep             =       0.0 ! minutes/timestep = 1day/ntspd
       integer :: ntspd           =       0 ! number of timesteps per day
       integer :: mtspd           =       0 ! number of timesteps per standard day
       integer :: nwpd            =       1 ! number of writes per day
@@ -346,7 +346,7 @@
       
       ! Hurricane metrics
       real :: gpi(NHOR)    =    0.0  ! Genesis Potential Index
-      real :: venti(NHOR)  =    0.0  ! Ventilation Index
+      real :: venti(NHOR)  =    1.0  ! Ventilation Index
       real :: laav(NHOR)   =    0.0  ! Lower Atmospheric Absolute Vorticity
       real :: mpoti(NHOR)  =    0.0  ! Max Potential Intensity
       real :: vrmpi(NHOR)  =    0.0  ! Ventilation-reduced maximum potential intensity

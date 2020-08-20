@@ -6,6 +6,8 @@
 !       parameter(NLEV = 10)
 !       parameter(NHOR = 64)
       
+      parameter(small = 1.0e-12)
+      
       character (256) :: hc_indlog = "hurricane_indicators"
       character (256) :: hc_output = "hurricane_output"
       character (256) :: hc_namelist = "hurricane_namelist"
@@ -22,6 +24,8 @@
       
       
       integer :: nuh = 50
+      integer :: nstorms = 1     ! Max storms to capture per year
+      integer :: kstorms = 0     ! Storms captured so far
       
       integer :: hc_capture = 0
       integer :: nktrigger = 1 ! 1/0=yes/no Use the combined Komacek metric (exclude GPI etc)
@@ -134,7 +138,7 @@
       real    (kind=4) :: zsig(NUGP)
       
       namelist /hurricane_nl/ CKCD, VITHRESH, GPITHRESH, VMXTHRESH, LAVTHRESH, &
-     &                        VRMTHRESH, baz, top, hc_capture 
+     &                        VRMTHRESH, baz, top, hc_capture, nstorms 
       
       
       RD = gascon
@@ -159,6 +163,7 @@
       call mpbcr(baz)
       call mpbcr(top)
       call mpbci(hc_capture)
+      call mpbci(nstorms)
       
       return
       end subroutine hurricaneini     
@@ -187,7 +192,7 @@
       do jhor=1,NHOR
          pp(:) = dp(jhor)*sigma(:)*0.01 !convert to hPa
          MSL = dp(jhor)*0.01 !Surface pressure in hPa
-         call entropy_deficit(dt(jhor,1:NLEV),dq(jhor,1:NLEV),pp,dt(jhor,NLEP),MSL,xhi)
+         call entropy_deficit(dt(jhor,1:NLEV),dq(jhor,1:NLEP),pp,dt(jhor,NLEP),MSL,xhi)
          chim(jhor) = xhi
          hwind(:) = sqrt(du(jhor,1:NLEV)**2+dv(jhor,1:NLEV)**2)
          call getshear(hwind, sigma, shear(jhor))
@@ -197,7 +202,7 @@
          call absvorticity(sigma,gz(jhor,:),ww,laav(jhor))
          call vreducedvmax(venti(jhor),vrmpi(jhor))
          call gpot(pp,MSL,dt(jhor,1:NLEV),laav(jhor),mpoti(jhor),dq(jhor,1:NLEV),shear(jhor), &
-     &             gpi(NHOR))
+     &             gpi(jhor))
      
       enddo
       
@@ -247,14 +252,17 @@
       call mpgagp(zzf1,vrmpi,1)
       if (mypid==NROOT) then
          vrmpimax=maxval(zzf1)
-         write(nuh,'(1p8e13.5)') k20trigger,alltrigger,gpimax,ventimin,mpotimax,laavmax,vrmpimax
-         
+         write(nuh,'(1p8e13.5)') real(k20trigger),real(alltrigger),&
+     &                           gpimax,ventimin,mpotimax,laavmax,vrmpimax
          if (hc_capture*(nktrigger*k20trigger+(1-nktrigger)*alltrigger) .gt. 0.5) then
             nwritehurricane = 1 !This will trigger high-cadence output
+            kstorms = kstorms + 1
+            if (kstorms > nstorms) nwritehurricane = 0
          endif   
       endif
       
       call mpbci(nwritehurricane)
+      call mpbci(kstorms)
       
       end subroutine hurricanestep   
 !       
@@ -291,6 +299,7 @@
       real, intent(in ) :: TC
       real, intent(out) :: svp
       
+!       print *,TC
       svp = 6.112*exp(17.67*TC/(243.5+TC))
       
       return
@@ -393,7 +402,7 @@
       use hurricanemod
       
       real, intent(in ) :: T(NLEV)
-      real, intent(in ) :: R(NLEV)
+      real, intent(in ) :: R(NLEP)
       real, intent(in ) :: P(NLEV)
       real, intent(in ) :: SST
       real, intent(in ) :: MSL
@@ -404,7 +413,7 @@
       integer jlev
       real sigma(NLEV)
       real TC(NLEV)
-      real smin, svp, smr, sms, sme, smb, smo
+      real smin, svp, smr, smrt, sms, sme, smb, smo
       
       sigma(:) = P(:)/MSL
       
@@ -416,20 +425,35 @@
          endif
       enddo
       
-      TC(:) = T(:)-273.15
+      if (R(i600)>0 .and. R(NLEV)>0) then
+         
+         TC(:) = T(:)-273.15
+         
+         ! Get entropy at 600 hPa of saturated air
+         call es_cc(TC(i600),svp)
+         call rv(svp,P(i600),smr)
+         call entropy_S(T(i600),smr    ,P(i600),sms)
+         smrt = smr
+         call entropy_S(T(i600),min(R(i600),smr),P(i600),sme)
+         call entropy_S(SST,R(NLEP),MSL,smb)
+         
+         call es_cc(SST-273.15,svp)
+         call rv(svp,MSL,smr)
+         call entropy_S(SST,smr,MSL,smo)
+         if (smo-smb .eq. 0) then
+            xhi = 1.0
+            RETURN
+         endif
+         xhi = (sms-sme)/(smo-smb)
       
-      ! Get entropy at 600 hPa of saturated air
-      call es_cc(TC(i600),svp)
-      call rv(svp,P(i600),smr)
-      call entropy_S(T(i600),smr    ,P(i600),sms)
-      call entropy_S(T(i600),R(i600),P(i600),sme)
-      call entropy_S(T(NLEV),R(NLEV),P(NLEV),smb)
+      else
+    
+         xhi = 1.0
       
-      call es_cc(SST-273.15,svp)
-      call rv(svp,MSL,smr)
-      call entropy_S(SST-273.15,smr,MSL,smo)
+      endif
       
-      xhi = (sms-sme)/(smo-smb)
+      if (xhi<0) print *,smr,R(NLEP),sms-sme,smo-smb,smrt,R(i600)
+      
       
       RETURN
       end subroutine entropy_deficit
@@ -714,6 +738,13 @@
                    call ev(RG,P(jlev),EM)
                    ! calculate the saturated entropy, s_k, noting r_T=RP and
                    ! the last term vanishes with saturation, i.e. RH=1
+                   if (((P(jlev)-EM).eq. 0) .or. (TG.eq.0)) then
+                      CAPED=0
+                      TOB=T(jlev)
+                      LNB=-1
+                      IFLAG=2
+                      RETURN
+                   endif
                    SG=(CPD+RP*CL)*log(TG)-RD*log(P(jlev)-EM)+ALV*RG/TG
                    ! convergence speed (AP, step in entropy fraction) varies as a function of 
                    ! number of iterations
@@ -1095,7 +1126,8 @@
       real, intent(in ) :: vmax
       real, intent(out) :: ventindex
       
-      ventindex = (shear*deficit) / (vmax + 1.0e-8)
+      ventindex = 1.0
+      if (vmax>0) ventindex = (shear*deficit) / (vmax)
 
       RETURN
       end subroutine ventilation
@@ -1110,18 +1142,25 @@
       real, intent(in ) :: ventindex
       real, intent(out) :: vmax
       
-      real VRC1, thing, thyng
+      real VRC1
+      complex thing, thyng
+      
+      vmax = 0.0
       
       VRC1 = 2.0/(3.0*sqrt(3.0)*VITHRESH)
       
-      thing = sqrt(81*(VRC1*ventindex)**2-12)
-      
+      thing = sqrt(cmplx(81*(VRC1*ventindex)**2-12))
       thing = thing-9*VRC1*ventindex
       thyng = 3*thing
-      thing = (thing/18.0)**(1./3.)
-      thyng = (2.0/thyng)**(1./3.)
-      
-      vmax = thing+thyng
+      if (abs(real(thyng))>0 .and. abs(real(imag(thyng)))>0) then
+!          print *,thing,thyng
+!          print *,(2.0/thyng)
+!          print *,(2.0/thyng)**(1./3.)
+!          print *,thing**(1./3.)
+         thing = (thing/18.0)**(1./3.)
+         thyng = (2.0/thyng)**(1./3.)
+         vmax = real(thing+thyng)
+      endif
       
       RETURN
       end subroutine vreducedvmax
@@ -1137,7 +1176,7 @@
       real, intent(in ) :: pressures(NLEV)
       real, intent(in ) :: MSL
       real, intent(in ) :: airtemp(NLEV)
-      real, intent(in ) :: avort(NLEV)
+      real, intent(in ) :: avort
       real, intent(in ) :: vmax
       real, intent(in ) :: spechum(NLEV)
       real, intent(in ) :: ushear
@@ -1148,17 +1187,12 @@
       
       integer jlev
       real sigma(NLEV)
-      real thing, smin1, smin2, psat, ph2o, relhum
+      real thing, smin2, psat, ph2o, relhum
       
       sigma(:) = pressures(:)/MSL
       
-      smin1 = MSL
       smin2 = MSL
       do jlev=1,NLEV
-         if (abs(sigma(jlev)-0.85) .lt. smin1) then
-            smin1 = abs(sigma(jlev)-0.85)
-            i850 = jlev
-         endif
          if (abs(sigma(jlev)-0.6) .lt. smin2) then
             smin2 = abs(sigma(jlev)-0.6)
             i600 = jlev
@@ -1169,7 +1203,11 @@
       call es_cc(airtemp(i600),psat)
       relhum = ph2o/psat ! Fractional relative humidity
       
-      thing = abs(avort(i850)*1e5)**1.5
+! !       if (relhum .eq. 0) print *,'R'
+!       if (avort .eq. 0) print *,'Z',relhum,ph2o,psat,avort,vmax
+!       if (vmax .eq. 0) print *,'U',relhum,ph2o,psat,avort,vmax
+      
+      thing = abs(avort*1e5)**1.5
       thing = thing * (relhum*2.0)**3
       thing = thing * (vmax/70.0)**3
       gpi   = thing / (1+0.1*ushear)**2

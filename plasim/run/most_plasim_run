@@ -5,7 +5,7 @@ EXP=MOST    # Name your experiment here
 rm -f plasim_restart                                       
 rm -f Abort_Message                                        
 YEAR=0                                                     
-YEARS=10                                             
+YEARS=1                                             
 while [ $YEAR -lt $YEARS ]                               
 do                                                         
    YEAR=`expr $YEAR + 1`                                
@@ -19,7 +19,7 @@ do
    [ -e plasim_output ] && mv plasim_output $DATANAME     
    [ -e plasim_snapshot ] && mv plasim_snapshot $SNAPNAME 
    [[ -e burn7.x && -e example.nl && -e $DATANAME ]] && ./burn7.x -n <example.nl>burnout $DATANAME $DATANAME.nc 
-   [[ -e burn7.x && -e example.nl && -e $SNAPNAME ]] && ./burn7.x -n <example.nl>snapout $SNAPNAME $SNAPNAME.nc 
+   [[ -e burn7.x && -e snapshot.nl && -e $SNAPNAME ]] && ./burn7.x -n <snapshot.nl>snapout $SNAPNAME $SNAPNAME.nc 
    [ -e plasim_diag ] && mv plasim_diag $DIAGNAME         
    [ -e plasim_status ] && cp plasim_status plasim_restart 
    [ -e plasim_status ] && mv plasim_status $RESTNAME     
