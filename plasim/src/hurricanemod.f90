@@ -23,12 +23,13 @@
       real :: vrmpimask(NHOR) = 0. ! 1 for vrvmax .ge. 0.577
       
       
+      integer :: nstormdiag = 0 ! Whether or not to compute storm climatology (1/0=yes/no)
       integer :: nuh = 50
       integer :: nstorms = 1     ! Max storms to capture per year
       integer :: kstorms = 0     ! Storms captured so far
       
       integer :: hc_capture = 0
-      integer :: nktrigger = 1 ! 1/0=yes/no Use the combined Komacek metric (exclude GPI etc)
+      integer :: nktrigger = 0 ! 1/0=yes/no Use the combined Komacek metric (exclude GPI etc)
       
 ! Thermodynamic Constants
       real :: CPD=1005.7       ! [J/kg.K] Specific heat of dry air at constant pressure
@@ -138,20 +139,22 @@
       real    (kind=4) :: zsig(NUGP)
       
       namelist /hurricane_nl/ CKCD, VITHRESH, GPITHRESH, VMXTHRESH, LAVTHRESH, &
-     &                        VRMTHRESH, baz, top, hc_capture, nstorms 
+     &                        VRMTHRESH, baz, top, hc_capture, nktrigger, nstorms, nstormdiag 
       
       
       RD = gascon
       EPS = RD/Rvp
       
       if (mypid==NROOT) then
-         open(nuh,file=hc_indlog)
-         write(nuh,'(7a13)') [character(13) :: "   K20","   ALL","   GPI (MAX)","   VI (MIN)",&
-     &                                         "   VMAX","   LAAV (MAX)","   VR VMAX"]
          open(51,file=hc_namelist,form='formatted')
          read(51,hurricane_nl)
          close(51)
+         if (nstormdiag > 0) then
+         open(nuh,file=hc_indlog)
+         write(nuh,'(7a13)') [character(13) :: "   K20","   ALL","   GPI (MAX)","   VI (MIN)",&
+     &                                         "   VMAX","   LAAV (MAX)","   VR VMAX"]
          if (hc_capture .gt. 0.5) call hcoutputini
+         endif
       endif
       
       call mpbcr(CKCD)
@@ -163,7 +166,9 @@
       call mpbcr(baz)
       call mpbcr(top)
       call mpbci(hc_capture)
+      call mpbci(nktrigger)
       call mpbci(nstorms)
+      call mpbci(nstormdiag)
       
       return
       end subroutine hurricaneini     
@@ -188,6 +193,8 @@
       real :: zzf2(NUGP) = 0.0
       
       nwritehurricane = 0
+      
+      if (nstormdiag > 0) then
       
       do jhor=1,NHOR
          pp(:) = dp(jhor)*sigma(:)*0.01 !convert to hPa
@@ -261,6 +268,8 @@
          endif   
       endif
       
+      endif
+      
       call mpbci(nwritehurricane)
       call mpbci(kstorms)
       
@@ -277,9 +286,11 @@
       subroutine hurricanestop
       use hurricanemod
       
+      if (nstormdiag > 0) then
       if (mypid==NROOT) then
          close(nuh)
          if (hc_capture .gt. 0) close(142)
+      endif
       endif
       
       end subroutine hurricanestop
@@ -1200,14 +1211,14 @@
       enddo
       
       call ev(spechum(i600),pressures(i600),ph2o)
-      call es_cc(airtemp(i600),psat)
+      call es_cc(airtemp(i600)-273.15,psat)
       relhum = ph2o/psat ! Fractional relative humidity
       
 ! !       if (relhum .eq. 0) print *,'R'
 !       if (avort .eq. 0) print *,'Z',relhum,ph2o,psat,avort,vmax
 !       if (vmax .eq. 0) print *,'U',relhum,ph2o,psat,avort,vmax
       
-      thing = abs(avort*1e5)**1.5
+      thing = abs(avort*1.0e5)**1.5
       thing = thing * (relhum*2.0)**3
       thing = thing * (vmax/70.0)**3
       gpi   = thing / (1+0.1*ushear)**2
