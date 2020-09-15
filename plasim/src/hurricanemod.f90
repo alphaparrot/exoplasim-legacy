@@ -9,27 +9,33 @@
       parameter(small = 1.0e-12)
       
       character (256) :: hc_indlog = "hurricane_indicators"
-      character (256) :: hc_output = "hurricane_output"
+      character (256) :: hc_output = "hurricane_output."
       character (256) :: hc_namelist = "hurricane_namelist"
       
       real :: shear(NHOR) = 0. !Change in velocity between sigma=0.1 and 0.85
       real :: k20flag(NHOR) = 0. !1 if all 3 metrics used in Komacek et al 2020 (K20) are met
       real :: allflag(NHOR) = 0.     !1 if all 5 metrics discussed in K20 are satisfied
+      real :: windflag(NHOR) = 0. !1 if GPI satisfied, and enough cells have strong winds throughout
       
       real :: gpimask(NHOR) = 0.   ! 1 for GPI .ge. 0.37
       real :: ventimask(NHOR) = 0. ! 1 for VI .le. 0.145
       real :: mpotimask(NHOR) = 0. ! 1 for vmax .ge. 33 m/s
       real :: laavmask(NHOR) = 0.  ! 1 for nu .ge. 1.2e-5 s^-1
       real :: vrmpimask(NHOR) = 0. ! 1 for vrvmax .ge. 0.577
+      real :: wind(NHOR) = 0.
+      real :: windmask(NHOR) = 0.
+      real :: swindmask(NHOR) = 0.
       
       
       integer :: nstormdiag = 0 ! Whether or not to compute storm climatology (1/0=yes/no)
       integer :: nuh = 50
       integer :: nstorms = 1     ! Max storms to capture per year
       integer :: kstorms = 0     ! Storms captured so far
+      integer :: nstormlen = 0
       
       integer :: hc_capture = 0
       integer :: nktrigger = 0 ! 1/0=yes/no Use the combined Komacek metric (exclude GPI etc)
+      integer :: ngpitrigger = 1 ! 1/0=yes/no This may be the only trigger that works reasonably well
       
 ! Thermodynamic Constants
       real :: CPD=1005.7       ! [J/kg.K] Specific heat of dry air at constant pressure
@@ -47,6 +53,12 @@
       real :: VMXTHRESH=33.0   ! Max pot. intensity threshold
       real :: LAVTHRESH=1.2e-5 ! Lower atm. vorticity threshold
       real :: VRMTHRESH=0.577  ! Ventilation-reduced vmax threshold
+      real :: WINDTHRESH=33.0  ! Lower-atmosphere windspeed necessary to count as a hurricane
+      real :: SWINDTHRESH=20.5 ! Concurrent Surface wind speed necessary to count as a hurricane
+      integer :: SIZETHRESH = 30 ! Number of cells where condition must be satisfied
+      integer :: ENDTHRESH = 16 !Number of cells below which size has to stop for storm output to end
+      integer :: MINSTORMLEN = 256 ! Minimum number of timesteps that must have elapsed for storm to count
+      integer :: MAXSTORMLEN = 1024 ! Maximum number of timesteps per recording 
       
 ! pLCL Empirical Parameters
       real :: AA=1669.0
@@ -138,8 +150,10 @@
       integer (kind=4) :: ihead(8) ! Dataset header
       real    (kind=4) :: zsig(NUGP)
       
-      namelist /hurricane_nl/ CKCD, VITHRESH, GPITHRESH, VMXTHRESH, LAVTHRESH, &
-     &                        VRMTHRESH, baz, top, hc_capture, nktrigger, nstorms, nstormdiag 
+      namelist /hurricane_nl/ CKCD, VITHRESH, GPITHRESH, VMXTHRESH, LAVTHRESH, WINDTHRESH, &
+     &                        SWINDTHRESH, VRMTHRESH, SIZETHRESH, baz, top, hc_capture, &
+     &                        nktrigger, ngpitrigger, nstorms, nstormdiag, ENDTHRESH, &
+     &                        MAXSTORMLEN, MINSTORMLEN 
       
       
       RD = gascon
@@ -151,10 +165,13 @@
          close(51)
          if (nstormdiag > 0) then
          open(nuh,file=hc_indlog)
-         write(nuh,'(7a13)') [character(13) :: "   K20","   ALL","   GPI (MAX)","   VI (MIN)",&
-     &                                         "   VMAX","   LAAV (MAX)","   VR VMAX"]
-         if (hc_capture .gt. 0.5) call hcoutputini
+         write(nuh,'(8a13)') [character(13) :: " TRIGGER","   GPI (MAX)", &
+     &                                         "   VI (MIN)","   VMAX","   LAAV (MAX)", &
+     &                                         "  AWIND MAX","  SWIND MAX","     SIZE"]
+!          if (hc_capture .gt. 0.5) call hcoutputini
          endif
+         
+         nwritehurricane = 0
       endif
       
       call mpbcr(CKCD)
@@ -163,12 +180,20 @@
       call mpbcr(VMXTHRESH)
       call mpbcr(LAVTHRESH)
       call mpbcr(VRMTHRESH)
+      call mpbcr(WINDTHRESH)
+      call mpbcr(SWINDTHRESH)
       call mpbcr(baz)
       call mpbcr(top)
       call mpbci(hc_capture)
       call mpbci(nktrigger)
+      call mpbci(ngpitrigger)
+      call mpbci(SIZETHRESH)
+      call mpbci(ENDTHRESH)
+      call mpbci(MINSTORMLEN)
+      call mpbci(MAXSTORMLEN)
       call mpbci(nstorms)
       call mpbci(nstormdiag)
+      call mpbci(nwritehurricane)
       
       return
       end subroutine hurricaneini     
@@ -185,14 +210,24 @@
       use hurricanemod
       use pumamod
       
-      real xhi, MSL
+      real xhi, MSL, windmax, stormsize, alltrigger, k20trigger, windtrigger, trigger
       real :: pp(NLEV) = 0.0
       real :: hwind(NLEV) = 0.0
+      real :: swind(NHOR) = 0.0
       
       real :: zzf1(NUGP) = 0.0
       real :: zzf2(NUGP) = 0.0
+      real :: zzf3(NUGP) = 0.0
       
-      nwritehurricane = 0
+      
+      gpimask(:) = 0.0
+      ventimask(:) = 0.0
+      mpotimask(:) = 0.0
+      laavmask(:) = 0.0
+      vrmpimask(:) = 0.0
+      windmask(:) = 0.0
+      
+      swind(:) = sqrt(du(:,NLEV)**2+dv(:,NLEV)**2)
       
       if (nstormdiag > 0) then
       
@@ -202,6 +237,7 @@
          call entropy_deficit(dt(jhor,1:NLEV),dq(jhor,1:NLEP),pp,dt(jhor,NLEP),MSL,xhi)
          chim(jhor) = xhi
          hwind(:) = sqrt(du(jhor,1:NLEV)**2+dv(jhor,1:NLEV)**2)
+         wind(jhor) = maxval(hwind(NLEV/2:NLEV))
          call getshear(hwind, sigma, shear(jhor))
          call POTI(dt(jhor,NLEP)-273.15,MSL,pp,dt(jhor,1:NLEV)-273.15,dq(jhor,1:NLEV), &
      &             mpoti(jhor),capen(jhor),lnb(jhor))
@@ -235,17 +271,29 @@
          vrmpimask(:) = 1.0
       endwhere
       
+      where (wind(:) .ge. WINDTHRESH)
+         windmask(:) = 1.0
+      endwhere
+      
+      where (swind(:) .ge. SWINDTHRESH)
+         swindmask(:) = 1.0
+      endwhere
+      
       k20flag(:) = ventimask(:)*mpotimask(:)*laavmask(:)
       allflag(:) = k20flag(:)*gpimask(:)*vrmpimask(:)
+      windflag(:) = swindmask(:)*windmask(:)*gpimask(:)
       
       ! Assemble global diagnostics, and write to diagnostic file
       
-      call mpgagp(zzf1,k20flag,1)
-      call mpgagp(zzf2,allflag,1)
+      call mpgagp(zzf1,k20flag(:)*windmask(:),1)
+      call mpgagp(zzf2,allflag(:)*windmask(:),1)
+      call mpgagp(zzf3,windflag(:),1)
       
       if (mypid==NROOT) then
         k20trigger = maxval(zzf1)
         alltrigger = maxval(zzf2)
+        stormsize = sum(zzf3)
+        if (stormsize .ge. (nwritehurricane*ENDTHRESH+(1-nwritehurricane)*SIZETHRESH)) windtrigger = 1
       endif
       
       call mpgagp(zzf1,gpi,1)
@@ -256,16 +304,33 @@
       if (mypid==NROOT) mpotimax=maxval(zzf1)
       call mpgagp(zzf1,laav,1)
       if (mypid==NROOT) laavmax=maxval(zzf1)
-      call mpgagp(zzf1,vrmpi,1)
+      call mpgagp(zzf1,wind(:)*k20flag(:),1)
+      if (mypid==NROOT) windmax=maxval(zzf1)
+      call mpgagp(zzf1,swind(:)*gpimask(:),1)
       if (mypid==NROOT) then
-         vrmpimax=maxval(zzf1)
-         write(nuh,'(1p8e13.5)') real(k20trigger),real(alltrigger),&
-     &                           gpimax,ventimin,mpotimax,laavmax,vrmpimax
-         if (hc_capture*(nktrigger*k20trigger+(1-nktrigger)*alltrigger) .gt. 0.5) then
+         swindmax=maxval(zzf1)
+         trigger=windtrigger!(nktrigger*(1-ngpitrigger)*k20trigger+ &
+!      &           (1-nktrigger)*(1-ngpitrigger)*alltrigger+ &
+!      &           npgitrigger*windtrigger)
+         nstormlen = nstormlen + trigger
+         if (hc_capture*trigger .gt. 0.5) then
+            if (nwritehurricane < 1) then
+               kstorms = kstorms + 1
+               if (kstorms .le. nstorms) call hcoutputini
+            endif
             nwritehurricane = 1 !This will trigger high-cadence output
-            kstorms = kstorms + 1
-            if (kstorms > nstorms) nwritehurricane = 0
-         endif   
+            if ((kstorms > nstorms) .or. (nstormlen>MAXSTORMLEN)) nwritehurricane = 0
+         else
+            if (nwritehurricane .gt. 0.5) then
+               call closehcfile
+               if (nstormlen<MINSTORMLEN) kstorms=kstorms-1
+            endif
+            nwritehurricane = 0
+            nstormlen = 0
+         endif
+         write(nuh,'(1p8e13.5)') real(nwritehurricane), &
+     &                           gpimax,ventimin,mpotimax,laavmax, &
+     &                           windmax,swindmax,real(stormsize)   
       endif
       
       endif
@@ -273,7 +338,21 @@
       call mpbci(nwritehurricane)
       call mpbci(kstorms)
       
-      end subroutine hurricanestep   
+      end subroutine hurricanestep  
+!       
+!
+!     ============================
+!     SUBROUTINE CLOSEHCFILE
+!     ============================
+!
+!     Close the currently-open high-cadence record
+!
+      subroutine closehcfile
+      use hurricanemod
+      
+      if (mypid==NROOT) close(142)
+      
+      end subroutine closehcfile
 !       
 !
 !     ============================

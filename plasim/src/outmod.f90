@@ -82,6 +82,7 @@
       zsig(1:NLEV) = sigmah(:) ! vertical coordinate table
       zsig(NLEV+1) = m_days_per_year     
       
+      write(hc_output,"(A17,I0.3)") "hurricane_output.",kstorms
       
       open(142,file=hc_output,form='unformatted')
       write(142) ihead(:)

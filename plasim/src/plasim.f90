@@ -656,7 +656,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
              endif
            endif
          endif
-         if (nwritehurricane>0 .and. mod(nhcstp,hcinterval)==0) call hcadencegp(142)
+         if (nwritehurricane>0 .and. mod(nhcstp,hcinterval)==0) then
+            write(nud,*) "HC STORM CAPTURE step",nhcstp
+            call hcadencegp(142)
+         endif
          if (mod(nstep,nafter) == 0) then
           if(noutput > 0) then
 !            write(nud,*) "High-cadence step",nhcstp
