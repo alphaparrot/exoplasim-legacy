@@ -140,7 +140,7 @@
       integer :: n_run_months    =       0 ! months to run
       integer :: n_run_days      =       0 ! days  to run (debugging)
       integer :: n_run_steps     =       0 ! steps to run (debugging)
-      integer :: mpstep          =       0 ! minutes/timestep = 1day/ntspd
+      real :: mpstep          =       0.0 ! minutes/timestep = 1day/ntspd
       integer :: ntspd           =       0 ! number of timesteps per day
       integer :: mtspd           =       0 ! number of timesteps per standard day
       integer :: nwpd            =       1 ! number of writes per day
@@ -287,6 +287,14 @@
       integer :: nindex(NESP) = NTRU ! Holds wavenumber
       integer :: nscatsp(NPRO)= NSPP ! Used for reduce_scatter op
       integer :: ndel(NLEV)   =    2 ! ndel for horizontal diffusion
+      
+      integer :: nfilter = 0 ! What kind of physics filter to use 
+                             ! (0/1/2/3/4 = None/Cesaro/Exp/Lander-Hoskins/Riesz-2)
+      integer :: ngptfilter = 0 ! Whether or not to filter GP->SP
+      integer :: nspvfilter = 0 ! Whether of not to filter SP->GP
+      real :: landhoskn0 = 16.956 ! Land-Hoskins filter critical wavenumber (default gives 0.1 at n=N for T21)
+      integer :: nfilterexp = 4 ! Exponential filter strength
+      real :: filterkappa = 32.0 ! Exponential filter 
 
       real, allocatable :: sdd(:,:) ! Difference between instances
       real, allocatable :: std(:,:) ! Difference between instances

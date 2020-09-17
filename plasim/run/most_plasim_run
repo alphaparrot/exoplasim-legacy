@@ -5,7 +5,7 @@ EXP=MOST    # Name your experiment here
 rm -f plasim_restart                                       
 rm -f Abort_Message                                        
 YEAR=0                                                     
-YEARS=10                                             
+YEARS=1                                             
 while [ $YEAR -lt $YEARS ]                               
 do                                                         
    YEAR=`expr $YEAR + 1`                                

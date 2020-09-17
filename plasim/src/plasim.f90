@@ -234,7 +234,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(ntspd   ) ! number of timesteps per day
       call mpbci(mtspd   ) ! number of timesteps per standard day
 
-      call mpbci(mpstep)   ! minutes per timestep
+      call mpbcr(mpstep)   ! minutes per timestep
       call mpbci(n_days_per_month)
       call mpbci(n_days_per_year)
       call mpbci(m_days_per_month)
@@ -334,6 +334,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpscin(nindex,NSPP)
       call mpscsp(sak,sakpp,NLEV)
       call mpbcrn(sigh  ,NLEV)
+      
+      call mpbci(nfilter)
+      call mpbci(ngptfilter)
+      call mpbci(npsvfilter)
+      call mpbcr(landhoskn0)
+      call mpbci(nfilterexp)
+      call mpbcr(filterkappa)
+      
 
 !     Copy some calendar variables to calmod
 
@@ -1081,7 +1089,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , n_run_years , n_run_months  , n_run_days           &
                    , n_days_per_month, n_days_per_year                  &
                    , nhcadence, hcstartstep, hcendstep, hcinterval      &
-                   , seed    , sellon     &
+                   , seed    , sellon  , nfilter , ngptfilter, nspvfilter   &
+                   , landhoskn0, nfilterexp, filterkappa                &
                    , syncstr , synctime, nrdrag  , frcmod               &
                    , dtep    , dtns    , dtrop   , dttrp                &
                    , tdissd  , tdissz  , tdisst  , tdissq  , tgr        &
@@ -1195,11 +1204,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Make sure that (mpstep * 60) * ntspd = day_24hr
 
       if (mpstep > 0) then             ! timestep given in [min]
-         mtspd = nint(day_24hr) / (mpstep * 60)
+         mtspd = nint(day_24hr) / nint(mpstep * 60)
          mtspd = mtspd + mod(mtspd,2)  ! make even
       endif
       mpstep = day_24hr  / (mtspd * 60)
-      ntspd = nint(solar_day) / (mpstep * 60)
+      ntspd = nint(solar_day) / nint(mpstep * 60)
       nafter = mtspd
       if (nwpd > 0 .and. nwpd <= mtspd) then
          nafter = mtspd / nwpd
@@ -1252,7 +1261,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       write(nud,'("* Rotation Speed    :",f10.8,"     *")') rotspd
       write(nud,'("* Days / Year       :",i8,"       *")') n_days_per_year
       write(nud,'("* Days / Month      :",i8,"       *")') n_days_per_month
-      write(nud,'("* Timestep          :",i8," [min] *")') mpstep
+      write(nud,'("* Timestep          :",f8.2," [min] *")') mpstep
       write(nud,'("* Timesteps / write :",i8,"       *")') nafter
       write(nud,'("* Timesteps / day   :",i8,"       *")') ntspd
       if (iyea  > 1 .and. imon == 0) then
