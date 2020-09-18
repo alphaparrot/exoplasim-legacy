@@ -291,10 +291,12 @@
       integer :: nfilter = 0 ! What kind of physics filter to use 
                              ! (0/1/2/3/4 = None/Cesaro/Exp/Lander-Hoskins/Riesz-2)
       integer :: ngptfilter = 0 ! Whether or not to filter GP->SP
+    ! Filtering GP->SP may mitigate effects of truncation-scale features in physical tendencies
       integer :: nspvfilter = 0 ! Whether of not to filter SP->GP
-      real :: landhoskn0 = 16.956 ! Land-Hoskins filter critical wavenumber (default gives 0.1 at n=N for T21)
-      integer :: nfilterexp = 4 ! Exponential filter strength
-      real :: filterkappa = 32.0 ! Exponential filter 
+    ! Filtering SP->GP may mitigate effects of truncation-scale features in model spectral fields
+      real :: landhoskn0 = 15.0 ! Land-Hoskins filter critical wavenumber (default gives 0.1 at n=N for T21)
+      integer :: nfilterexp = 8 ! Exponential filter strength
+      real :: filterkappa = 8.0 ! Exponential filter 
 
       real, allocatable :: sdd(:,:) ! Difference between instances
       real, allocatable :: std(:,:) ! Difference between instances
