@@ -465,8 +465,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          write(nud,*) "Sea ice min:",dicealbmn(2) 
          write(nud,*) "Glacier min:",dglacalbmn(2)
       endif      
-      
-      
+  
+!
+!*    initialize hurricane/storm diagnostics
+!
+     
+      call hurricaneini(gascon)
 
 !
 !*    reset psurf according to orography
@@ -624,9 +628,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             !turned on by accident--this has the potential to not only create huge
             !amounts of output if misused, but also to actually damage computing infrastructure.
               if ((nhcstp .ge. hcstartstep) .and. (nhcstp<hcendstep)) then
-                if (mod(nhcstp-hcstartstep,hcinterval)==0) call hcadencesp
+                if (mod(nhcstp-hcstartstep,hcinterval)==0) call hcadencesp(141)
               endif
             endif
+            if (nwritehurricane>0 .and. mod(nhcstp,hcinterval)==0) call hcadencesp(142)
+            
             if (mod(nstep,ndiag) == 0 ) then
                call diag
             elseif (ngui > 0) then
@@ -651,12 +657,16 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            if ((nhcstp .ge. hcstartstep) .and. (nhcstp<hcendstep)) then
              write(nud,*) "HC OUTPUT step",nhcstp
              if (mod(nhcstp-hcstartstep,hcinterval)==0) then
-                call hcadencegp
+                call hcadencegp(141)
 !                 koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
 !      &                   +nentropy+nenergy
 !                 if(koutdiag > 0) call hcadencediag
              endif
            endif
+         endif
+         if (nwritehurricane>0 .and. mod(nhcstp,hcinterval)==0) then
+            write(nud,*) "HC STORM CAPTURE step",nhcstp
+            call hcadencegp(142)
          endif
          if (mod(nstep,nafter) == 0) then
           if(noutput > 0) then
@@ -864,6 +874,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call restart_stop
       endif
 
+      
+      call hurricanestop
 !
 !     time consumption
 !
@@ -1207,7 +1219,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          mtspd = nint(day_24hr) / nint(mpstep * 60)
          mtspd = mtspd + mod(mtspd,2)  ! make even
       endif
-      mpstep = day_24hr  / (mtspd * 60)
+      
+      mpstep = day_24hr  / real(mtspd * 60)
       ntspd = nint(solar_day) / nint(mpstep * 60)
       nafter = mtspd
       if (nwpd > 0 .and. nwpd <= mtspd) then
@@ -1261,7 +1274,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       write(nud,'("* Rotation Speed    :",f10.8,"     *")') rotspd
       write(nud,'("* Days / Year       :",i8,"       *")') n_days_per_year
       write(nud,'("* Days / Month      :",i8,"       *")') n_days_per_month
-      write(nud,'("* Timestep          :",f8.2," [min] *")') mpstep
+      write(nud,'("* Timestep          :",f8.3," [min] *")') mpstep
       write(nud,'("* Timesteps / write :",i8,"       *")') nafter
       write(nud,'("* Timesteps / day   :",i8,"       *")') ntspd
       if (iyea  > 1 .and. imon == 0) then
@@ -3121,6 +3134,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             dtdt(:,k) = dtdt(:,k) + (mint(:) - (dt(:,k)+dtdt(:,k)))/(taucool*day_24hr)
          enddo
       endif
+      
+!
+!     h) hurricane/storm diagnostics
+!
+      
+      call hurricanestep
+      
       
 
 !

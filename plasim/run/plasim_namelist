@@ -9,7 +9,6 @@
  KICK        =     1
  MPSTEP  =  45.0
  NADV        =     1
- NAQUA  =  1 
  NDIAG       =     0
  NGUIDBG     =     0
  NQSPEC      =     1
@@ -21,8 +20,8 @@
  NSYNC       =     1
  NSNAPSHOT = 1 
  NSTPS = 480 
- NFILTER = 1
- NGPTFILTER = 0
+ NFILTER = 0
+ NGPTFILTER = 1
  NSPVFILTER = 1
  PSURF = 100040 
  SYNCSTR     =     0

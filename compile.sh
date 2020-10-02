@@ -274,7 +274,7 @@ namelist=example.nl
 (($nmars)) && namelist=mars.nl
 (($nmars)) && cp postprocessor/mars.nl plasim/run/
 
-snamelist=example.nl
+snamelist=snapshot.nl
 (($nmars)) && snamelist=mars_snapshot.nl
 (($nmars)) && cp postprocessor/mars_snapshot.nl plasim/run/
 

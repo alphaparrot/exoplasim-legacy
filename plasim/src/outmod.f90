@@ -46,7 +46,50 @@
     
       return
       end
+  
+! !
+!     ============================
+!     SUBROUTINE HCOUTPUTINI
+!     ============================
+!
+!     Set up output file
+!    
+      
+      subroutine hcoutputini
+      use pumamod
+      use hurricanemod
+ 
+!     Output has always 32 bit precision
 
+      integer (kind=4) :: ihead(8)   ! header of first data set
+      real    (kind=4) :: zsig(NUGP) ! first block contains settings
+
+      call ntomin(nstep,nmin,nhour,nday,nmonth,nyear)
+
+      ihead(1) = 333  ! ID for PUMA/PLASIM parameter block
+      ihead(2) = 0
+      ihead(3) = nday + 100 * nmonth + 10000 * nyear
+      ihead(4) = 0
+      ihead(5) = NLON
+      ihead(6) = NLAT
+      ihead(7) = NLEV
+      ihead(8) = NTRU
+
+!     The first data block with Code = 333 is used for transferring
+!     planet properties to the postprocessor "burn"
+
+      zsig(:)      = 0.0       ! initialize
+      zsig(1:NLEV) = sigmah(:) ! vertical coordinate table
+      zsig(NLEV+1) = m_days_per_year     
+      
+      write(hc_output,"(A17,I0.3)") "hurricane_output.",kstorms
+      
+      open(142,file=hc_output,form='unformatted')
+      write(142) ihead(:)
+      write(142) zsig(:)
+      
+      return
+      end subroutine hcoutputini
 !     ==================
 !     SUBROUTINE WRITEGP
 !     ==================
@@ -830,7 +873,52 @@
 !     ***********************
          
       call writegp(40,tempmax,321,0)
-                  
+      
+      
+      ! Hurricane fields
+      if (nlowio .eq. 0) then
+         !Convective Available Potential Energy at the surface
+         call writegp(40,capen,322,0)
+         !Level of neutral buoyancy
+         call writegp(40,lnb,323,0)
+         ! Tropospheric entropy deficit
+         call writegp(40,chim,324,0)
+         ! Tropospheric entropy deficit
+         call writegp(40,laav,325,0)
+         ! Maximum potential intensity 
+         call writegp(40,mpoti,326,0)
+         ! Ventilation index
+         call writegp(40,venti,327,0)
+         ! Ventilation-reduced Maximum Potential Intensity
+         call writegp(40,vrmpi,328,0)
+         ! Genesis Potential Index
+         call writegp(40,gpi,329,0)
+      else
+         !Convective Available Potential Energy at the surface
+         acapen(:) = acapen(:) / real(naccuout)
+         call writegp(40,acapen,322,0)
+         !Level of neutral buoyancy
+         alnb(:) = alnb(:) / real(naccuout)
+         call writegp(40,alnb,323,0)
+         ! Tropospheric entropy deficit
+         achim(:) = achim(:) / real(naccuout)
+         call writegp(40,achim,324,0)
+         ! Tropospheric entropy deficit
+         alaav(:) = alaav(:) / real(naccuout)
+         call writegp(40,alaav,325,0)
+         ! Maximum potential intensity 
+         ampoti(:) = ampoti(:) / real(naccuout)
+         call writegp(40,ampoti,326,0)
+         ! Ventilation index
+         aventi(:) = aventi(:) / real(naccuout)
+         call writegp(40,aventi,327,0)
+         ! Ventilation-reduced Maximum Potential Intensity
+         avrmpi(:) = avrmpi(:) / real(naccuout)
+         call writegp(40,avrmpi,328,0)
+         ! Genesis Potential Index
+         agpi(:) = agpi(:) / real(naccuout)
+         call writegp(40,agpi,329,0)
+       endif
             
       return
       end
@@ -1012,28 +1100,29 @@
 !     SUBROUTINE HCADENCESP
 !     ======================
 
-      subroutine hcadencesp
+      subroutine hcadencesp(kunit)
       use pumamod
 
+      integer, intent(in) :: kunit
       
 !       ************
 !       * orograpy *
 !       ************
        
-        call writesp(141,so,129,0,CV*CV,0.)
+        call writesp(kunit,so,129,0,CV*CV,0.)
        
 !       ************
 !       * pressure *
 !       ************
        
-        call writesp(141,sp,152,0,1.0,log(psurf))
+        call writesp(kunit,sp,152,0,1.0,log(psurf))
        
 !       ***************
 !       * temperature *
 !       ***************
        
         do jlev = 1 , NLEV
-           call writesp(141,st(1,jlev),130,jlev,ct,t0(jlev) * ct)
+           call writesp(kunit,st(1,jlev),130,jlev,ct,t0(jlev) * ct)
         enddo
        
 !       *********************
@@ -1042,7 +1131,7 @@
        
         if (nqspec == 1) then
            do jlev = 1 , NLEV
-              call writesp(141,sqout(1,jlev),133,jlev,1.0,0.0)
+              call writesp(kunit,sqout(1,jlev),133,jlev,1.0,0.0)
            enddo
         endif
        
@@ -1051,7 +1140,7 @@
 !       **************
        
         do jlev = 1 , NLEV
-           call writesp(141,sd(1,jlev),155,jlev,ww,0.0)
+           call writesp(kunit,sd(1,jlev),155,jlev,ww,0.0)
         enddo
        
 !       *************
@@ -1061,7 +1150,7 @@
         do jlev = 1 , NLEV
            zsave = sz(3,jlev)
            sz(3,jlev) = sz(3,jlev) - plavor
-           call writesp(141,sz(1,jlev),138,jlev,ww,0.0)
+           call writesp(kunit,sz(1,jlev),138,jlev,ww,0.0)
            sz(3,jlev) = zsave
         enddo
 
@@ -1436,21 +1525,39 @@
 !     ***********************
          
       call writegp(140,tempmax,321,0)
-                  
-            
+      
+      ! Hurricane quantities
+      !Convective Available Potential Energy at the surface
+      call writegp(140,capen,322,0)
+      !Level of neutral buoyancy
+      call writegp(140,lnb,323,0)
+      ! Tropospheric entropy deficit
+      call writegp(140,chim,324,0)
+      ! Tropospheric entropy deficit
+      call writegp(140,laav,325,0)
+      ! Maximum potential intensity 
+      call writegp(140,mpoti,326,0)
+      ! Ventilation index
+      call writegp(140,venti,327,0)      
+      ! Ventilation-reduced Maximum Potential Intensityreturn
+      call writegp(140,vrmpi,328,0)
+      ! Genesis Potential Index
+      call writegp(140,gpi,329,0)
+      
       return
       end
-
-
+      
 !     =====================
 !     SUBROUTINE HCADENCEGP
 !     =====================
 
-      subroutine hcadencegp
+      subroutine hcadencegp(kunit)
       use pumamod
       use carbonmod
       use radmod
       use glaciermod
+      
+      integer, intent(in) :: kunit
 
 !       *********************
 !       * specific humidity *
@@ -1458,7 +1565,7 @@
         
         if (nqspec == 0) then ! Semi Langrangian advection active
            do jlev = 1 , NLEV
-              call writegp(141,dq(1,jlev),133,jlev)
+              call writegp(kunit,dq(1,jlev),133,jlev)
            enddo
         endif
         
@@ -1466,77 +1573,77 @@
 !       * mixed-layer depth (from ocean) *
 !       **********************************
         
-        call writegp(141,dmld,110,0)
+        call writegp(kunit,dmld,110,0)
         
 !       ***********************
 !       * surface temperature *
 !       ***********************
         
-        call writegp(141,dt(1,NLEP),139,0)
+        call writegp(kunit,dt(1,NLEP),139,0)
         
 !       ****************
 !       * soil wetness *
 !       ****************
         
-        call writegp(141,dwatc,140,0)
+        call writegp(kunit,dwatc,140,0)
         
 !       **************
 !       * snow depth *
 !       **************
         
-        call writegp(141,dsnow,141,0)
+        call writegp(kunit,dsnow,kunit,0)
      
       
 !     **********************
 !     * large scale precip *
 !     **********************
 
-      call writegp(141,dprl,142,0)
+      call writegp(kunit,dprl,142,0)
 
 !     *********************
 !     * convective precip *
 !     *********************
 
-      call writegp(141,dprc,143,0)
+      call writegp(kunit,dprc,143,0)
 
 !     *************
 !     * snow fall *
 !     *************
 
-      call writegp(141,dprs,144,0)
+      call writegp(kunit,dprs,144,0)
 
 !     **********************
 !     * sensible heat flux *
 !     **********************
 
-      call writegp(141,dshfl,146,0)
+      call writegp(kunit,dshfl,146,0)
 
 !     ********************
 !     * latent heat flux *
 !     ********************
 
-      call writegp(141,dlhfl,147,0)
+      call writegp(kunit,dlhfl,147,0)
 
 !       ************************
 !       * liquid water content *
 !       ************************
      
         do jlev = 1 , NLEV
-           call writegp(141,dql(1,jlev),161,jlev)
+           call writegp(kunit,dql(1,jlev),161,jlev)
         enddo
      
 !       *************
 !       * u-star**3 *
 !       *************
      
-        call writegp(141,dust3,159,0)
+        call writegp(kunit,dust3,159,0)
      
      
 !     **********
 !     * runoff *
 !     **********
 
-      call writegp(141,drunoff,160,0)
+      call writegp(kunit,drunoff,160,0)
 
 !     ***************
 !     * cloud cover *
@@ -1544,172 +1651,172 @@
 
 !         cl
         do jlev = 1 , NLEV
-          call writegp(141,dcc(1,jlev),162,jlev)
+          call writegp(kunit,dcc(1,jlev),162,jlev)
         enddo
         
 !         clt        
-      call writegp(141,dcc(:,NLEP),164,0)
+      call writegp(kunit,dcc(:,NLEP),164,0)
      
 
 !     ***************************
 !     * surface air temperature *
 !     ***************************
 
-      call writegp(141,dtsa,167,0)
+      call writegp(kunit,dtsa,167,0)
 
 !     ******************************
 !     * surface temperature (accu) *
 !     ******************************
 
-      call writegp(141,dt(:,NLEP),169,0)
+      call writegp(kunit,dt(:,NLEP),169,0)
 
       
 !       *************************
 !       * deep soil temperature *
 !       *************************
       
-        call writegp(141,dtd5,170,0)
+        call writegp(kunit,dtd5,170,0)
       
 !       *****************
 !       * land sea mask *
 !       *****************
       
-        call writegp(141,dls,172,0)
+        call writegp(kunit,dls,172,0)
       
 !       *********************
 !       * surface roughness *
 !       *********************
       
-        call writegp(141,dz0,173,0)
+        call writegp(kunit,dz0,173,0)
       
 !       **********
 !       * albedo *
 !       **********
       
-        call writegp(141,dalb,175,0)
-        call writegp(141,dsalb(1,:),174,0)
-        call writegp(141,dsalb(2,:),184,0)
+        call writegp(kunit,dalb,175,0)
+        call writegp(kunit,dsalb(1,:),174,0)
+        call writegp(kunit,dsalb(2,:),184,0)
         
 
 !     ***************************
 !     * surface solar radiation *
 !     ***************************
 
-      call writegp(141,dswfl(:,NLEP),176,0)
+      call writegp(kunit,dswfl(:,NLEP),176,0)
 
 !     *****************************
 !     * surface thermal radiation *
 !     *****************************
 
-      call writegp(141,dlwfl(:,NLEP),177,0)
+      call writegp(kunit,dlwfl(:,NLEP),177,0)
 
 !     ***********************
 !     * top solar radiation *
 !     ***********************
 
-      call writegp(141,dswfl(:,1),178,0)
+      call writegp(kunit,dswfl(:,1),178,0)
 
 !     *************************
 !     * top thermal radiation *
 !     *************************
 
-      call writegp(141,dlwfl(:,1),179,0)
+      call writegp(kunit,dlwfl(:,1),179,0)
 
 !     ************
 !     * u-stress *
 !     ************
 
-      call writegp(141,dtaux,180,0)
+      call writegp(kunit,dtaux,180,0)
 
 !     *************
 !     * v- stress *
 !     *************
 
-      call writegp(141,dtauy,181,0)
+      call writegp(kunit,dtauy,181,0)
 
 !     ***************
 !     * evaporation *
 !     ***************
 
-      call writegp(141,devap,182,0)
+      call writegp(kunit,devap,182,0)
 
 !     *********************
 !     * soil temperature *
 !     *********************
       
-        call writegp(141,dtsoil,183,0)
+        call writegp(kunit,dtsoil,183,0)
       
       
 !     ***********************************
 !     * maximum surface air temperature *
 !     ***********************************
 
-      call writegp(141,atsama,201,0)
+      call writegp(kunit,atsama,201,0)
 
 !     ***********************************
 !     * minimum surface air temperature *
 !     ***********************************
 
-      call writegp(141,atsami,202,0)
+      call writegp(kunit,atsami,202,0)
 
 !     ********************
 !     * top solar upward *
 !     ********************
 
-      call writegp(141,dfu(:,1),203,0)
+      call writegp(kunit,dfu(:,1),203,0)
 
 !     ************************
 !     * surface solar upward *
 !     ************************
 
-      call writegp(141,dfu(:,NLEP),204,0)
+      call writegp(kunit,dfu(:,NLEP),204,0)
       
 !     ************************
 !     * radiation level data *
 !     ************************
 
       do jlev=1,NLEP
-        call writegp(141,dfu(:,jlev),404,jlev)
-        call writegp(141,dfd(:,jlev),405,jlev)
-        call writegp(141,dftu(:,jlev),406,jlev)
-        call writegp(141,dftd(:,jlev),407,jlev)
+        call writegp(kunit,dfu(:,jlev),404,jlev)
+        call writegp(kunit,dfd(:,jlev),405,jlev)
+        call writegp(kunit,dftu(:,jlev),406,jlev)
+        call writegp(kunit,dftd(:,jlev),407,jlev)
       enddo
       do jlev=1,NLEV
-        call writegp(141,dtdtlwr(:,jlev)+dtdtswr(:,jlev),408,jlev)
-        call writegp(141,dconv(:,jlev),409,jlev)
+        call writegp(kunit,dtdtlwr(:,jlev)+dtdtswr(:,jlev),408,jlev)
+        call writegp(kunit,dconv(:,jlev),409,jlev)
       enddo
 
 !     **************************
 !     * surface thermal upward *
 !     **************************
 
-      call writegp(141,dftu(:,NLEP),205,0)
+      call writegp(kunit,dftu(:,NLEP),205,0)
 
 !       *******************************
 !       * soil temperatures level 2-4 *
 !       *******************************
        
-        call writegp(141,dtd2,207,0)
-        call writegp(141,dtd3,208,0)
-        call writegp(141,dtd4,209,0)
+        call writegp(kunit,dtd2,207,0)
+        call writegp(kunit,dtd3,208,0)
+        call writegp(kunit,dtd4,209,0)
        
 !       *****************
 !       * sea ice cover *
 !       *****************
        
-        call writegp(141,dicec,210,0)
+        call writegp(kunit,dicec,210,0)
        
 !       *********************
 !       * sea ice thickness *
 !       *********************
        
-        call writegp(141,diced,211,0)
+        call writegp(kunit,diced,211,0)
        
 !       ****************
 !       * forest cover *
 !       ****************
        
-        call writegp(141,dforest,212,0)
+        call writegp(kunit,dforest,212,0)
        
       
        
@@ -1717,32 +1824,32 @@
 !     * snow melt *
 !     *************
 
-      call writegp(141,dsmelt,218,0)
+      call writegp(kunit,dsmelt,218,0)
 
 !     *********************
 !     * snow depth change *
 !     *********************
 
 !       asndch(:)=asndch(:)/real(naccuout)
-      call writegp(141,dsndch,221,0)
+      call writegp(kunit,dsndch,221,0)
 
 !     ******************
 !     * field capacity *
 !     ******************
-        call writegp(141,dwmax,229,0)
+        call writegp(kunit,dwmax,229,0)
         
         
 !     *****************************************
 !     * vertical integrated specific humidity *
 !     *****************************************
 
-      call writegp(141,dqvi,230,0)
+      call writegp(kunit,dqvi,230,0)
 
 !     ****************
 !     * glacier mask *
 !     ****************
 
-      call writegp(141,dglac,232,0)
+      call writegp(kunit,dglac,232,0)
         
 !     *********************
 !     ***   S I M B A   ***
@@ -1756,65 +1863,80 @@
 !     ***********************
 
         do jlev = 1 , NLEV
-           call writegp(141,dqo3(1,jlev),265,jlev)
+           call writegp(kunit,dqo3(1,jlev),265,jlev)
         enddo
       
 !     ********************
 !     * local weathering *
 !     ********************
 
-      call writegp(141,localweathering,266,0)
+      call writegp(kunit,localweathering,266,0)
 
       
 !       ********************
 !       * ground elevation *
 !       ********************
        
-        call writegp(141,groundoro,267,0)
+        call writegp(kunit,groundoro,267,0)
        
 !       *********************
 !       * glacier elevation *
 !       *********************
        
-        call writegp(141,glacieroro,301,0)
+        call writegp(kunit,glacieroro,301,0)
        
         
 !       *********************
 !       *    net elevation  *
 !       *********************
         netoro(:) = groundoro(:) + glacieroro(:)
-        call writegp(141,netoro,302,0)
+        call writegp(kunit,netoro,302,0)
         
        
 !     ********************
 !     * Cos Solar Zenith *
 !     ********************
          
-      call writegp(141,gmu0,318,0)
+      call writegp(kunit,gmu0,318,0)
       
 !     *****************************
 !     * Weatherable Precipitation *
 !     *****************************
         
-      call writegp(141,asigrain,319,0)
+      call writegp(kunit,asigrain,319,0)
 
 !     ***********************
 !     * Minimum Temperature *
 !     ***********************
          
-      call writegp(141,tempmin,320,0)
+      call writegp(kunit,tempmin,320,0)
 
 !     ***********************
 !     * Maximum Temperature *
 !     ***********************
          
-      call writegp(141,tempmax,321,0)
-                  
+      call writegp(kunit,tempmax,321,0)
+         
+      ! Hurricane quantities
+      !Convective Available Potential Energy at the surface
+      call writegp(kunit,capen,322,0)
+      !Level of neutral buoyancy
+      call writegp(kunit,lnb,323,0)
+      ! Tropospheric entropy deficit
+      call writegp(kunit,chim,324,0)
+      ! Tropospheric entropy deficit
+      call writegp(kunit,laav,325,0)
+      ! Maximum potential intensity 
+      call writegp(kunit,mpoti,326,0)
+      ! Ventilation index
+      call writegp(kunit,venti,327,0)      
+      ! Ventilation-reduced Maximum Potential Intensityreturn
+      call writegp(kunit,vrmpi,328,0)
+      ! Genesis Potential Index
+      call writegp(kunit,gpi,329,0)               
             
       return
       end
-      
-      
       
 !     ==================
 !     SUBROUTINE SNAPSHOTDIAG
@@ -1932,9 +2054,11 @@
 !     SUBROUTINE HCADENCEDIAG
 !     ==================
 
-      subroutine hcadencediag
+      subroutine hcadencediag(kunit)
       use pumamod
 
+      integer, intent(in) :: kunit
+      
 !     *****************************************
 !     * 2-D diagnostic arrays, if switched on *
 !     *****************************************
@@ -1942,7 +2066,7 @@
       if(ndiagsp2d > 0 .and. mypid == NROOT) then
        do jdiag=1,ndiagsp2d
         jcode=50+jdiag
-        call writesp(141,dsp2d(1,jdiag),jcode,0,1.,0.0)
+        call writesp(kunit,dsp2d(1,jdiag),jcode,0,1.,0.0)
        enddo
       end if
 
@@ -1954,7 +2078,7 @@
        do jdiag=1,ndiagsp3d
         jcode=60+jdiag
         do jlev=1,NLEV
-         call writesp(141,dsp3d(1,jlev,jdiag),jcode,jlev,1.,0.0)
+         call writesp(kunit,dsp3d(1,jlev,jdiag),jcode,jlev,1.,0.0)
         enddo
        enddo
       end if
@@ -1966,7 +2090,7 @@
       if(ndiaggp2d > 0) then
        do jdiag=1,ndiaggp2d
         jcode=jdiag
-        call writegp(141,dgp2d(1,jdiag),jcode,0)
+        call writegp(kunit,dgp2d(1,jdiag),jcode,0)
        enddo
       end if
 
@@ -1978,7 +2102,7 @@
        do jdiag=1,ndiaggp3d
         jcode=20+jdiag
         do jlev=1,NLEV
-         call writegp(141,dgp3d(1,jlev,jdiag),jcode,jlev)
+         call writegp(kunit,dgp3d(1,jlev,jdiag),jcode,jlev)
         enddo
        enddo
       end if
@@ -1988,13 +2112,13 @@
 !     ************************************************
 
       if(ndiagcf > 0) then
-       call writegp(141,dclforc(1,1),101,0)
-       call writegp(141,dclforc(1,2),102,0)
-       call writegp(141,dclforc(1,3),103,0)
-       call writegp(141,dclforc(1,4),104,0)
-       call writegp(141,dclforc(1,5),105,0)
-       call writegp(141,dclforc(1,6),106,0)
-       call writegp(141,dclforc(1,7),107,0)
+       call writegp(kunit,dclforc(1,1),101,0)
+       call writegp(kunit,dclforc(1,2),102,0)
+       call writegp(kunit,dclforc(1,3),103,0)
+       call writegp(kunit,dclforc(1,4),104,0)
+       call writegp(kunit,dclforc(1,5),105,0)
+       call writegp(kunit,dclforc(1,6),106,0)
+       call writegp(kunit,dclforc(1,7),107,0)
       end if
 
 !     **************************************
@@ -2005,14 +2129,14 @@
        do jdiag=1,36
         jcode=319+jdiag
         if(jcode == 333) cycle                      !333 is reserved
-        call writegp(141,dentropy(1,jdiag),jcode,0)
+        call writegp(kunit,dentropy(1,jdiag),jcode,0)
        enddo
       end if
       if(nentro3d > 0) then
        do jdiag=1,23
         jcode=419+jdiag
         do jlev=1,NLEV
-         call writegp(141,dentro3d(1,jlev,jdiag),jcode,jlev)
+         call writegp(kunit,dentro3d(1,jlev,jdiag),jcode,jlev)
         enddo
        enddo
       end if
@@ -2024,14 +2148,14 @@
       if(nenergy > 0) then
        do jdiag=1,28
         jcode=359+jdiag
-        call writegp(141,denergy(1,jdiag),jcode,0)
+        call writegp(kunit,denergy(1,jdiag),jcode,0)
        enddo
       end if
       if(nener3d > 0) then
        do jdiag=1,28
         jcode=459+jdiag
         do jlev=1,NLEV
-         call writegp(141,dener3d(1,jlev,jdiag),jcode,jlev)
+         call writegp(kunit,dener3d(1,jlev,jdiag),jcode,jlev)
         enddo
        enddo
       end if
@@ -2119,6 +2243,15 @@
         aadglac(:)      = 0.
         aagroundoro(:)  = 0.
         aaglacieroro(:) = 0.
+        
+        agpi(:)   = 0.
+        aventi(:) = 0.
+        alaav(:)  = 0.
+        ampoti(:) = 0.
+        avrmpi(:) = 0.
+        acapen(:) = 0.
+        alnb(:)   = 0.
+        achim(:)  = 0.
 
       endif
       
@@ -2222,7 +2355,16 @@
         aadwmax(:)      = aadwmax(:)      + dwmax(:)     
         aadglac(:)      = aadglac(:)      + dglac(:)       
         aagroundoro(:)  = aagroundoro(:)  + groundoro(:) 
-        aaglacieroro(:) = aaglacieroro(:) + glacieroro(:)      
+        aaglacieroro(:) = aaglacieroro(:) + glacieroro(:)
+        
+        agpi(:)   = agpi(:)   + gpi(:)  
+        aventi(:) = aventi(:) + venti(:)
+        alaav(:)  = alaav(:)  + laav(:) 
+        ampoti(:) = ampoti(:) + mpoti(:)
+        avrmpi(:) = avrmpi(:) + vrmpi(:)
+        acapen(:) = acapen(:) + capen(:)
+        alnb(:)   = alnb(:)   + lnb(:)  
+        achim(:)  = achim(:)  + chim(:) 
       
       endif
       

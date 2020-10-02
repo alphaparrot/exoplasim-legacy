@@ -56,11 +56,13 @@ parser.add_argument("-z","--topo",action="store_true",help="Generate topographic
 parser.add_argument("-c","--continents",type=int,default=7,help="Number of continental cratons")
 parser.add_argument("-f","--landfraction",type=float,default=0.29,help="Land fraction")
 parser.add_argument("-n","--name",default="Alderaan",help="Assign a name for the planet")
-parser.add_argument("-m","--maxz",default=10.0,help="Maximum elevation in km assuming Earth gravity")
+parser.add_argument("-m","--maxz",default=10.0,type=float,help="Maximum elevation in km assuming Earth gravity")
 if os.path.exists("T21.nc"):
     parser.add_argument("--nlats",type=int,help="Number of latitudes (evenly-spaced)--will also set longitudes (twice as many). If unset, PlaSim latitudes and longitudes will be used (T21 resolution)")
 else:
     parser.add_argument("--nlats",default=32,type=int,help="Number of latitudes (evenly-spaced)--will also set longitudes (twice as many).")
+parser.add_argument("-l","--hemispherelongitude",type=float,default=np.nan,help="Confine land to a hemisphere centered on a given longitude")
+parser.add_argument("-o","--orthographic",action="store_true",help="Plot orthographic projections centered on hemispherelongitude")
 args = parser.parse_args()
 
 if not args.nlats:
@@ -73,6 +75,29 @@ else:
     lts = np.linspace(90,-90,num=args.nlats+2)[1:-1]
     lns = np.linspace(0,360,num=args.nlats*2+1)[:-1]
 lons, lats = np.meshgrid(lns,lts)
+
+minlon=0.0
+maxlon=360.0
+lonrange=360.0
+l0 = 0.5*(minlon+maxlon)
+wraplon=False
+if np.isfinite(args.hemispherelongitude):
+    l0 = args.hemispherelongitude
+    minlon=args.hemispherelongitude-90.0
+    maxlon=args.hemispherelongitude+90.0
+    lonrange=180.0
+    if minlon<0:
+        minlon+=360.0
+        wraplon=True
+    if maxlon>360.0:
+        maxlon-=360.0
+        wraplon=True
+    if wraplon:
+        z1 = minlon
+        z2 = maxlon
+        minlon = min(z1,z2)
+        maxlon = max(z1,z2)
+
 
 darea = np.zeros((len(lts),len(lns)))
 NLAT = len(lts)
@@ -100,6 +125,13 @@ hlns[0] = lns[0]-0.5*(lns[1]-lns[0])
 hlns[-1] = lns[-1]+0.5*(lns[-1]-lns[-2])
 hlns[1:-1] = 0.5*(lns[:-1]+lns[1:])
 hlons, hlats = np.meshgrid(hlns,hlts)
+
+rlats = hlats*np.pi/180.0
+rlons = hlons*np.pi/180.0
+rl0 = l0*np.pi/180.0
+rcoord = 2*np.arcsin(np.sqrt(np.sin(0.5*rlats)**2+np.cos(rlats)*np.sin(0.5*(rlons-rl0))**2))
+thetacoord = np.arctan2(np.cos(rlats)*np.sin(rlons-rl0),np.sin(rlats))
+thetacoord[thetacoord<0] += 2*np.pi
 
 latsw=wrap2d(lats,lats[:,0])
 lonsw=wrap2d(lons,360.0)
@@ -131,10 +163,17 @@ for c in range(ncontinents):
         #iln = np.argmin(abs(theta-lns))
         ilt = ilts1[idx]
         iln = ilns1[idx]
-        if grid[ilt,iln]<0.5:
+        keeppoint = True
+        if wraplon:
+            if lns[iln]>minlon and lns[iln]<maxlon:
+                keeppoint=False
+        else:
+            if lns[iln]<minlon or lns[iln]>maxlon:
+                keeppoint=False
+        if grid[ilt,iln]<0.5 and keeppoint:
             grid[ilt,iln] = 1.0
             cratons[ilt+1,iln+1] = c
-            seams[ilt,iln] = 0.0
+            seams[ilt,iln] = 1.0
             landarea += darea[ilt,iln]
             break
     wgrid[1:-1,1:-1] = grid[:,:]
@@ -150,7 +189,15 @@ for c in range(ncontinents):
 history=[]
 while landarea<=landfraction-np.nanmin(darea):
     while True:
-        theta = np.random.uniform()*360.0
+        theta = np.random.uniform()*lonrange
+        if wraplon:
+            theta += maxlon
+            if theta>360.0:
+                theta-=360.0
+        else:
+            theta += minlon
+            if theta>360.0:
+                theta-=360.0
         phi = np.arcsin(1-2*np.random.uniform())*180.0/np.pi
         ilt = np.argmin(abs(phi-lts))
         iln = np.argmin(abs(theta-lns))
@@ -181,33 +228,75 @@ while landarea<=landfraction-np.nanmin(darea):
     cratons[:,0] = cratons[:,-2]
     cratons[:,-1] = cratons[:,1]
 
-tm = plt.pcolormesh(hlons,hlats,grid,cmap='gist_earth',vmin=-0.3,vmax=2.5)
-plt.xlabel('Degrees Longitude')
-plt.ylabel('Degrees Latitude')
-plt.ylim(np.amin(lts),np.amax(lts))
-plt.xlim(np.amin(lns),np.amax(lns))
-plt.title("Continents")
-plt.savefig(name+"_lsm.png",bbox_inches='tight')
-plt.savefig(name+"_lsm.pdf",bbox_inches='tight')
-plt.close('all')  
+
+print args.orthographic
+
+if not args.orthographic:
+    tm = plt.pcolormesh(hlons,hlats,grid,cmap='gist_earth',vmin=-0.3,vmax=2.5)
+    plt.xlabel('Degrees Longitude')
+    plt.ylabel('Degrees Latitude')
+    plt.ylim(np.amin(lts),np.amax(lts))
+    plt.xlim(np.amin(lns),np.amax(lns))
+    plt.title("Continents")
+    plt.savefig(name+"_lsm.png",bbox_inches='tight')
+    plt.savefig(name+"_lsm.pdf",bbox_inches='tight')
+    plt.close('all')  
+else:
+    iln0 = np.argmin(abs(lns-minlon))
+    iln1 = np.argmin(abs(lns-maxlon))
+    shift = iln0
+    if wraplon:
+        shift = iln1
+    x = np.roll(thetacoord,-shift,axis=1)[:,:NLON/2+1]
+    y = np.roll(rcoord,-shift,axis=1)[:,:NLON/2+1]
+    z = np.roll(grid,-shift,axis=1)[:,:NLON/2]
+    fig,ax=plt.subplots(subplot_kw={"projection":"polar"},figsize=(9,9))
+    ax.set_theta_zero_location('N')
+    ax.pcolormesh(x,np.sin(y),z,cmap='gist_earth',vmin=-0.3,vmax=2.5)
+    ax.set_rticks([])
+    ax.set_thetagrids([])
+    plt.title("Continents")
+    plt.savefig(name+"_lsm.png",bbox_inches='tight')
+    plt.savefig(name+"_lsm.pdf",bbox_inches='tight')
+    plt.close('all')  
+    
 
 writeSRA(name,172,grid,NLAT,NLON)
 
 
 plt.close('all')
-t = plt.pcolormesh(hlons,hlats,cratons[1:-1,1:-1],cmap='gist_ncar',vmin=-0.3,vmax=ncontinents+2)
-plt.xlabel('Degrees Longitude')
-plt.ylabel('Degrees Latitude')
-plt.ylim(np.amin(lts),np.amax(lts))
-plt.xlim(np.amin(lns),np.amax(lns))
-plt.title("Continental Cratons")
-plt.savefig(name+"_cratons.png",bbox_inches='tight')
-plt.savefig(name+"_cratons.pdf",bbox_inches='tight')
+if not args.orthographic:
+    t = plt.pcolormesh(hlons,hlats,cratons[1:-1,1:-1],cmap='gist_ncar',vmin=-0.3,vmax=ncontinents+2)
+    plt.xlabel('Degrees Longitude')
+    plt.ylabel('Degrees Latitude')
+    plt.ylim(np.amin(lts),np.amax(lts))
+    plt.xlim(np.amin(lns),np.amax(lns))
+    plt.title("Continental Cratons")
+    plt.savefig(name+"_cratons.png",bbox_inches='tight')
+    plt.savefig(name+"_cratons.pdf",bbox_inches='tight')
 
-plt.close('all')
+    plt.close('all')
+else:
+    iln0 = np.argmin(abs(lns-minlon))
+    iln1 = np.argmin(abs(lns-maxlon))
+    shift = iln0
+    if wraplon:
+        shift = iln1
+    x = np.roll(thetacoord,-shift,axis=1)[:,:NLON/2+1]
+    y = np.roll(rcoord,-shift,axis=1)[:,:NLON/2+1]
+    z = np.roll(cratons[1:-1,1:-1],-shift,axis=1)[:,:NLON/2]
+    fig,ax=plt.subplots(subplot_kw={"projection":"polar"},figsize=(9,9))
+    ax.set_theta_zero_location('N')
+    ax.pcolormesh(x,np.sin(y),z,cmap='gist_ncar',vmin=-0.3,vmax=ncontinents+2)
+    ax.set_rticks([])
+    ax.set_thetagrids([])
+    plt.title("Continental Cratons")
+    plt.savefig(name+"_cratons.png",bbox_inches='tight')
+    plt.savefig(name+"_cratons.pdf",bbox_inches='tight')
+    plt.close('all')  
 
 if args.topo:
-
+    seeds = np.copy(seams)
     gcratonsx,gcratonsy = np.gradient(cratons[1:-1,1:-1],lts,lns)
     seams[:] = np.sqrt(gcratonsx**2+gcratonsy**2)
     seams[np.isnan(seams)]=0.0
@@ -216,21 +305,42 @@ if args.topo:
     if np.nanmax(seams)>0.0:
         geopotential = g0*(seams/np.nanmax(seams))*args.maxz*1000.0
     else:
-        geopotential = g0*grid
+        geopotential = g0*(grid*0.1+seeds*3.0)*args.maxz*1000.0
+        seams[:] = seeds[:]
     geopotential[grid==0.0] = np.nan
     
-    tm = plt.pcolormesh(hlons,hlats,grid+seams*3.0,cmap='plasma')
-    plt.title("Craton Seams")
-    plt.xlabel("Degrees Longitude")
-    plt.ylabel("Degrees Latitude")
-    plt.ylim(np.amin(lts),np.amax(lts))
-    plt.xlim(np.amin(lns),np.amax(lns))
-    plt.savefig(name+"_seams.png",bbox_inches='tight')
-    plt.savefig(name+"_seams.pdf",bbox_inches='tight')
-    plt.close('all')
+    if not args.orthographic:
+        tm = plt.pcolormesh(hlons,hlats,grid+seams*3.0,cmap='plasma')
+        plt.title("Craton Seams")
+        plt.xlabel("Degrees Longitude")
+        plt.ylabel("Degrees Latitude")
+        plt.ylim(np.amin(lts),np.amax(lts))
+        plt.xlim(np.amin(lns),np.amax(lns))
+        plt.savefig(name+"_seams.png",bbox_inches='tight')
+        plt.savefig(name+"_seams.pdf",bbox_inches='tight')
+        plt.close('all')
+    else:
+        iln0 = np.argmin(abs(lns-minlon))
+        iln1 = np.argmin(abs(lns-maxlon))
+        shift = iln0
+        if wraplon:
+            shift = iln1
+        x = np.roll(thetacoord,-shift,axis=1)[:,:NLON/2+1]
+        y = np.roll(rcoord,-shift,axis=1)[:,:NLON/2+1]
+        z = np.roll(grid+seams*3.0,-shift,axis=1)[:,:NLON/2]
+        fig,ax=plt.subplots(subplot_kw={"projection":"polar"},figsize=(9,9))
+        ax.set_theta_zero_location('N')
+        t=ax.pcolormesh(x,np.sin(y),z,cmap='plasma',vmin=-0.3,vmax=2.5)
+        ax.set_rticks([])
+        ax.set_thetagrids([])
+        plt.colorbar(t)
+        plt.title("Craton Seams")
+        plt.savefig(name+"_seams.png",bbox_inches='tight')
+        plt.savefig(name+"_seams.pdf",bbox_inches='tight')
+        plt.close('all')  
 
-    hlnsz = np.linspace(hlns[0],hlns[-1],num=400)
-    hltsz = np.linspace(hlts[0],hlts[-1],num=200)
+    hlnsz = np.linspace(hlns[0],hlns[-1],num=max(400,NLON*2))
+    hltsz = np.linspace(hlts[0],hlts[-1],num=max(200,NLAT*2))
     lnsz = 0.5*(hlnsz[:-1]+hlnsz[1:])
     ltsz = 0.5*(hltsz[:-1]+hltsz[1:])
 #lnsz = np.linspace(lns[0],lns[-1],num=128)
@@ -238,16 +348,24 @@ if args.topo:
     geo = np.copy(geopotential)
     geo[np.isnan(geopotential)] = 0.0
     
-    geozspline = interpolate.RectBivariateSpline(lns,lts[::-1],np.transpose(geo[::-1,:]),bbox=[lnsz[0],lnsz[-1],ltsz[-1],ltsz[0]],kx=3,ky=3)
+    kx=3
+    ky=3
+    if NLAT>128:
+        kx=1
+        ky=1
+    
+    print lns.min(),lns.max(),lts.min(),lts.max()
+    print lnsz[0],lnsz[-1],ltsz[-1],ltsz[0]
+    geozspline = interpolate.RectBivariateSpline(lns,lts[::-1],np.transpose(geo[::-1,:]),bbox=[lnsz[0],lnsz[-1],ltsz[-1],ltsz[0]],kx=kx,ky=ky)
     geoz = np.transpose(geozspline(lnsz,ltsz[::-1]))
     geoz = geoz[::-1,:]
-    contzspline = interpolate.RectBivariateSpline(lns,lts[::-1],np.transpose(grid[::-1,:]),bbox=[lnsz[0],lnsz[-1],ltsz[-1],ltsz[0]],kx=3,ky=3)
+    contzspline = interpolate.RectBivariateSpline(lns,lts[::-1],np.transpose(grid[::-1,:]),bbox=[lnsz[0],lnsz[-1],ltsz[-1],ltsz[0]],kx=kx,ky=ky)
     contz = np.transpose(contzspline(lnsz,ltsz[::-1]))
     contz = contz[::-1,:]
     
     topo = np.copy(geoz)+contz*g0*10.0 #Default lowlands of 10 meters above sea level
 
-    maxiters = 10
+    maxiters = 10*int(np.sqrt(NLAT/32))
 
     NLATZ = len(ltsz)
     NLONZ = len(lnsz)
@@ -295,16 +413,36 @@ if args.topo:
     
     writeSRA(name,129,dtopo,NLAT,NLON)
     
-    plt.close('all')
-    t=plt.pcolormesh(hlons,hlats,dtopo,cmap='gist_earth',norm=colors.LogNorm(vmin=10.0))
-    plt.xlabel('Degrees Longitude')
-    plt.ylabel('Degrees Latitude')
-    plt.ylim(np.amin(lts),np.amax(lts))
-    plt.xlim(np.amin(lns),np.amax(lns))
-    plt.title("Topography")
-    plt.colorbar(t,label="Geopotential [m$^2$/s$^2$]")
-    plt.savefig(name+"_geoz.png",bbox_inches='tight')
-    plt.savefig(name+"_geoz.pdf",bbox_inches='tight')
+    if not args.orthographic:
+        plt.close('all')
+        t=plt.pcolormesh(hlons,hlats,dtopo,cmap='gist_earth',norm=colors.LogNorm(vmin=10.0))
+        plt.xlabel('Degrees Longitude')
+        plt.ylabel('Degrees Latitude')
+        plt.ylim(np.amin(lts),np.amax(lts))
+        plt.xlim(np.amin(lns),np.amax(lns))
+        plt.title("Topography")
+        plt.colorbar(t,label="Geopotential [m$^2$/s$^2$]")
+        plt.savefig(name+"_geoz.png",bbox_inches='tight')
+        plt.savefig(name+"_geoz.pdf",bbox_inches='tight')
+    else:
+        iln0 = np.argmin(abs(lns-minlon))
+        iln1 = np.argmin(abs(lns-maxlon))
+        shift = iln0
+        if wraplon:
+            shift = iln1
+        x = np.roll(thetacoord,-shift,axis=1)[:,:NLON/2+1]
+        y = np.roll(rcoord,-shift,axis=1)[:,:NLON/2+1]
+        z = np.roll(dtopo,-shift,axis=1)[:,:NLON/2]
+        fig,ax=plt.subplots(subplot_kw={"projection":"polar"},figsize=(9,9))
+        ax.set_theta_zero_location('N')
+        t=ax.pcolormesh(x,np.sin(y),z,cmap='gist_earth',norm=colors.LogNorm(vmin=10.0))
+        ax.set_rticks([])
+        ax.set_thetagrids([])
+        plt.title("Topography")
+        plt.colorbar(t,label="Geopotential [m$^2$/s$^2$]")
+        plt.savefig(name+"_geoz.png",bbox_inches='tight')
+        plt.savefig(name+"_geoz.pdf",bbox_inches='tight')
+        plt.close('all')  
     
     hf = np.copy(dtopo)
     hf[grid>0.5] += 1000.0
