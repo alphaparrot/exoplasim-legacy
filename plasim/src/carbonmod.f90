@@ -13,16 +13,16 @@
 !
 !     Parameter   
 !                          !Outgassing rates given in ubars/year
-#if realv == 1
-      parameter(VEARTH=5.0e-2) ! Rate based on volcanic outgassing estimates from Gerlach 2011
-#else
-#if kasting==1
-      parameter(VEARTH=6.3e-2)
-#else
-      parameter(VEARTH=7.0e-3) ! Earth volcanic CO2 outgassing rate (ubars), assumed to be equal to Earth
-                               ! weathering rate.
-#endif
-#endif
+! #if realv == 1
+!       parameter(VEARTH=5.0e-2) ! Rate based on volcanic outgassing estimates from Gerlach 2011
+! #else
+! #if kasting==1
+!       parameter(VEARTH=6.3e-2)
+! #else
+!       parameter(VEARTH=7.0e-3) ! Earth volcanic CO2 outgassing rate (ubars), assumed to be equal to Earth
+!                                ! weathering rate.
+! #endif
+! #endif
       parameter(CO2EARTH=330.0)  ! Earth CO2 level in ubars
       parameter(RAD_EARTH=6371220.0) !Earth radius
       parameter(RAD_EARTHSQ=6371220.0*6371220.0) !Earth radius squared
@@ -41,6 +41,7 @@
       real :: beta = 0.5 ! pCO2 dependence
       real :: frequency = 4.0 ! Number of times to compute weathering per day. Can be a float, i.e.
                               ! for once every 2 days, use frequency=0.5.
+      real :: VEARTH = 5.0e-2 !ubars/year
       real :: PEARTH = 79.0 ! Annual precipitation on modern Earth that is relevant for weathering.
                            ! 79 cm/yr (Chen 2002 & Schneider 2014)
       real :: WMAX = 1.0 ! Maximum weathering rate for the supply-limited case, in ubar/yr
@@ -86,7 +87,7 @@
       subroutine carbonini
       use carbonmod
       
-      namelist/carbonmod_nl/ncarbon,volcanco2,kact,krun,beta,frequency,PEARTH,nsupply,WMAX,zeta,nco2evolve
+      namelist/carbonmod_nl/ncarbon,volcanco2,kact,krun,beta,frequency,VEARTH,PEARTH,nsupply,WMAX,zeta,nco2evolve
       
       if (mypid==NROOT) then
          open(23,file=carbon_namelist)
@@ -117,6 +118,7 @@
       call mpbcr(frequency)
       call mpbcr(timeweight)
       call mpbcr(PEARTH)
+      call mpbcr(VEARTH)
       call mpbcr(WMAX)
       call mpbcr(nsupply)
       call mpbcr(psurf0)

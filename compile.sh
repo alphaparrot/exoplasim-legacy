@@ -60,6 +60,7 @@ prec=4
 resolution="t21"
 latitudes=32
 longitudes=64
+fftopt="fftmod"
 levels=10
 ncpus=4
 debug=0
@@ -101,11 +102,18 @@ while getopts "p:r:v:n:O:t:dhm" opt; do
                     resolution="t63"
                     latitudes=96
                     longitudes=192
+                    fftopt="fft991mod"
                     ;;
                 T85)
                     resolution="t85"
                     latitudes=128
                     longitudes=256
+                    ;;
+                T106)
+                    resolution="t106"
+                    latitudes=160
+                    longitudes=320
+                    fftopt="fft991mod"
                     ;;
                 T127)
                     resolution="t127"
@@ -131,11 +139,18 @@ while getopts "p:r:v:n:O:t:dhm" opt; do
                     resolution="t63"
                     latitudes=96
                     longitudes=192
+                    fftopt="fft991mod"
                     ;;
                 128)
                     resolution="t85"
                     latitudes=128
                     longitudes=256
+                    ;;
+                160)
+                    resolution="t106"
+                    latitudes=160
+                    longitudes=320
+                    fftopt="fft991mod"
                     ;;
                 192)
                     resolution="t127"
@@ -259,6 +274,7 @@ echo "Writing makefile..."
 echo ""
 
 export OCEANCOUP=cpl_stub
+export FFTMOD=$fftopt
 #cat makefile
 
 make -e

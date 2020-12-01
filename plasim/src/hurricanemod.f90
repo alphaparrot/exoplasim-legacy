@@ -22,6 +22,7 @@
       real :: mpotimask(NHOR) = 0. ! 1 for vmax .ge. 33 m/s
       real :: laavmask(NHOR) = 0.  ! 1 for nu .ge. 1.2e-5 s^-1
       real :: vrmpimask(NHOR) = 0. ! 1 for vrvmax .ge. 0.577
+      real :: tsmask(NHOR) = 0.    ! 1 for MINSURFTEMP <= ts <= MAXSURFTEMP
       real :: wind(NHOR) = 0.
       real :: windmask(NHOR) = 0.
       real :: swindmask(NHOR) = 0.
@@ -53,6 +54,8 @@
       real :: VMXTHRESH=33.0   ! Max pot. intensity threshold
       real :: LAVTHRESH=1.2e-5 ! Lower atm. vorticity threshold
       real :: VRMTHRESH=0.577  ! Ventilation-reduced vmax threshold
+      real :: MINSURFTEMP=298.15 ! Minimum surface temperature to trigger (default 25 C)
+      real :: MAXSURFTEMP=373.15 ! Maximum surface temperature to trigger (default 100 C)
       real :: WINDTHRESH=33.0  ! Lower-atmosphere windspeed necessary to count as a hurricane
       real :: SWINDTHRESH=20.5 ! Concurrent Surface wind speed necessary to count as a hurricane
       integer :: SIZETHRESH = 30 ! Number of cells where condition must be satisfied
@@ -153,7 +156,7 @@
       namelist /hurricane_nl/ CKCD, VITHRESH, GPITHRESH, VMXTHRESH, LAVTHRESH, WINDTHRESH, &
      &                        SWINDTHRESH, VRMTHRESH, SIZETHRESH, baz, top, hc_capture, &
      &                        nktrigger, ngpitrigger, nstorms, nstormdiag, ENDTHRESH, &
-     &                        MAXSTORMLEN, MINSTORMLEN 
+     &                        MAXSTORMLEN, MINSTORMLEN, MINSURFTEMP, MAXSURFTEMP 
       
       
       RD = gascon
@@ -182,6 +185,8 @@
       call mpbcr(VRMTHRESH)
       call mpbcr(WINDTHRESH)
       call mpbcr(SWINDTHRESH)
+      call mpbcr(MINSURFTEMP)
+      call mpbcr(MAXSURFTEMP)
       call mpbcr(baz)
       call mpbcr(top)
       call mpbci(hc_capture)
@@ -226,6 +231,7 @@
       laavmask(:) = 0.0
       vrmpimask(:) = 0.0
       windmask(:) = 0.0
+      tsmask(:) = 0.0
       
       swind(:) = sqrt(du(:,NLEV)**2+dv(:,NLEV)**2)
       
@@ -279,9 +285,13 @@
          swindmask(:) = 1.0
       endwhere
       
+      where ((dt(:,NLEP) .ge. MINSURFTEMP) .and. (dt(:,NLEP) .le. MAXSURFTEMP))
+         tsmask(:) = 1.0
+      endwhere
+      
       k20flag(:) = ventimask(:)*mpotimask(:)*laavmask(:)
       allflag(:) = k20flag(:)*gpimask(:)*vrmpimask(:)
-      windflag(:) = swindmask(:)*windmask(:)*gpimask(:)
+      windflag(:) = swindmask(:)*windmask(:)*gpimask(:)*tsmask(:)
       
       ! Assemble global diagnostics, and write to diagnostic file
       
@@ -309,7 +319,7 @@
       call mpgagp(zzf1,swind(:)*gpimask(:),1)
       if (mypid==NROOT) then
          swindmax=maxval(zzf1)
-         trigger=windtrigger!(nktrigger*(1-ngpitrigger)*k20trigger+ &
+         trigger=windtrigger*(nktrigger-1)+k20trigger*nktrigger!(nktrigger*(1-ngpitrigger)*k20trigger+ &
 !      &           (1-nktrigger)*(1-ngpitrigger)*alltrigger+ &
 !      &           npgitrigger*windtrigger)
          nstormlen = nstormlen + trigger

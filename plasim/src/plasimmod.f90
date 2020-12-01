@@ -178,7 +178,7 @@
       integer :: nflux    =  1  ! vertical diffusion 1/0
       integer :: nadv     =  1  ! advection 1/0=(y/n)
       integer :: nhordif  =  1  ! horizontal diffusion 1/0=(y/n)
-      integer :: neqsig   =  0  ! equidistant sigma levels (1/0)=(y/n) !2=log-equidistant; 3=pseudolog
+      integer :: neqsig   =  0  ! equidistant sigma levels (1/0)=(y/n) !2=log-equidistant; 3=pseudolog; 4=lin-equidistant
       integer :: nprint   =  0  ! comprehensive print out (only for checks!)
       integer :: nprhor   =  0  ! grid point for print out (only for checks!)
       integer :: npacksp  =  0  ! pack spectral fields on output
