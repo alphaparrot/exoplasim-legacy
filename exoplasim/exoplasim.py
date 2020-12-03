@@ -1,4 +1,3 @@
-sourcedir = "/home/adiv/astro/menou/ExoPlaSim"
 
 import os
 import sys

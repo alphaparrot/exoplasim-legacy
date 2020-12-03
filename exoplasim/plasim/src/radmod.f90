@@ -65,6 +65,8 @@
                                   ! on the whole planet (0/1)=(off/on)
       integer :: iyrbp   = -50    ! Year before present (1950 AD)
                                   ! default = 2000 AD
+                                  
+      integer :: npbroaden = 1    ! Should pressure broadening depend on surface pressure (1/0)
       integer :: nfixed  = 0      ! Switch for fixed zenith angle (0/1=no/yes)
       real    :: fixedlon = 0.0   ! Longitude of fixed solar zenith
       real    :: slowdown = 1.0   ! Factor by which to change diurnal insolation cycle
@@ -539,7 +541,7 @@
 !**   0) define namelist
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
-     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown,nradice          &
+     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown,nradice,npbroaden    &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
@@ -710,6 +712,7 @@
       call mpbci(necham)
       call mpbci(necham6)
       call mpbci(nradice)
+      call mpbci(npbroaden)
 
       call mpbcr(starbbtemp)
       call mpbci(nstartemp)
@@ -2008,7 +2011,11 @@
       zsigh2(1)=0.
       zsigh2(2:NLEP)=sigmah(1:NLEV)**2
 
-      zps2(:)=dp(:)*dp(:)
+      if (npbroaden .gt. 0.5) then
+         zps2(:)=dp(:)*dp(:)
+      else
+         zps2(:)=101100.0*101100.0 !If no pressure broadening, assume as much broadening as for 1 bar
+      endif
 !
 !**   2) calc. stb*t**4 + preset fluxes
 !

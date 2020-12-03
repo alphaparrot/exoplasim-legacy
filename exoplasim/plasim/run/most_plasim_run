@@ -5,7 +5,7 @@ EXP=MOST    # Name your experiment here
 rm -f plasim_restart                                       
 rm -f Abort_Message                                        
 YEAR=0                                                     
-YEARS=1                                             
+YEARS=10                                             
 while [ $YEAR -lt $YEARS ]                               
 do                                                         
    YEAR=`expr $YEAR + 1`                                
@@ -14,7 +14,7 @@ do
    DIAGNAME=`printf '%s_DIAG.%03d' $EXP $YEAR`         
    RESTNAME=`printf '%s_REST.%03d' $EXP $YEAR`         
    SNOWNAME=`printf '%s_SNOW.%03d' $EXP $YEAR`         
-   mpiexec -np 2 most_plasim_t21_l10_p2.x                      
+   mpiexec -np 4 most_plasim_t21_l10_p4.x                      
    [ -e Abort_Message ] && exit 1                          
    [ -e plasim_output ] && mv plasim_output $DATANAME     
    [ -e plasim_snapshot ] && mv plasim_snapshot $SNAPNAME 
