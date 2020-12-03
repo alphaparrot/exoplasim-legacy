@@ -80,14 +80,14 @@ class Model(object):
                 os.system("./configure.sh")
                 os.chdir(cwd)
             except PermissionError:
-                raise PermissionError("Hi! Welcome to ExoPlaSim. It looks like this is the first"+
-                                      "time you're using this program since installing, and you"+
-                                      "may have installed it to a location that needs root"+
-                                      "privileges to modify. This is not ideal! If you want to"+
+                raise PermissionError("\nHi! Welcome to ExoPlaSim. It looks like this is the first "+
+                                      "time you're using this program since installing, and you "+
+                                      "may have installed it to a location that needs root "+
+                                      "privileges to modify. This is not ideal! If you want to "+
                                       "use the program this way, you will need to run python code"+
-                                      "that uses ExoPlaSim with sudo privileges; i.e. sudo "+
-                                      "python3 myscript.py. If you did this because pip install"+
-                                      "breaks without sudo privileges, then try using \n\n\tpip"+ "install --user exoplasim \n\ninstead. It is generally a "+
+                                      " that uses ExoPlaSim with sudo privileges; i.e. sudo "+
+                                      "python3 myscript.py. If you did this because pip install "+
+                                      "breaks without sudo privileges, then try using \n\n\tpip "+ "install --user exoplasim \n\ninstead. It is generally a "+
                                       "very bad idea to install things with sudo pip install.")
         
         self.runscript=None
