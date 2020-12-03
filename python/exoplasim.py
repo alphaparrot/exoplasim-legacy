@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import glob
 import netCDF4 as nc
+import gcmt
 
 smws = {'mH2': 2.01588,
         'mHe': 4.002602,
@@ -32,16 +33,21 @@ def noneparse(text,dtype):
     else:
         return dtype(text)
 
-class Model:
+class Model(object):
     def __init__(self,resolution="T21",layers=10,ncpus=4,precision=8,debug=False,inityear=0,
-                 recompile=False,optimization=None,mars=False,workdir=".",source=None,
+                 recompile=False,optimization=None,mars=False,workdir="most",source=None,
                  modelname="MOST_EXP"):
         '''Initialize an ExoPlaSim model configuration. By default, the current directory
            is assumed to be the working directory.'''
         
         self.runscript=None
         self.otherargs = []
-        self.pgasses = {}
+        self.pgases = {}
+        self.modelname=modelname
+        self.cleaned=False
+        
+        if debug or optimization: #There is no need to set these for precompiled binaries
+            recompile=True
         
         self.ncpus = ncpus
         if self.ncpus>1:
@@ -51,7 +57,10 @@ class Model:
         self.layers = layers
         
         self.odir = os.getcwd()
+        if workdir[0]!="/":
+            workdir = self.odir+"/"+workdir
         self.workdir = workdir
+        os.system("mkdir "+self.workdir)
         self.currentyear=inityear
         
         # Depending on how the user has entered the resolution, set the appropriate number
@@ -87,12 +96,12 @@ class Model:
         
         self.executable = sourcedir+"/plasim/run/most_plasim_t%d_l%d_p%d.x"%(self.nsp,self.layers,ncpus)
         
-       if not source:
+        if not source:
            source = "%s/plasim/run"%sourcedir
         
         burnsource = "%s/postprocessor"%sourcedir
         
-        if recompile or not os.path.exists(executable):
+        if recompile or not os.path.exists(self.executable):
             extraflags = ""
             if debug:
                 extraflags+= "-d "
@@ -101,7 +110,7 @@ class Model:
             if mars:
                 extraflags+= "-m "
             os.system("cwd=$(pwd) && "+
-                      "cd %s && ./compile.sh -n %d -p %d -r T%d -v %d"%(sourcedir,self.ncpus,
+                      "cd %s && ./compile.sh -n %d -p %d -r T%d -v %d "%(sourcedir,self.ncpus,
                                                                         precision,self.nsp,
                                                                         self.layers)+
                       extraflags+" &&"+
@@ -115,6 +124,7 @@ class Model:
         os.chdir(self.workdir)
         
         self.executable = self.executable.split("/")[-1] #Strip off all the preceding path
+    
         
     def run(self,**kwargs):
         if not self.runscript:
@@ -126,13 +136,155 @@ class Model:
                 print(e)
                 self.crash()
         
+    def runtobalance(self,threshhold = 4.0e-4,baseline=50,maxyears=300,minyears=75):
+        runlimit = self.currentyear+maxyears
+        if os.getcwd()!=self.workdir:
+            os.chdir(self.workdir)
+        os.system("mkdir snapshots")
+        if self.highcadence["toggle"]:
+            os.system("mkdir highcadence")
+        while not self._isbalanced(threshhold=threshhold,baseline=baseline) \
+                and self.currentyear<minyears and self.currentyear<runlimit:
+            dataname="MOST.%05d"%self.currentyear
+            snapname="MOST_SNAP.%05d"%self.currentyear
+            hcname  ="MOST_HC.%05d"%self.currentyear
+            diagname="MOST_DIAG.%05d"%self.currentyear
+            restname="MOST_REST.%05d"%self.currentyear
+            snowname="MOST_SNOW.%05d"%self.currentyear
+            
+            #Run ExoPlaSim
+            os.system(self._exec+self.executable)
+            
+            #Sort, categorize, and arrange the various outputs
+            os.system("[ -e restart_dsnow ] && rm restart_dsnow")
+            os.system("[ -e restart_xsnow ] && rm restart_xsnow")
+            os.system("[ -e Abort_Message ] && exit 1")
+            os.system("[ -e plasim_output ] && mv plasim_output "+dataname)
+            os.system("[ -e plasim_snapshot ] && mv plasim_snapshot "+snapname)
+            if self.highcadence["toggle"]:
+                os.system("[ -e plasim_hcadence ] && mv plasim_hcadence "+hcname)
+            os.system("[ -e plasim_diag ] && mv plasim_diag "+diagname)
+            os.system("[ -e plasim_status ] && cp plasim_status plasim_restart")
+            os.system("[ -e plasim_status ] && mv plasim_status "+restname)
+            os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
+            
+            #Do any additional work
+            timeavg=0
+            snapsht=0
+            highcdn=0
+            try:
+                timeavg=self.postprocess(dataname,"example.nl",
+                                        log="burnout",crashifbroken=crashifbroken)
+                snapsht=self.postprocess(snapname,"snapshot.nl",
+                                        log="snapout",crashifbroken=crashifbroken)
+                os.system("mv %s.nc snapshots/"%snapname)
+                if self.highcadence["toggle"]:
+                    highcdn=self.postprocess(hcname  ,"snapshot.nl",
+                                            log="hcout"  ,crashifbroken=crashifbroken)
+                    os.system("mv %s.nc highcadence/"%hcname)
+            except Exception as e:
+                print(e)
+                self.crash()
+            if clean:
+                if timeavg:
+                    os.system("rm %s"%dataname)
+                if snapsht:
+                    os.system("rm %s"%snapname)
+                if highcdn:
+                    os.system("rm %s"%hcname)
+                    
+            if crashifbroken: #Check to see that we aren't throwing NaNs
+                try:
+                    check=self.integritycheck(dataname+".nc")
+                except Exception as e:
+                    print(e)
+                    self.crash()
+                
+            self.currentyear += 1
+            sb,tb = self.getbalance()
+            os.system("echo %02.6f  %02.6f'>>%s/balance.log"%(sb,tb,self.workdir))
+        bott = self.gethistory(key="hfns")
+        topt = self.gethistory(key="ntr")
+        with open("%s/shistory.pso"%self.workdir,"a+") as f:
+            text='\n'+'\n'.join(bott.astype(str))
+            f.write(text)
+        with open("%s/toahistory.pso"%self.workdir,"a+") as f:
+            text='\n'+'\n'.join(topt.astype(str))
+            f.write(text)
+        finished = self._isbalanced(threshhold=threshhold,baseline=baseline)
+        if not finished:
+            return False
+        return True
+    
+            
+    def getbalance(self,year=-1):
+        topt = self.inspect("ntr",savg=True,tavg=True,year=year)
+        bott = self.inspect("hfns",savg=True,tavg=True,year=year)
+        return topt,bott
+    
+    def gethistory(self,key="ts",mean=True,layer=-1):
+        files = sorted(glob.glob("%s/MOST*.nc"%self.workdir))
+        dd=np.zeros(len(files))
+        for n in range(0,len(files)):
+            ncd = self.get(n)
+            variable = ncd.variables[key][:]
+            lon = ncd.variables['lon'][:]
+            lat = ncd.variables['lat'][:]
+            if len(variable.shape)>3:
+                variable = variable[:,layer,:,:]
+            dd[n] = gcmt.spatialmath(variable,lon=lon,lat=lat,
+                                     mean=mean,radius=self.radius)
+            ncd.close()
+        return dd
+    
+    
+    def _isbalanced(self,threshold = 1.0e-4,baseline=50):
+        nfiles = len((glob.glob("%s/MOST*.nc"%self.workdir)))
+        prior=False
+        if len(glob.glob(self.workdir+"/toahistory.ps*"))>0:
+            toahistory = np.loadtxt(self.workdir+"/toahistory.pso")
+            nfiles+=len(toahistory)
+            shistory = np.loadtxt(self.workdir+"/shistory.pso")
+            prior=True
+        sbalance = np.zeros(nfiles)
+        toabalance=np.zeros(nfiles)
+        nstart=0
+        if prior:
+            sbalance[:len(toahistory)] = shistory[:]
+            toabalance[:len(toahistory)] = toahistory[:]
+            nstart = len(toahistory)
+        if self.currentyear < baseline: #Run for minimum of baseline years
+            return False
+        else:
+            for n in range(0,self.currentyear):
+                topt,bott = self.getbalance(year=n)
+                sbalance[n+nstart] = bott
+                toabalance[n+nstart] = topt
+            savgs = []
+            tavgs = []
+            for n in range(9,len(sbalance)):
+                savgs.append(abs(np.mean(sbalance[n-9:n+1]))) #10-year average energy balance
+                tavgs.append(abs(np.mean(toabalance[n-9:n+1])))
+            sslopes = []
+            tslopes = []
+            for n in range(4,len(savgs)): #5-baseline slopes in distance from energy balance
+                sslopes.append(np.polyfit(np.arange(5)+1,savgs[n-4:n+1],1)[0])
+                tslopes.append(np.polyfit(np.arange(5)+1,tavgs[n-4:n+1],1)[0])
+            savgslope = abs(np.mean(sslopes[-30:])) #30-year average of 5-year slopes  
+            tavgslope = abs(np.mean(tslopes[-30:]))
+            os.system("echo '%02.8f  %02.8f'>>%s/slopes.log"%(savgslope,tavgslope,self.workdir))
+            if savgslope<threshhold and tavgslope<threshhold: #Both TOA and Surface are changing at average 
+                return True                                  # of <0.1 mW/m^2/yr on 45-year baselines
+            else:
+                return False
+        
     def _run(self,years=1,postprocess=True,crashifbroken=False,clean=True):
         if os.getcwd()!=self.workdir:
             os.chdir(self.workdir)
         os.system("mkdir snapshots")
         if self.highcadence["toggle"]:
             os.system("mkdir highcadence")
-        for year in years:
+        for year in range(years):
             dataname="MOST.%05d"%self.currentyear
             snapname="MOST_SNAP.%05d"%self.currentyear
             hcname  ="MOST_HC.%05d"%self.currentyear
@@ -216,16 +368,149 @@ class Model:
                 ts = ncd.variables["ts"][:]
             except:
                 raise RuntimeError("Output is missing surface temperature; check logs for errors")
-            if np.sum(np.isnan(ts))+np.sum(isinf(ts)) > 0.5:
+            if np.sum(np.isnan(ts))+np.sum(np.isinf(ts)) > 0.5:
                 raise RuntimeError("Non-finite values found in surface temperature")
             return 1
         else:
             return 0
                 
-    def finalize(self,outputdir,allyears=False,keepallrestarts=False):
-        if os.getcwd()!=self.workdir:
-            os.chdir(self.workdir)
-        pass
+    def finalize(self,outputdir,allyears=False,keeprestarts=False,clean=True):
+        if outputdir[0]!="/":
+            outputdir = os.getcwd()+"/"+outputdir
+        if not os.path.isdir(outputdir):
+            os.system("mkdir %s"%outputdir)
+        if allyears:
+            os.chdir(outputdir)
+            os.system("mkdir %s"%self.modelname)
+            os.system("cp %s/MOST*.nc %s/"%(self.workdir,self.modelname))
+            if self.snapshots:
+                os.system("cp -r %s/snapshots %s/snapshots"%(self.workdir,self.modelname))
+            if self.highcadence['toggle']:
+                os.system("cp -r %s/highcadence %s/highcadence"%(self.workdir,self.modelname))
+            os.system("cp %s/MOST*DIAG* %s/"%(self.workdir,self.modelname))
+            if keeprestarts:
+                os.system("cp %s/MOST_REST* %s/"%(self.workdir,self.modelname))
+            #else:
+            #    restarts = sorted(glob.glob("%s/MOST_REST*"%self.workdir))
+            #    os.system("cp %s %s/%s_restart"%(restarts[-1],
+            #                                        self.modelname,self.modelname))
+            newworkdir = os.getcwd()+"/"+self.modelname
+        else:
+            outputs = sorted(glob.glob("%s/MOST*.nc"%self.workdir))
+            os.chdir(outputdir)
+            os.system("cp %s %s.nc"%(outputs[-1],self.modelname))
+            diags = sorted(glob.glob("%s/MOST*DIAG*"%self.workdir))
+            os.system("cp %s %s.DIAG"%(diags[-1],self.modelname))
+            if self.snapshots:
+                snps = sorted(glob.glob("%s/snapshots/*.nc"%self.workdir))
+                os.system("cp %s %s_snapshot.nc"%(snps[-1],self.modelname))
+            if self.highcadence["toggle"]:
+                hcs = sorted(glob.glob("%s/highcadence/MOST*.nc"%self.workdir))
+                os.system("cp %s %s_highcadence.nc"%(hcs[-1],self.modelname))
+            if keeprestarts:
+                rsts = sorted(glob.glob("%s/MOST_REST*"%self.workdir))
+                os.system("cp %s %s_restart"%(rsts[-1],self.modelname))
+            if clean:
+                newworkdir = os.getcwd()
+                self.cleaned=True
+        if clean:
+            os.system("rm -rf %s"%self.workdir)
+            self.workdir = newworkdir
+                
+    
+    def get(self,year,snapshot=False,highcadence=False):
+        #Note: if the work directory has been cleaned out, only the final year will be returned.
+        if snapshot and not highcadence:
+            name = "snapshots/MOST_SNAP.%05d.nc"%year
+        elif highcadence and not snapshot:
+            name = "highcadence/MOST_HC.%05d.nc"%year
+        else:
+            name = "MOST.%05d.nc"%year
+        if self.cleaned:
+            if snapshot and not highcadence:
+                name = "%s_snapshot.nc"%self.modelname
+            elif highcadence and not snapshot:
+                name = "%s_highcadence.nc"%self.modelname
+            else:
+                name = "%s.nc"%self.modelname
+        if os.path.exists(self.workdir+"/"+name):
+            ncd = nc.Dataset(self.workdir+"/"+name,"r")
+            return ncd
+        else:
+            raise RuntimeError("Output file %s not found."%(self.workdir+"/"+name))
+    
+    def inspect(self,variable,year=-1,ignoreNaNs=True,snapshot=False,
+                highcadence=False,savg=False,tavg=False,layer=None):
+        #Note: if the work directory has been cleaned out, only the final year will be returned.
+        if snapshot and not highcadence:
+            pattern = "snapshots/MOST_SNAP"
+        elif highcadence and not snapshot:
+            pattern = "highcadence/MOST_HC"
+        else:
+            pattern = "MOST"
+        
+        if ignoreNaNs:
+            meanop = np.nanmean
+        else:
+            meanop = np.mean
+        
+        if year<0:
+            nfiles = len(glob.glob(self.workdir+"/"+pattern+"*.nc"))
+            year = nfiles+year
+    
+        ncd = self.get(year,snapshot=snapshot,highcadence=highcadence)
+        
+        var = ncd.variables[variable][:]
+        
+        if variable!="lat" and variable!="lon" and variable!="lev" and variable!="time":
+            lon = ncd.variables['lon'][:]
+            lat = ncd.variables['lat'][:]
+            lev = ncd.variables['lev'][:]
+            if not savg and not tavg:
+                return var
+            elif tavg and not savg:
+                return meanop(var,axis=0)
+            elif tavg and savg:
+                if type(layer)!=type(None) and len(var.shape)==4: #3D spatial array, plus time
+                #We're going to get a scalar; user has specified a level
+                    return gcmt.spatialmath(var,lat=lat,lon=lon,ignoreNaNs=ignoreNaNs,lev=layer)
+                elif type(layer)==type(None) and len(var.shape)==4:
+                    #We're going to get a 1D vertical profile where each layer is a spatial avg
+                    output = np.zeros(lev.shape)
+                    for l in range(len(lev)):
+                        output[l] = gcmt.spatialmath(var,lat=lat,lon=lon,
+                                                     ignoreNaNs=ignoreNaNs,lev=l)
+                    return output
+                elif len(var.shape)==3: #2D spatial array, plus time
+                    return gcmt.spatialmath(var,lat=lat,lon=lon,ignoreNaNs=ignoreNaNs)
+            else:
+                if type(layer)!=type(None) and len(var.shape)==4: #3D spatial array, plus time
+                #We're going to get a 1D array; user has specified a level
+                    output = np.zeros(var.shape[0])
+                    for t in range(len(output)):
+                        output[t] = gcmt.spatialmath(var,lat=lat,lon=lon,ignoreNaNs=ignoreNaNs,
+                                                     lev=layer,time=t)
+                    return output
+                elif type(layer)==type(None) and len(var.shape)==4:
+                    #We're going to get a 1D vertical profile plus time
+                    output = np.zeros((var.shape[0],len(lev)))
+                    for t in range(var.shape[0]):
+                        for l in range(len(lev)):
+                            output[t,l] = gcmt.spatialmath(var,lat=lat,lon=lon,time=t,
+                                                     ignoreNaNs=ignoreNaNs,lev=l)
+                    return output
+                elif len(var.shape)==3: #2D spatial array, plus time
+                    #We're going to get a 1D array
+                    output = np.zeros(var.shape[0])
+                    for t in range(len(output)):
+                        output[t] = gcmt.spatialmath(var,lat=lat,lon=lon,
+                                                     time=t,ignoreNaNs=ignoreNaNs)
+                    return output
+                else:
+                    return -1
+        else:
+            return var
+                
     
     def crash(self):
         os.chdir(self.workdir)
@@ -251,7 +536,7 @@ class Model:
                tropopause=None,timestep=45.0,runscript=None,columnmode=None,
                highcadence={"toggle":0,"start":320,"end":576,"interval":4},
                snapshots=None,resources=[],landmap=None,stormclim=False,nstorms=4,
-               stormcapture={"VITHRESH":0.145,"GPITHRESH":0.37,"VMXTHRESH"=33.0,
+               stormcapture={"VITHRESH":0.145,"GPITHRESH":0.37,"VMXTHRESH":33.0,
                              "LAVTHRESH":1.2e-5,"VRMTHRESH":0.577,"MINSURFTEMP":298.15,
                              "MAXSURFTEMP":373.15,"WINDTHRESH":33.0,"SWINDTHRESH":20.5,
                              "SIZETHRESH":30,"ENDTHRESH":16,"MINSTORMLEN":256,
@@ -293,10 +578,11 @@ class Model:
         
         if len(self.pgases)==0:
             if not pressure:
-                self.pgases=gases_default
-                self.pressure=0.0
-                for gas in self.pgases:
-                    self.pressure+=self.pgases[gas] #in bars
+                #self.pgases=gases_default
+                #self.pressure=0.0
+                #for gas in self.pgases:
+                    #self.pressure+=self.pgases[gas] #in bars
+                self.pressure = 1.011
             else:
                 self.pressure = pressure
         
@@ -310,7 +596,9 @@ class Model:
             gasesvx[gas[1:]] = self.pgases[gas]/self.pressure
         self.mmw = 0
         for gas in gasesvx:
-            self.mmw += gasesvx[gas]*smws['m'+x]
+            self.mmw += gasesvx[gas]*smws['m'+gas]
+        if self.mmw==0:
+            self.mmw = 28.970253
         self.gascon = 8314.46261815324 / self.mmw
         
         if gascon:
@@ -361,22 +649,22 @@ class Model:
         self._edit_postnamelist("snapshot.nl","radius",str(radius*6371220.0))
         self.radius=radius
         
-        if eccentricity:
+        if type(eccentricity)!=type(None):
             self._edit_namelist("planet_namelist","ECCEN",str(eccentricity))
         self.eccentricity=eccentricity
         
-        if obliquity:
+        if type(obliquity)!=type(None):
             self._edit_namelist("planet_namelist","OBLIQ",str(obliquity))
         self.obliquity=obliquity
         
-        if lonvernaleq:
+        if type(lonvernaleq)!=type(None):
             self._edit_namelist("planet_namelist","MVELP",str(lonvernaleq))
-        self.lonvernaleq=longvernaleq
+        self.lonvernaleq=lonvernaleq
         
         self._edit_namelist("planet_namelist","NFIXORB",str(fixedorbit*1))
         self.fixedorbit=fixedorbit
         
-        if orography:
+        if type(orography)!=type(None):
             self._edit_namelist("landmod_namelist","OROSCALE",str(orography))
             self._edit_namelist("glacier_namelist","NGLACIER","1")
         self.orography=orography
@@ -384,15 +672,15 @@ class Model:
         self._edit_namelist("radmod_namelist","NRADICE",str(seaice*1))
         self.seaice=seaice
         
-        self._edit_namelist("carbon_namelist","NCARBON",str(co2weathering*1))
-        self._edit_namelist("carbon_namelist","NCO2EVOLVE",str(evolveco2*1))
+        self._edit_namelist("carbonmod_namelist","NCARBON",str(co2weathering*1))
+        self._edit_namelist("carbonmod_namelist","NCO2EVOLVE",str(evolveco2*1))
         self.co2weathering=co2weathering
         self.evolveco2=evolveco2
-        if erosionsupplylimit:
-            self._edit_namelist("carbon_namelist","NSUPPLY","1")
-            self._edit_namelist("carbon_namelist","WMAX",str(erosionsupplylimit))
+        if type(erosionsupplylimit)!=type(None):
+            self._edit_namelist("carbonmod_namelist","NSUPPLY","1")
+            self._edit_namelist("carbonmod_namelist","WMAX",str(erosionsupplylimit))
         self.erosionsupplylimit=erosionsupplylimit
-        self._edit_namelist("carbon_namelist","VOLCANCO2",str(outgassing))
+        self._edit_namelist("carbonmod_namelist","VOLCANCO2",str(outgassing))
         self.outgassing=outgassing
         
         if physicsfilter:
@@ -416,20 +704,26 @@ class Model:
         self.filterpower=filterpower
         self._edit_namelist("plasim_namelist","LANDHOSKN0",str(filterLHN0))
         self.filterLHN0=filterLHN0
-        self._edit_namelist("plasim_namelist","NHDIFF",str(diffusionwaven))
+        if diffusionwaven:
+            self._edit_namelist("plasim_namelist","NHDIFF",str(diffusionwaven))
         self.diffusionwaven=diffusionwaven
-        self._edit_namelist("plasim_namelist","TDISSQ","%d*%f"%(self.layers,qdiffusion))
-        self._edit_namelist("plasim_namelist","TDISST","%d*%f"%(self.layers,tdiffusion))
-        self._edit_namelist("plasim_namelist","TDISSZ","%d*%f"%(self.layers,zdiffusion))
-        self._edit_namelist("plasim_namelist","TDISSD","%d*%f"%(self.layers,ddiffusion))
+        if qdiffusion:
+            self._edit_namelist("plasim_namelist","TDISSQ","%d*%f"%(self.layers,qdiffusion))
         self.qdiffusion=qdiffusion
+        if tdiffusion:
+            self._edit_namelist("plasim_namelist","TDISST","%d*%f"%(self.layers,tdiffusion))
         self.tdiffusion=tdiffusion
+        if zdiffusion:
+            self._edit_namelist("plasim_namelist","TDISSZ","%d*%f"%(self.layers,zdiffusion))
         self.zdiffusion=zdiffusion
+        if ddiffusion:
+            self._edit_namelist("plasim_namelist","TDISSD","%d*%f"%(self.layers,ddiffusion))
         self.ddiffusion=ddiffusion
-        self._edit_namelist("plasim_namelist","NDEL","%d*%d"%(self.layers,diffusionpower))
+        if diffusionpower:
+            self._edit_namelist("plasim_namelist","NDEL","%d*%d"%(self.layers,diffusionpower))
         self.diffusionpower=diffusionpower
         
-        if snowicealbedo:
+        if type(snowicealbedo)!=type(None):
             alb = str(snowicealbedo)
             self._edit_namelist("seamod_namelist","ALBICE",alb)
             self._edit_namelist("seamod_namelist","DICEALBMN","%s,%s"%(alb,alb))
@@ -440,25 +734,25 @@ class Model:
             self._edit_namelist("landmod_namelist","DSNOWALB","%s,%s"%(alb,alb))
         self.snowicealbedo=snowicealbedo
         
-        self._edit_namelist("radmod_namelist","NSIMPLEALBEDO",str(twobandalbedo*1))
+        self._edit_namelist("radmod_namelist","NSIMPLEALBEDO",str((not twobandalbedo)*1))
         self.twobandalbedo=twobandalbedo
         
         if maxsnow:
             self._edit_namelist("landmod_namelist","DSMAX",str(maxsnow))
         self.maxsnow=maxsnow
         
-        if soilalbedo:
+        if type(soilalbedo)!=type(None):
             alb = str(soilalbedo)
             os.system("rm %s/*0174.sra"%self.workdir)
             self._edit_namelist("landmod_namelist","ALBLAND",alb)
             self._edit_namelist("landmod_namelist","DGROUNDALB","%s,%s"%(alb,alb))
         self.soilalbedo=soilalbedo
         
-        if oceanalbedo:
+        if type(oceanalbedo)!=type(None):
             alb = str(oceanalbedo)
             self._edit_namelist("seamod_namelist","ALBSEA",alb)
             self._edit_namelist("seamod_namelist","DOCEANALB","%s,%s"%(alb,alb))
-            self.oceanalbedo=oceanalbedo
+        self.oceanalbedo=oceanalbedo
         
         if oceanzenith=="lambertian" or oceanzenith=="Lambertian" or oceanzenith=="uniform":
             self._edit_namelist("radmod_namelist","NECHAM","0")
@@ -481,7 +775,7 @@ class Model:
             self._edit_namelist("landmod_namelist","NWATCINI","1")
             self._edit_namelist("landmod_namelist","DWATCINI","0.0")
             os.system("rm %s/*.sra"%self.workdir)
-        if soilsaturation:
+        if type(soilsaturation)!=type(None):
             self._edit_namelist("landmod_namelist","NWATCINI","1")
             self._edit_namelist("landmod_namelist","DWATCINI",str(soilsaturation))
             os.system("rm %s/*0229.sra"%self.workdir)
@@ -511,6 +805,7 @@ class Model:
         
         if cpsoil:
             self._edit_namelist("landmod_namelist","SOILCAP",str(cpsoil))
+        self.cpsoil = cpsoil
         
         self.dzsoils = np.array([0.4, 0.8, 1.6, 3.2, 6.4])*soildepth
         self._edit_namelist("landmod_namelist","DSOILZ",",".join(self.dzsoils.astype(str)))
@@ -527,23 +822,22 @@ class Model:
             self._edit_namelist("plasim_namelist","NEQSIG","5")
             if modeltop:
                 self._edit_namelist("plasim_namelist","PTOP2",str(modeltop*100.0)) #convert hPa->Pa
-            self.modeltop=modeltop
             if tropopause:
                 self._edit_namelist("plasim_namelist","PTOP",str(tropopause*100.0))
-            self.tropopause=tropopause
         else:
             if modeltop:
                 self._edit_namelist("plasim_namelist","PTOP",str(modeltop*100.0)) #convert hPa->Pa
-            self.modeltop=modeltop
         self.stratosphere=stratosphere
+        self.modeltop=modeltop
+        self.tropopause=tropopause
         
         self._edit_namelist("plasim_namelist","MPSTEP",str(timestep))
-        self._edit_namelist("plasim_namelist","NSTPW",str(7200/int(timestep)))
+        self._edit_namelist("plasim_namelist","NSTPW",str(int(7200//int(timestep))))
         self.timestep=timestep
         
         self.runscript=runscript
         
-        self._edit_namelist("plasim_namelist","NHCADENCE",str(highcadence["toggle"])))
+        self._edit_namelist("plasim_namelist","NHCADENCE",str(highcadence["toggle"]))
         self._edit_namelist("plasim_namelist","HCSTARTSTEP",str(highcadence["start"]))
         self._edit_namelist("plasim_namelist","HCENDSTEP",str(highcadence["end"]))
         self._edit_namelist("plasim_namelist","HCINTERVAL",str(highcadence["interval"]))
@@ -604,7 +898,7 @@ class Model:
             species = gas.split("|")
             amt = float(species[1])
             species = species[0]
-            self.pgasses[species] = amt
+            self.pgases[species] = amt
         gascon = float(cfg[5])
         pressure = noneparse(cfg[6],float)
         pressurebroaden = bool(int(cfg[7]))
@@ -666,8 +960,9 @@ class Model:
         snapshots = noneparse(cfg[59],int)
         resources = []
         reslist = cfg[60].split("&")
-        for res in reslist:
-            resources.append(res)
+        if len(reslist)>0 and reslist[0]!='':
+            for res in reslist:
+                resources.append(res)
         landmap = noneparse(cfg[61],str)
         topomap = noneparse(cfg[62],str)
         stormclim = bool(int(cfg[63]))
@@ -683,16 +978,18 @@ class Model:
                 stormcapture[parts[0]] = float(parts[1])
         otherargs = {}
         otherdict = cfg[66].split("&")
-        for item in otherdict:
-            parts = item.split("~")
-            if parts[1]=="f":
-                dtype=float
-            elif parts[1]=="i":
-                dtype=int
-            elif parts[1]=="s":
-                dtype=str
-            parts = parts[0].split("|")
-            otherargs[parts[0]] = dtype(parts[1])
+        if len(otherdict)>1 or otherdict[0]!='':
+            print(otherdict)
+            for item in otherdict:
+                parts = item.split("~")
+                if parts[1]=="f":
+                    dtype=float
+                elif parts[1]=="i":
+                    dtype=int
+                elif parts[1]=="s":
+                    dtype=str
+                parts = parts[0].split("|")
+                otherargs[parts[0]] = dtype(parts[1])
             
         self.configure(noutput=noutput,flux=flux,startemp=startemp,starspec=starspec,
                        gascon=gascon,pressure=pressure,pressurebroaden=pressurebroaden,
@@ -722,9 +1019,10 @@ class Model:
         setgas=False
         setgascon=False
         changeatmo=False
+        changeland=False
         oldpressure = 0.0
-        for gas in self.pgasses:
-            oldpressure += self.pgasses[gas]
+        for gas in self.pgases:
+            oldpressure += self.pgases[gas]
         for key,value in kwargs.items():
             if key=="noutput":
                 self._edit_namelist("plasim_namelist","NOUTPUT",str(value*1))
@@ -747,42 +1045,61 @@ class Model:
                 self.starspec = starspec
             if key=="pH2":
                 setgas=True
-                if pH2:
+                if type(value)!=type(None):
                     self.pgases["pH2"]=value
+                else:
+                    self.pgases["pH2"]=0.0
             if key=="pHe":
                 setgas=True
-                if pHe:
+                if type(value)!=type(None):
                     self.pgases["pHe"]=value
+                else:
+                    self.pgases["pHe"]=0.0
             if key=="pN2":
                 setgas=True
-                if pN2:
+                if type(value)!=type(None):
                     self.pgases["pN2"]=value
+                else:
+                    self.pgases["pN2"]=0.0
             if key=="pO2":
                 setgas=True
-                if pO2:
+                if type(value)!=type(None):
                     self.pgases["pO2"]=value
+                else:
+                    self.pgases["pO2"]=0.0
             if key=="pCO2":
                 setgas=True
-                if pCO2:
+                if type(value)!=type(None):
                     self.pgases["pCO2"]=value
+                else:
+                    self.pgases["pCO2"]=0.0
             if key=="pAr":
                 setgas=True
-                if pAr:
+                if type(value)!=type(None):
                     self.pgases["pAr"]=value
+                else:
+                    self.pgases["pAr"]=0.0
             if key=="pNe":
                 setgas=True
-                if pNe:
+                if type(value)!=type(None):
                     self.pgases["pNe"]=value
+                else:
+                    self.pgases["pNe"]=0.0
             if key=="pKr":
                 setgas=True
-                if pKr:
+                if type(value)!=type(None):
                     self.pgases["pKr"]=value
+                else:
+                    self.pgases["pKr"]=0.0
             if key=="pH20":
                 setgas=True
-                if pH2O:
+                if type(value)!=type(None):
                     self.pgases["pH2O"]=value
+                else:
+                    self.pgases["pH2O"]=0.0
             if key=="pressure":
                 pressure=value
+                setpressure=True
             if key=="gascon":
                 setgascon=True
                 gascon=value
@@ -843,19 +1160,19 @@ class Model:
                 self._edit_namelist("radmod_namelist","NRADICE",str(self.seaice*1))
             if key=="co2weathering":
                 self.co2weathering=value
-                self._edit_namelist("carbon_namelist","NCARBON",str(self.co2weathering*1))
+                self._edit_namelist("carbonmod_namelist","NCARBON",str(self.co2weathering*1))
             if key=="evolveco2":
                 self.evolveco2=value
-                self._edit_namelist("carbon_namelist","NCO2EVOLVE",str(self.evolveco2*1))
+                self._edit_namelist("carbonmod_namelist","NCO2EVOLVE",str(self.evolveco2*1))
             if key=="erosionsupplylimit":
                 self.erosionsupplylimit=value
                 flag = bool(self.erosionsupplylimit)*1
-                self._edit_namelist("carbon_namelist","NSUPPLY",str(flag))
-                self._edit_namelist("carbon_namelist","WMAX",
+                self._edit_namelist("carbonmod_namelist","NSUPPLY",str(flag))
+                self._edit_namelist("carbonmod_namelist","WMAX",
                                         str(self.erosionsupplylimit*flag+1.0*(1-flag)))
             if key=="outgassing":
                 self.outgassing=value
-                self._edit_namelist("carbon_namelist","VOLCANCO2",str(self.outgassing))
+                self._edit_namelist("carbonmod_namelist","VOLCANCO2",str(self.outgassing))
                 
             if key=="physicsfilter":
                 self.physicsfilter=value
@@ -887,30 +1204,48 @@ class Model:
                 self._edit_namelist("plasim_namelist","LANDHOSKN0",str(self.filterLHN0))
             if key=="diffusionwaven":
                 self.diffusionwaven=value
-                self._edit_namelist("plasim_namelist","NHDIFF",str(self.diffusionwaven))
+                if value:
+                    self._edit_namelist("plasim_namelist","NHDIFF",str(self.diffusionwaven))
+                else:
+                    self._rm_namelist_param("plasim_namelist","NHDIFF")
             if key=="qdiffusion":
                 self.qdiffusion=value
-                self._edit_namelist("plasim_namelist","TDISSQ","%d*%f"%(self.layers,
+                if value:
+                    self._edit_namelist("plasim_namelist","TDISSQ","%d*%f"%(self.layers,
                                                                         self.qdiffusion))
+                else:
+                    self._rm_namelist_param("plasim_namelist","TDISSQ")
             if key=="tdiffusion":
                 self.tdiffusion=value
-                self._edit_namelist("plasim_namelist","TDISST","%d*%f"%(self.layers,
+                if value:
+                    self._edit_namelist("plasim_namelist","TDISST","%d*%f"%(self.layers,
                                                                         self.tdiffusion))
+                else:
+                    self._rm_namelist_param("plasim_namelist","TDISST")
             if key=="zdiffusion":
                 self.zdiffusion=value
-                self._edit_namelist("plasim_namelist","TDISSZ","%d*%f"%(self.layers,
+                if value:
+                    self._edit_namelist("plasim_namelist","TDISSZ","%d*%f"%(self.layers,
                                                                         self.zdiffusion))
+                else:
+                    self._rm_namelist_param("plasim_namelist","TDISSZ")
             if key=="ddiffusion":
                 self.ddiffusion=value
-                self._edit_namelist("plasim_namelist","TDISSD","%d*%f"%(self.layers,
+                if value:
+                    self._edit_namelist("plasim_namelist","TDISSD","%d*%f"%(self.layers,
                                                                         self.ddiffusion))
+                else:
+                    self._rm_namelist_param("plasim_namelist","TDISSD")
             if key=="diffusionpower":
                 self.diffusionpower=value
-                self._edit_namelist("plasim_namelist","NDEL","%d*%d"%(self.layers,
+                if value:
+                    self._edit_namelist("plasim_namelist","NDEL","%d*%d"%(self.layers,
                                                                       self.diffusionpower))
+                else:
+                    self._rm_namelist_param("plasim_namelist","NDEL")
             if key=="snowicealbedo":
                 self.snowicealbedo=value
-                if self.snowicealbedo:
+                if type(self.snowicealbedo)!=type(None):
                     alb = str(self.snowicealbedo)
                     self._edit_namelist("seamod_namelist","ALBICE",alb)
                     self._edit_namelist("seamod_namelist","DICEALBMN","%s,%s"%(alb,alb))
@@ -929,7 +1264,8 @@ class Model:
                     self._rm_namelist_param("landmod_namelist","DSNOWALB")
             if key=="twobandalbedo":
                 self.twobandalbedo=value
-                self._edit_namelist("radmod_namelist","NSIMPLEALBEDO",str(self.twobandalbedo*1))
+                self._edit_namelist("radmod_namelist","NSIMPLEALBEDO",
+                                    str((not self.twobandalbedo)*1))
             if key=="maxsnow":
                 self.maxsnow=value
                 if maxsnow:
@@ -938,7 +1274,7 @@ class Model:
                     self._rm_namelist_param("landmod_namelist","DSMAX")
             if key=="soilalbedo":
                 self.soilalbedo=value
-                if self.soilalbedo:
+                if type(self.soilalbedo)!=type(None):
                     alb = str(self.soilalbedo)
                     os.system("rm %s/*0174.sra"%self.workdir)
                     self._edit_namelist("landmod_namelist","ALBLAND",alb)
@@ -949,7 +1285,7 @@ class Model:
             
             if key=="oceanalbedo":
                 self.oceanalbedo=value
-                if self.oceanalbedo:
+                if type(self.oceanalbedo)!=type(None):
                     alb = str(self.oceanalbedo)
                     self._edit_namelist("seamod_namelist","ALBSEA",alb)
                     self._edit_namelist("seamod_namelist","DOCEANALB","%s,%s"%(alb,alb))
@@ -981,7 +1317,7 @@ class Model:
                     self._rm_namelist_param("landmod_namelist","WSMAX")
             if key=="soilsaturation":
                 self.soilsaturation=value
-                if self.soilsaturation:
+                if type(self.soilsaturation)!=type(None):
                     self._edit_namelist("landmod_namelist","NWATCINI","1")
                     self._edit_namelist("landmod_namelist","DWATCINI",str(self.soilsaturation))
                     os.system("rm %s/*0229.sra"%self.workdir)
@@ -1070,14 +1406,14 @@ class Model:
             if key=="timestep":
                 self.timestep=value
                 self._edit_namelist("plasim_namelist","MPSTEP",str(self.timestep))
-                self._edit_namelist("plasim_namelist","NSTPW",str(7200/int(self.timestep)))
+                self._edit_namelist("plasim_namelist","NSTPW",str(int(7200//int(self.timestep))))
             
             if key=="runscript":
                 self.runscript=value
                 
             if key=="highcadence":
                 self.highcadence=value
-                self._edit_namelist("plasim_namelist","NHCADENCE",str(self.highcadence["toggle"])))
+                self._edit_namelist("plasim_namelist","NHCADENCE",str(self.highcadence["toggle"]))
                 self._edit_namelist("plasim_namelist","HCSTARTSTEP",str(self.highcadence["start"]))
                 self._edit_namelist("plasim_namelist","HCENDSTEP",str(self.highcadence["end"]))
                 self._edit_namelist("plasim_namelist","HCINTERVAL",str(self.highcadence["interval"]))
@@ -1205,9 +1541,10 @@ class Model:
     def save(self,filename):
         np.save(filename,self,allow_pickle=True)
         
-    def exportcfg(self,filename):
+    def exportcfg(self,filename=None):
         '''export model configuration to a text file that can be used as configuration input'''
-        
+        if not filename:
+            filename = self.modelname+".cfg"
         cfg = []
         
         cfg.append(str(self.noutput*1))
@@ -1215,8 +1552,8 @@ class Model:
         cfg.append(str(self.startemp))
         cfg.append(str(self.starspec))#=noneparse(cfg[3],str)
         gases = []
-        for gas in self.pgasses:
-            gases.append(gas+"|"+str(self.pgasses[gas]))
+        for gas in self.pgases:
+            gases.append(gas+"|"+str(self.pgases[gas]))
         gases = "&".join(gases)
         cfg.append(gases)# = cfg[4].split("&")
         cfg.append(str(self.gascon))# = float(cfg[5])
@@ -1232,7 +1569,7 @@ class Model:
         cfg.append(str(self.eccentricity))# = noneparse(cfg[15],float)
         cfg.append(str(self.obliquity))# = noneparse(cfg[16],float)
         cfg.append(str(self.lonvernaleq))# = noneparse(cfg[17],float)
-        cfg.append(str(self.fixedorbit))# = bool(int(cfg[18]))
+        cfg.append(str(self.fixedorbit*1))# = bool(int(cfg[18]))
         cfg.append(str(self.orography))# = noneparse(cfg[19],float)
         cfg.append(str(self.seaice*1))# = bool(int(cfg[20]))
         cfg.append(str(self.co2weathering*1))# = bool(int(cfg[21]))
@@ -1278,7 +1615,7 @@ class Model:
         hcdict = "&".join(hcdict)
         cfg.append(hcdict)
         cfg.append(str(self.snapshots))# = noneparse(cfg[59],int)
-        cfg.append("&".join(resources))
+        cfg.append("&".join(self.resources))
         cfg.append(str(self.landmap))# = noneparse(cfg[61],str)
         cfg.append(str(self.topomap))# = noneparse(cfg[62],str)
         cfg.append(str(self.stormclim*1))# = bool(int(cfg[63]))
@@ -1444,52 +1781,25 @@ class Model:
 
 
 class TLaquaplanet(Model):
-    def config(self,timestep=30.0,snapshots=720,physicsfilter="gp|exp|sp",**kwargs):
-        super().config(synchronous=True,fixedorbit=True,aquaplanet=True,
-                       eccentricity=0.0,obliquity=0.0,timestep=timestep,
-                       snapshots=snapshots,physicsfilter=physicsfilter,**kwargs)
+    def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
+                  obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
+        super(TLaquaplanet,self).configure(synchronous=True,fixedorbit=True,aquaplanet=True,
+                          eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
+                          snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
+                          **kwargs)
         
 class TLlandplanet(Model): #Default will be ZERO soil water; set soilsaturation if you want any
-    def config(self,timestep=30.0,snapshots=720,physicsfilter="gp|exp|sp",**kwargs):
-        super().config(synchronous=True,fixedorbit=True,desertplanet=True,
-                       eccentricity=0.0,obliquity=0.0,timestep=timestep,
-                       snapshots=snapshots,physicsfilter=physicsfilter,**kwargs)
+    def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
+                  obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
+        super(TLlandplanet,self).configure(synchronous=True,fixedorbit=True,desertplanet=True,
+                          eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
+                          snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
+                          **kwargs)
         
 class Earthlike(Model):
-    def config(self,timestep=45.0,snapshots=480,**kwargs):
-        super().config(vtype=4,modeltop=50.0,timestep=timestep,
-                       snapshots=snapshots,**kwargs)
-
-
-
-def spatialmath(lt,ln,variable,mean=True,radius=6.371e6):
-    lt1 = np.zeros(len(lt)+1)
-    lt1[0] = 90
-    for n in range(0,len(lt)-1):
-        lt1[n+1] = 0.5*(lt[n]+lt[n+1])
-    lt1[-1] = -90
-    ln1 = np.zeros(len(ln)+1)
-    ln1[0] = -2.8125
-    for n in range(0,len(ln)-1):
-        ln1[n+1] = 0.5*(ln[n]+ln[n+1])
-    ln1[-1] = 360.0-2.8125
-    
-    lt1*=np.pi/180.0
-    ln1*=np.pi/180.0
-    
-    darea = np.zeros((len(lt),len(ln)))
-    for jlat in range(0,len(lt)):
-        for jlon in range(0,len(ln)):
-            dln = ln1[jlon+1]-ln1[jlon]
-            darea[jlat,jlon] = (np.sin(lt1[jlat])-np.sin(lt1[jlat+1]))*dln
-    
-    svar = variable*darea
-    if mean:
-        outvar = np.sum(svar)/np.sum(darea)
-    else:
-        outvar = np.sum(svar) * radius**2
-    
-    return outvar
+    def configure(self,timestep=45.0,snapshots=480,**kwargs):
+        super(Earthlike,self).configure(vtype=4,modeltop=50.0,timestep=timestep,
+                          snapshots=snapshots,**kwargs)
 
 def isflat(key="ts",mean=True,radius=6.371e6,baseline=13,threshhold=0.05):
     #Key is the netCDF variable to evaluate, mean toggles whether to track the average or total,
@@ -1548,16 +1858,6 @@ def gethistory(key="ts",mean=True,radius=6.371e6):
         dd[n] /= variable.shape[0] #Monthly mean
         ncd.close()
     return dd
-  
-def hasnans():
-    files = sorted(glob.glob("*.nc"))
-    print "NetCDF  files:",files
-    if type(files)!=type([1,2,3]):
-        files = [files,]
-    ncd = nc.Dataset(files[-1],"r") #Should be most recent
-    if np.sum(1.0*np.isnan(ncd.variables['ts'][-1,:]))>0.5:
-        return True
-    return False
 
 def energybalanced(threshhold = 1.0e-4,baseline=50): #Takes an average of 200 years
     files = sorted(glob.glob("*.nc"))
@@ -1606,7 +1906,6 @@ def energybalanced(threshhold = 1.0e-4,baseline=50): #Takes an average of 200 ye
         savgslope = abs(np.mean(sslopes[-30:])) #30-year average of 5-year slopes  
         tavgslope = abs(np.mean(tslopes[-30:]))
         os.system("echo '%02.8f  %02.8f'>>slopes.log"%(savgslope,tavgslope))
-        print "%02.8f %02.8f"%(savgslope,tavgslope)
         if savgslope<threshhold and tavgslope<threshhold: #Both TOA and Surface are changing at average 
             return True                                  # of <0.1 mW/m^2/yr on 45-year baselines
         else:
