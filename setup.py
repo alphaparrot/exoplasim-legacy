@@ -1,12 +1,16 @@
-from distutils.core import setup
+from setuptools import setup
 import os
 
-os.chdir("exoplasim")
-os.system("./configure.sh")
-os.chdir("..")
+from setuptools.command.install import install                                      
 
-os.system("echo $(pwd)/exoplasim>exoplasim/__init__.py")
-os.system("cat exoplasim/exoplasim.py>>exoplasim/__init__.py")
+class CustomInstall(install):                                                       
+    def run(self):                                                                  
+        install.run(self)                                                           
+        os.chdir("exoplasim")
+        os.system("./configure.sh")
+        os.chdir("..")
+        os.system("echo $(pwd)/exoplasim>exoplasim/__init__.py")
+        os.system("cat exoplasim/exoplasim.py>>exoplasim/__init__.py")
 
 setup(
     name='exoplasim',
@@ -18,4 +22,5 @@ setup(
     url='https://github.com/alphaparrot/ExoPlaSim',
     description='Exoplanet GCM',
     long_description=open('README.txt').read(),
+    cmdclass={"install":CustomInstall},
     )
