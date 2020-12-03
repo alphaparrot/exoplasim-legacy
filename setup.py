@@ -1,15 +1,24 @@
 from setuptools import setup
 import os
 
-from setuptools.command.install import install                                      
+from setuptools.command.install import install                                       
+    
 
 class CustomInstall(install):                                                       
-    def run(self):                                                                
-        os.chdir("exoplasim")
-        os.system("./configure.sh")
-        os.chdir("..")
-        os.system("echo $(pwd)/exoplasim>exoplasim/__init__.py")
-        os.system("cat exoplasim/exoplasim.py>>exoplasim/__init__.py")                                                             
+    def run(self):
+        def _post_install():
+            def find_module_path():
+                for p in sys.path:
+                    if os.path.isdir(p) and "exoplasim" in os.listdir(p):
+                        return os.path.join(p, "exoplasim")
+            install_path = find_module_path()
+            cwd=os.getcwd()
+            os.chdir(install_path)
+            os.system("./configure.sh")
+            os.system("echo %s>>__init__.py"%install_path)
+            os.chdir(cwd)
+
+        atexit.register(_post_install)
         install.run(self)
 
 setup(
