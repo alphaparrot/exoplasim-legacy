@@ -13,7 +13,7 @@ def _post_install():
    cwd=os.getcwd()
    os.chdir(install_path)
    os.system("./configure.sh")
-   os.system("echo %s>>__init__.py"%install_path)
+   os.system("echo sourcedir=\"%s\">>__init__.py"%install_path)
    os.chdir(cwd)
    
 class CustomInstall(install): 
@@ -21,9 +21,19 @@ class CustomInstall(install):
         super(CustomInstall, self).__init__(*args, **kwargs)
         atexit.register(_post_install)
 
+#class CustomEggInfo(egg_info):
+    #def __init__(self, *args, **kwargs):
+        #super(CustomEggInfo, self).__init__(*args, **kwargs)
+        #atexit.register(_post_install)
+    
+class CustomDevelop(develop):
+    def __init__(self, *args, **kwargs):
+        super(CustomDevelop, self).__init__(*args, **kwargs)
+        atexit.register(_post_install)
+
 setup(
     name='exoplasim',
-    version='2.0.0.post3',
+    version='2.0.0.post4',
     packages=['exoplasim',],
     install_requires=["numpy","netCDF4"],
     include_package_data=True,
@@ -33,5 +43,7 @@ setup(
     url='https://github.com/alphaparrot/ExoPlaSim',
     description='Exoplanet GCM',
     long_description=open('README.txt').read(),
-    cmdclass={"install":CustomInstall},
+    cmdclass={"install":CustomInstall,
+              "develop":CustomDevelop,
+              "egg_info":CustomEggInfo},
     )
