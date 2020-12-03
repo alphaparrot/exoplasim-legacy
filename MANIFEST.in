@@ -1,3 +1,4 @@
 include *.txt
 include *.TXT
 include README*
+recursive-include exoplasim *

@@ -17,6 +17,7 @@ setup(
     version='2.0.0',
     packages=['exoplasim',],
     install_requires=["numpy","netCDF4"],
+    include_package_data=True,
     author='Adiv Paradise',
     author_email='paradise.astro@gmail.com',
     license='GNU General Public License',
