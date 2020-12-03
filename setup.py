@@ -23,7 +23,7 @@ class CustomInstall(install):
 
 setup(
     name='exoplasim',
-    version='2.0.0',
+    version='2.0.0-1',
     packages=['exoplasim',],
     install_requires=["numpy","netCDF4"],
     include_package_data=True,
