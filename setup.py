@@ -1,5 +1,6 @@
 from setuptools import setup
 import os
+import atexit
 
 from setuptools.command.install import install                                       
     
@@ -23,7 +24,7 @@ class CustomInstall(install):
 
 setup(
     name='exoplasim',
-    version='2.0.0-1',
+    version='2.0.0.post2',
     packages=['exoplasim',],
     install_requires=["numpy","netCDF4"],
     include_package_data=True,
