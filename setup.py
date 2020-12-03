@@ -1,7 +1,9 @@
 from distutils.core import setup
 import os
 
-os.system("./exoplasim/configure.sh")
+os.chdir("exoplasim")
+os.system(".configure.sh")
+os.chdir("..")
 
 os.system("echo $(pwd)/exoplasim>exoplasim/__init__.py")
 os.system("cat exoplasim/exoplasim.py>>exoplasim/__init__.py")
