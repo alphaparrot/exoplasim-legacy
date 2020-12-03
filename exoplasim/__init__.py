@@ -54,7 +54,7 @@ class Model(object):
         
         global sourcedir
         
-        if not sourcedir:
+        if not sourcedir: #This means we haven't run yet, and have some post-install work to do
             os.system('spth=$(python3 -c "import exoplasim as exo; print(exo.__path__)") && echo $spth>sourcepath')
             with open("sourcepath","r") as spf:
                 sourcedir = spf.read().strip()
@@ -66,6 +66,7 @@ class Model(object):
                     sourcedir=sourcedir[1:]
                 if sourcedir[-1]=="'":
                     sourcedir=sourcedir[:-1]
+            os.system("rm sourcepath")
             with open("%s/__init__.py"%sourcedir,"r") as sourcef:
                 sourcecode = sourcef.read().split('\n')
             sourcecode[1] = 'sourcedir = "%s"'%sourcedir
@@ -73,6 +74,10 @@ class Model(object):
             os.system("cp %s/__init__.py %s/preinit.py"%(sourcedir,sourcedir))
             with open("%s/__init__.py"%sourcedir,"w") as sourcef:
                 sourcef.write(sourcecode)
+            cwd = os.getcwd()
+            os.chdir(sourcedir)
+            os.system("./configure.sh")
+            os.chdir(cwd)
         
         self.runscript=None
         self.otherargs = []
