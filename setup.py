@@ -1,4 +1,5 @@
 from distutils.core import setup
+import os
 
 os.system("./exoplasim/configure.sh")
 
