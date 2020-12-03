@@ -1,36 +1,6 @@
 from setuptools import setup
-import os, sys
-import atexit
-
-from setuptools.command.install import install                                       
-    
-def _post_install():
-   def find_module_path():
-       for p in sys.path:
-           if os.path.isdir(p) and "exoplasim" in os.listdir(p):
-               return os.path.join(p, "exoplasim")
-   install_path = find_module_path()
-   cwd=os.getcwd()
-   os.chdir(install_path)
-   os.system("./configure.sh")
-   os.system("echo sourcedir=\"%s\">>__init__.py"%install_path)
-   os.chdir(cwd)
-   
-class CustomInstall(install): 
-    def __init__(self, *args, **kwargs):
-        super(CustomInstall, self).__init__(*args, **kwargs)
-        atexit.register(_post_install)
-
-#class CustomEggInfo(egg_info):
-    #def __init__(self, *args, **kwargs):
-        #super(CustomEggInfo, self).__init__(*args, **kwargs)
-        #atexit.register(_post_install)
-    
-class CustomDevelop(develop):
-    def __init__(self, *args, **kwargs):
-        super(CustomDevelop, self).__init__(*args, **kwargs)
-        atexit.register(_post_install)
-
+import os
+ 
 setup(
     name='exoplasim',
     version='2.0.0.post4',
@@ -43,7 +13,4 @@ setup(
     url='https://github.com/alphaparrot/ExoPlaSim',
     description='Exoplanet GCM',
     long_description=open('README.txt').read(),
-    cmdclass={"install":CustomInstall,
-              "develop":CustomDevelop,
-              "egg_info":CustomEggInfo},
     )
