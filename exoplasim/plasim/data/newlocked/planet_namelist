@@ -1,8 +1,0 @@
- &planet_nl
- ECCEN       =     0.0
- MVELP       =     0.0
- OBLIQ       =     0.0
- GSOL0       =  1367.0
- NFIXORB     =     1
- ROTSPD      =   0.066666667
- /END
