@@ -1,5 +1,5 @@
 from setuptools import setup
-import os
+import os, sys
 import atexit
 
 from setuptools.command.install import install                                       
