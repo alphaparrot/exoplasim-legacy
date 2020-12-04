@@ -151,6 +151,8 @@ class Model(object):
         
         burnsource = "%s/postprocessor"%sourcedir
         
+        print("Checking for %s...."%self.executable)
+        
         if recompile or not os.path.exists(self.executable):
             extraflags = ""
             if debug:
