@@ -392,7 +392,7 @@ class Model(object):
             os.system("[ -e restart_dsnow ] && rm restart_dsnow")
             os.system("[ -e restart_xsnow ] && rm restart_xsnow")
             os.system("[ -e Abort_Message ] && exit 1")
-            os.system("[ -e plasim_output ] && mv plasim_output "+dataname)
+            #os.system("[ -e plasim_outpuft ] && mv plasim_output "+dataname)
             os.system("[ -e plasim_snapshot ] && mv plasim_snapshot "+snapname)
             if self.highcadence["toggle"]:
                 os.system("[ -e plasim_hcadence ] && mv plasim_hcadence "+hcname)
@@ -1514,7 +1514,8 @@ class Model(object):
             if key=="soildepth":
                 self.soildepth=value
                 self.dzsoils = np.array([0.4, 0.8, 1.6, 3.2, 6.4])*soildepth
-                self._edit_namelist("landmod_namelist","DSOILZ",",".join(self.dzsoils.astype(str)))
+                self._edit_namelist("landmod_namelist",
+                                    "DSOILZ",",".join(self.dzsoils.astype(str)))
                 
             if key=="mldepth":
                 self.mldepth=value
@@ -1540,17 +1541,22 @@ class Model(object):
             if key=="timestep":
                 self.timestep=value
                 self._edit_namelist("plasim_namelist","MPSTEP",str(self.timestep))
-                self._edit_namelist("plasim_namelist","NSTPW",str(int(7200//int(self.timestep))))
+                self._edit_namelist("plasim_namelist","NSTPW",
+                                    str(int(7200//int(self.timestep))))
             
             if key=="runscript":
                 self.runscript=value
                 
             if key=="highcadence":
                 self.highcadence=value
-                self._edit_namelist("plasim_namelist","NHCADENCE",str(self.highcadence["toggle"]))
-                self._edit_namelist("plasim_namelist","HCSTARTSTEP",str(self.highcadence["start"]))
-                self._edit_namelist("plasim_namelist","HCENDSTEP",str(self.highcadence["end"]))
-                self._edit_namelist("plasim_namelist","HCINTERVAL",str(self.highcadence["interval"]))
+                self._edit_namelist("plasim_namelist","NHCADENCE",
+                                    str(self.highcadence["toggle"]))
+                self._edit_namelist("plasim_namelist","HCSTARTSTEP",
+                                    str(self.highcadence["start"]))
+                self._edit_namelist("plasim_namelist","HCENDSTEP",
+                                    str(self.highcadence["end"]))
+                self._edit_namelist("plasim_namelist","HCINTERVAL",
+                                    str(self.highcadence["interval"]))
                 
             if key=="snapshots":
                 self.snapshots=value
@@ -1659,12 +1665,14 @@ class Model(object):
             if self.stratosphere:
                 self._edit_namelist("plasim_namelist","NEQSIG","5")
                 if self.modeltop:
-                    self._edit_namelist("plasim_namelist","PTOP2",str(self.modeltop*100.0)) #convert hPa->Pa
+                    self._edit_namelist("plasim_namelist","PTOP2",str(self.modeltop*100.0)) 
+                        #convert hPa->Pa
                 if self.tropopause:
                     self._edit_namelist("plasim_namelist","PTOP",str(self.tropopause*100.0))
             else:
                 if self.modeltop:
-                    self._edit_namelist("plasim_namelist","PTOP",str(self.modeltop*100.0)) #convert hPa->Pa
+                    self._edit_namelist("plasim_namelist","PTOP",str(self.modeltop*100.0)) 
+                        #convert hPa->Pa
                     
         if changeland:
             if self.landmap or self.topomap:
@@ -1674,7 +1682,9 @@ class Model(object):
             if self.topomap:
                 os.system("cp %s %s/N%03d_surf_0129.sra"%(self.topomap,self.workdir,self.nlats))
     
-    def save(self,filename=self.workdir+"/model.npy"):
+    def save(self,filename=None):
+        if not filename:
+            filename=self.workdir+"/model.npy"
         np.save(filename,self,allow_pickle=True)
         
     def exportcfg(self,filename=None):
