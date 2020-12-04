@@ -55,7 +55,7 @@ class Model(object):
         global sourcedir
         
         if not sourcedir: #This means we haven't run yet, and have some post-install work to do
-            os.system('spth=$(python3 -c "import exoplasim as exo; print(exo.__path__)") && echo $spth>sourcepath')
+            os.system('spth=$(python%s -c "import exoplasim as exo; print(exo.__path__)") && echo $spth>sourcepath'%sys.version[0])
             with open("sourcepath","r") as spf:
                 sourcedir = spf.read().strip()
                 if sourcedir[0]=="[":
@@ -91,7 +91,7 @@ class Model(object):
                                       "very bad idea to install things with sudo pip install.")
         
         self.runscript=None
-        self.otherargs = []
+        self.otherargs = {}
         self.pgases = {}
         self.modelname=modelname
         self.cleaned=False
@@ -144,10 +144,10 @@ class Model(object):
         # If the executable does not exist, then regardless of whether we've been asked
         # to recompile, we'll have to recompile
         
-        self.executable = sourcedir+"/plasim/run/most_plasim_t%d_l%d_p%d.x"%(self.nsp,self.layers,ncpus)
-        
         if not source:
            source = "%s/plasim/run"%sourcedir
+        
+        self.executable = source+"/most_plasim_t%d_l%d_p%d.x"%(self.nsp,self.layers,ncpus)
         
         burnsource = "%s/postprocessor"%sourcedir
         
@@ -185,15 +185,47 @@ class Model(object):
             except Exception as e:
                 print(e)
                 self.crash()
+    
+    def _checktimes(self):
+        diagfiles = glob.glob(self.workdir+"/*DIAG*")
+        times = []
+        for df in diagfiles:
+            with open(recent,"r") as diagf:
+                diag = diagf.read().split("\n")
+            elapsed=1.0e6 #Assume a large value so we stop if there's a problem.
+            for ln in range(len(diag)-1,-1,-1):
+                if "Seconds per sim year" in diag[ln]:
+                    elapsed = float(diag[ln].split(":")[1].split("*")[0].strip()) #seconds
+                    break
+            times.append(elapsed/60.0)
+        return times
+            
+    
+    def _checktime(self,year=-1):
+        diagfiles = sorted(glob.glob(self.workdir+"/*DIAG*"))
+        recent = diagfiles[year]
+        with open(recent,"r") as diagf:
+            diag = diagf.read().split("\n")
+        elapsed=1.0e6 #Assume a large value so we stop if there's a problem.
+        for ln in range(len(diag)-1,-1,-1):
+            if "Seconds per sim year" in diag[ln]:
+                elapsed = float(diag[ln].split(":")[1].split("*")[0].strip()) #seconds
+                break
+        return elapsed/60.0 #convert to minutes
         
-    def runtobalance(self,threshhold = 4.0e-4,baseline=50,maxyears=300,minyears=75):
+        
+    def runtobalance(self,threshold = 4.0e-4,baseline=50,maxyears=300,minyears=75,
+                     timelimit=None,crashifbroken=True,clean=True):
         runlimit = self.currentyear+maxyears
+        ogrunlimit = runlimit
+        ogminyears = minyears
+        runstart = self.currentyear
         if os.getcwd()!=self.workdir:
             os.chdir(self.workdir)
         os.system("mkdir snapshots")
         if self.highcadence["toggle"]:
             os.system("mkdir highcadence")
-        while not self._isbalanced(threshhold=threshhold,baseline=baseline) \
+        while not self._isbalanced(threshold=threshold,baseline=baseline) \
                 and self.currentyear<minyears and self.currentyear<runlimit:
             dataname="MOST.%05d"%self.currentyear
             snapname="MOST_SNAP.%05d"%self.currentyear
@@ -201,6 +233,7 @@ class Model(object):
             diagname="MOST_DIAG.%05d"%self.currentyear
             restname="MOST_REST.%05d"%self.currentyear
             snowname="MOST_SNOW.%05d"%self.currentyear
+            stormname="MOST.%05d.STORM"%self.currentyear
             
             #Run ExoPlaSim
             os.system(self._exec+self.executable)
@@ -217,6 +250,7 @@ class Model(object):
             os.system("[ -e plasim_status ] && cp plasim_status plasim_restart")
             os.system("[ -e plasim_status ] && mv plasim_status "+restname)
             os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
+            os.system("[ -e hurricane_indicators] && mv hurricane_indicators "+stormname)
             
             #Do any additional work
             timeavg=0
@@ -251,8 +285,15 @@ class Model(object):
                     self.crash()
                 
             self.currentyear += 1
-            sb,tb = self.getbalance()
+            sb = self.getbalance("hfns")
+            tb = self.getbalance("ntr")
             os.system("echo %02.6f  %02.6f'>>%s/balance.log"%(sb,tb,self.workdir))
+            
+            if timelimit:
+                avgyear = self._checktimes()
+                runlimit = min(runstart + int(timelimit//avgyear),ogrunlimit)
+                minyears = min(ogminyears,runlimit)
+            
         bott = self.gethistory(key="hfns")
         topt = self.gethistory(key="ntr")
         with open("%s/shistory.pso"%self.workdir,"a+") as f:
@@ -261,16 +302,16 @@ class Model(object):
         with open("%s/toahistory.pso"%self.workdir,"a+") as f:
             text='\n'+'\n'.join(topt.astype(str))
             f.write(text)
-        finished = self._isbalanced(threshhold=threshhold,baseline=baseline)
+        finished = self._isbalanced(threshold=threshold,baseline=baseline)
+        finished *= (self.currentyear>ogminyears) #Must be both
         if not finished:
             return False
         return True
     
             
-    def getbalance(self,year=-1):
-        topt = self.inspect("ntr",savg=True,tavg=True,year=year)
-        bott = self.inspect("hfns",savg=True,tavg=True,year=year)
-        return topt,bott
+    def getbalance(self,key,year=-1):
+        var = self.inspect(key,savg=True,tavg=True,year=year)
+        return var
     
     def gethistory(self,key="ts",mean=True,layer=-1):
         files = sorted(glob.glob("%s/MOST*.nc"%self.workdir))
@@ -307,7 +348,8 @@ class Model(object):
             return False
         else:
             for n in range(0,self.currentyear):
-                topt,bott = self.getbalance(year=n)
+                topt = self.getbalance("ntr",year=n)
+                bott = self.getbalance("hfns",year=n)
                 sbalance[n+nstart] = bott
                 toabalance[n+nstart] = topt
             savgs = []
@@ -323,7 +365,7 @@ class Model(object):
             savgslope = abs(np.mean(sslopes[-30:])) #30-year average of 5-year slopes  
             tavgslope = abs(np.mean(tslopes[-30:]))
             os.system("echo '%02.8f  %02.8f'>>%s/slopes.log"%(savgslope,tavgslope,self.workdir))
-            if savgslope<threshhold and tavgslope<threshhold: #Both TOA and Surface are changing at average 
+            if savgslope<threshold and tavgslope<threshold: #Both TOA and Surface are changing at average 
                 return True                                  # of <0.1 mW/m^2/yr on 45-year baselines
             else:
                 return False
@@ -341,6 +383,7 @@ class Model(object):
             diagname="MOST_DIAG.%05d"%self.currentyear
             restname="MOST_REST.%05d"%self.currentyear
             snowname="MOST_SNOW.%05d"%self.currentyear
+            stormname="MOST.%05d.STORM"%self.currentyear
             
             #Run ExoPlaSim
             os.system(self._exec+self.executable)
@@ -357,6 +400,7 @@ class Model(object):
             os.system("[ -e plasim_status ] && cp plasim_status plasim_restart")
             os.system("[ -e plasim_status ] && mv plasim_status "+restname)
             os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
+            os.system("[ -e hurricane_indicators] && mv hurricane_indicators "+stormname)
             
             #Do any additional work
             timeavg=0
@@ -572,6 +616,7 @@ class Model(object):
                pHe=None,pN2=None,pO2=None,pCO2=None,pAr=None,pNe=None,
                pKr=None,pH2O=None,gascon=None,pressure=None,pressurebroaden=True,
                vtype=0,rotationperiod=24.0,synchronous=False,substellarlon=180.0,
+               year=None,glaciers={"toggle":False,"mindepth":2.0,"initialh":-1.0},
                restartfile=None,gravity=9.80665,radius=1.0,eccentricity=None,
                obliquity=None,lonvernaleq=None,fixedorbit=False,orography=None,
                seaice=True,co2weathering=False,evolveco2=False,physicsfilter=None,
@@ -591,7 +636,7 @@ class Model(object):
                              "MAXSURFTEMP":373.15,"WINDTHRESH":33.0,"SWINDTHRESH":20.5,
                              "SIZETHRESH":30,"ENDTHRESH":16,"MINSTORMLEN":256,
                              "MAXSTORMLEN":1024,"NKTRIGGER":0,"toggle":0},
-               topomap=None,otherargs={}):
+               topomap=None,threshold=4.0e-4,otherargs={}):
         
         self._edit_namelist("plasim_namelist","NOUTPUT",str(noutput*1))
         self.noutput = noutput
@@ -672,6 +717,10 @@ class Model(object):
         self.pressurebroaden=pressurebroaden
         self._edit_namelist("plasim_namelist","NEQSIG",str(vtype))
         self.vtype=vtype
+        if year:
+            self._edit_namelist("planet_namelist","N_DAYS_PER_YEAR",str(int(year)))
+            self._edit_namelist("planet_namelist","SIDEREAL_YEAR",str(year*86400.0))
+            self.sidyear=year
         if rotationperiod!=1.0:
             self._edit_namelist("planet_namelist","ROTSPD",str(1.0/float(rotationperiod)))
             self._edit_namelist("plasim_namelist","N_DAYS_PER_YEAR",
@@ -772,6 +821,13 @@ class Model(object):
         if diffusionpower:
             self._edit_namelist("plasim_namelist","NDEL","%d*%d"%(self.layers,diffusionpower))
         self.diffusionpower=diffusionpower
+        
+        self.glaciers=glaciers
+        self._edit_namelist("glacier_namelist","NGLACIER",str(self.glaciers["toggle"]*1))
+        self._edit_namelist("glacier_namelist","GLACELIM",str(self.glaciers["mindepth"]))
+        self._edit_namelist("glacier_namelist","ICESHEETH",str(self.glaciers["initialh"]))
+        if self.glaciers["initialh"]>0:
+            os.system("rm %s/*174.sra %s/*1740.sra %s/*210.sra %s/*232.sra"%([self.workdir,]*4))
         
         if type(snowicealbedo)!=type(None):
             alb = str(snowicealbedo)
@@ -925,12 +981,11 @@ class Model(object):
                 if param!="toggle":
                     self._edit_namelist("hurricane_namelist",param,str(stormcapture[param]))
         self.stormcapture=stormcapture
-        
+        self.threshold = threshold
         if len(otherargs)>0:
             for key in otherargs:
-                parts = key.split("<")
-                destination=parts[0].split("@")
-                value=parts[1]
+                value = otherargs[key]
+                destination=key.split("@")
                 field=destination[0]
                 namelist=destination[1]
                 self._edit_namelist(namelist,field,value)
@@ -1040,10 +1095,19 @@ class Model(object):
                     dtype=str
                 parts = parts[0].split("|")
                 otherargs[parts[0]] = dtype(parts[1])
+        year = noneparse(cfg[67],float)
+        glaciers = {}
+        glacdict = cfg[68].split("&")
+        glaciers["toggle"] = bool(int(glacdict[0]))
+        glaciers["mindepth"] = float(glacdict[1])
+        glaciers["initialh"] = float(glacdict[2])
+        threshold = float(cfg[69])
+        #PAST THIS POINT ALL ADDITIONAL LOADS SHOULD BE IN TRY-EXCEPT FOR BACKWARDS COMPAT.
             
         self.configure(noutput=noutput,flux=flux,startemp=startemp,starspec=starspec,
                        gascon=gascon,pressure=pressure,pressurebroaden=pressurebroaden,
                        vtype=vtype,rotationperiod=rotationperiod,synchronous=synchronous,
+                       year=year,
                        substellarlon=substellarlon,restartfile=restartfile,gravity=gravity,
                        radius=radius,eccentricity=eccentricity,obliquity=obliquity,
                        lonvernaleq=lonvernaleq,fixedorbit=fixedorbit,orography=orography,
@@ -1063,7 +1127,7 @@ class Model(object):
                        runscript=runscript,columnmode=columnmode,highcadence=highcadence,
                        snapshots=snapshots,resources=resources,landmap=landmap,stormclim=stormclim,
                        nstorms=nstorms,stormcapture=stormcapture,topomap=topomap,
-                       otherargs=otherargs)       
+                       otherargs=otherargs,glaciers=glaciers,threshold=threshold)       
     
     def modify(self,**kwargs):
         setgas=False
@@ -1159,6 +1223,13 @@ class Model(object):
             if key=="vtype":
                 self.vtype=value
                 self._edit_namelist("plasim_namelist","NEQSIG",str(self.vtype))
+            if key=="year":
+                self.sidyear=year
+                if self.sidyear:
+                    self._edit_namelist("plasim_namelist","N_DAYS_PER_YEAR",
+                                        str(int(self.sidyear)))
+                    self._edit_namelist("planet_namelist","SIDEREAL_YEAR",
+                                        str(self.sidyear*86400.0))
             if key=="rotationperiod":
                 self.rotationperiod=value
                 if self.rotationperiod!=1.0:
@@ -1293,6 +1364,19 @@ class Model(object):
                                                                       self.diffusionpower))
                 else:
                     self._rm_namelist_param("plasim_namelist","NDEL")
+                    
+            if key=="glaciers":
+                self.glaciers=value
+                self._edit_namelist("glacier_namelist","NGLACIER",
+                                    str(self.glaciers["toggle"]*1))
+                self._edit_namelist("glacier_namelist","GLACELIM",
+                                    str(self.glaciers["mindepth"]))
+                self._edit_namelist("glacier_namelist","ICESHEETH",
+                                    str(self.glaciers["initialh"]))
+                if self.glaciers["initialh"]>0:
+                    os.system("rm %s/*174.sra %s/*1740.sra "+
+                              "%s/*210.sra %s/*232.sra"%([self.workdir,]*4))
+                
             if key=="snowicealbedo":
                 self.snowicealbedo=value
                 if type(self.snowicealbedo)!=type(None):
@@ -1513,18 +1597,20 @@ class Model(object):
                                                 str(self.stormcapture[param]))
                 else:
                     self._edit_namelsit("hurricane_namelist","HC_CAPTURE","0")
-                
+            
+            if key=="threshold":
+                self.threshold = value
+            
             if key=="otherargs":
                 otherargs=value
                 if len(otherargs)>0:
                     for key in otherargs:
-                        parts = key.split("<")
-                        destination=parts[0].split("@")
-                        value=parts[1]
+                        destination=key.split("@")
+                        value=otherargs[key]
                         field=destination[0]
                         namelist=destination[1]
                         self._edit_namelist(namelist,field,value)
-                        self.otherargs.append(key)
+                        self.otherargs[key]=value
                 
         if setgas:
             
@@ -1588,13 +1674,13 @@ class Model(object):
             if self.topomap:
                 os.system("cp %s %s/N%03d_surf_0129.sra"%(self.topomap,self.workdir,self.nlats))
     
-    def save(self,filename):
+    def save(self,filename=self.workdir+"/model.npy"):
         np.save(filename,self,allow_pickle=True)
         
     def exportcfg(self,filename=None):
         '''export model configuration to a text file that can be used as configuration input'''
         if not filename:
-            filename = self.modelname+".cfg"
+            filename = self.workdir+"/"+self.modelname+".cfg"
         cfg = []
         
         cfg.append(str(self.noutput*1))
@@ -1686,7 +1772,14 @@ class Model(object):
                 item+="~f"
             otherdict.append(item)
         cfg.append("&".join(otherdict))
-        
+        if self.sidyear:
+            cfg.append(str(self.sidyear*86400.0))
+        else:
+            cfg.append(str(self.sidyear))
+        cfg.append("&".join([str(self.glaciers["toggle"]*1),
+                             str(self.glaciers["mindepth"]),
+                             str(self.glaciers["initialh"])]))
+        cfg.append(str(self.threshold))
         with open(filename,"w") as cfgf:
             cfgf.write("\n".join(cfg))
         
@@ -1851,3 +1944,11 @@ class Earthlike(Model):
         super(Earthlike,self).configure(vtype=4,modeltop=50.0,timestep=timestep,
                           snapshots=snapshots,**kwargs)
 
+class TLmodel(Model):
+    def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
+                  obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
+        super(TLaquaplanet,self).configure(synchronous=True,fixedorbit=True,
+                          eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
+                          snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
+                          **kwargs)
+    
