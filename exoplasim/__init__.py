@@ -722,7 +722,7 @@ class Model(object):
         if year:
             self._edit_namelist("planet_namelist","N_DAYS_PER_YEAR",str(int(year)))
             self._edit_namelist("planet_namelist","SIDEREAL_YEAR",str(year*86400.0))
-            self.sidyear=year
+        self.sidyear=year
         if rotationperiod!=1.0:
             self._edit_namelist("planet_namelist","ROTSPD",str(1.0/float(rotationperiod)))
             self._edit_namelist("plasim_namelist","N_DAYS_PER_YEAR",
@@ -1134,11 +1134,14 @@ class Model(object):
     def modify(self,**kwargs):
         setgas=False
         setgascon=False
+        setpressure=False
         changeatmo=False
         changeland=False
         oldpressure = 0.0
         for gas in self.pgases:
             oldpressure += self.pgases[gas]
+        if oldpressure==0.0:
+            oldpressure = self.pressure
         for key,value in kwargs.items():
             if key=="noutput":
                 self._edit_namelist("plasim_namelist","NOUTPUT",str(value*1))
@@ -1636,7 +1639,7 @@ class Model(object):
                 gasesvx[gas[1:]] = self.pgases[gas]/pressure
             self.mmw = 0
             for gas in gasesvx:
-                self.mmw += gasesvx[gas]*smws['m'+x]
+                self.mmw += gasesvx[gas]*smws['m'+gas]
             self.gascon = 8314.46261815324 / self.mmw
             
             if setgascon:
@@ -1649,7 +1652,7 @@ class Model(object):
             else:
                 self.pressure *= pscalef
             print("Surface Pressure set to %1.6f bars"%self.pressure)
-            self._edit_namelist("plasim_namelist","PSURF",str(self.pressure))
+            self._edit_namelist("plasim_namelist","PSURF",str(self.pressure*1.0e5))
             self._edit_namelist("planet_namelist","GASCON",str(self.gascon))
             
                 
@@ -1687,8 +1690,11 @@ class Model(object):
     def save(self,filename=None):
         if not filename:
             filename=self.workdir+"/model.npy"
-        np.save(filename,self,allow_pickle=True)
-        
+        try:
+            np.save(filename,self,allow_pickle=True)
+        except:
+            np.save(filename,self)
+            
     def exportcfg(self,filename=None):
         '''export model configuration to a text file that can be used as configuration input'''
         if not filename:
@@ -1855,8 +1861,10 @@ class Model(object):
             elif (arg+'=') in fnl[l]:
                 tag = ','
                 item = fnl[l][-1]
-                if item=='':
-                    item = fnl[l][-2]
+                k=-1
+                while item=='':
+                    k-=1
+                    item = fnl[l][k]
                 if item.strip()[-1]!=',':
                     tag = ''
                 fnl[l]=['',arg+'=','',str(val),'',tag]
