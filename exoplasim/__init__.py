@@ -171,7 +171,7 @@ class Model(object):
         
         #Copy the executable to the working directory, and then CD there
         os.system("cp %s %s"%(self.executable,self.workdir))
-        os.chdir(self.workdir)
+        #os.chdir(self.workdir)
         
         self.executable = self.executable.split("/")[-1] #Strip off all the preceding path
     
@@ -1957,7 +1957,7 @@ class Earthlike(Model):
 class TLmodel(Model):
     def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
                   obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
-        super(TLaquaplanet,self).configure(synchronous=True,fixedorbit=True,
+        super(TLmodel,self).configure(synchronous=True,fixedorbit=True,
                           eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
                           snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
                           **kwargs)
