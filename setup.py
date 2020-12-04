@@ -3,7 +3,7 @@ import os
  
 setup(
     name='exoplasim',
-    version='2.0.0.post6',
+    version='2.0.1',
     packages=['exoplasim',],
     install_requires=["numpy","netCDF4"],
     include_package_data=True,
