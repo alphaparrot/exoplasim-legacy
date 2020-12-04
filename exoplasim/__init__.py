@@ -166,6 +166,7 @@ class Model(object):
                                                                         precision,self.nsp,
                                                                         self.layers)+
                       extraflags+" &&"+
+                      "cd postprocessor && ./build_init.sh && cp burn7.x ../plasim/run/ &&"+
                       "cd $cwd")
         
         os.system("cp %s/* %s/"%(source,self.workdir))
