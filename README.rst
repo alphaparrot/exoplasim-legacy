@@ -11,6 +11,8 @@ Copyright 2020, Distributed under the General Public License
 This API was written with Python 3 in mind, but should work with
 Python 2 and outdated versions of NumPy. 
 
+Read the full documentation at http://exoplasim.readthedocs.io.
+
 Requirements
 ------------
     
