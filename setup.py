@@ -5,6 +5,7 @@ setup(
     name='exoplasim',
     version='2.0.5',
     packages=['exoplasim',],
+    zip_safe=False,
     install_requires=["numpy","netCDF4"],
     include_package_data=True,
     author='Adiv Paradise',
