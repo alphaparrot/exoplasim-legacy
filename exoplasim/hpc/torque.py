@@ -37,14 +37,14 @@ MODELS = {"plasim":1,                #tasks per node (1 workq node on Sunnyvale 
           "mitgcm":6}             
 
 def getjobs():
-    print "Checking jobs"
+    print("Checking jobs")
     os.system("qstat -u "+USER+" > cjobs.tmp")
     cjf = open("cjobs.tmp","r")
     joblist = cjf.read().split('\n')[5:-1]
     cjf.close()
     os.system("rm cjobs.tmp")
     resources={}
-    for m in MODELS.keys():
+    for m in list(MODELS.keys()):
         resources[m] = np.zeros(256)
     tags = []
     #This part may need changing depending on how job tags are handled.
@@ -54,7 +54,7 @@ def getjobs():
             #tags.append(job[0])
         tags.append(job[0])
     for t in tags:
-        print "Looking up "+t
+        print("Looking up "+t)
         os.system("qstat -f "+t+" > jinfo.tmp")
         jf = open("jinfo.tmp","r")
         jinfo = jf.read().split('\n')[1:-2]

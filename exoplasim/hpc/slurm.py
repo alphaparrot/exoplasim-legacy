@@ -37,21 +37,21 @@ MODELS = {"rossby-block":8,     #tasks per node (1 workq node on Sunnyvale has 8
                                 #code is MPI/OpenMP-agnostic.
 
 def getjobs():
-    print "Checking jobs"
+    print("Checking jobs")
     os.system("squeue -u "+USER+" > cjobs.tmp")
     cjf = open("cjobs.tmp","r")
     joblist = cjf.read().split('\n')[1:-1]
     cjf.close()
     os.system("rm cjobs.tmp")
     resources={}
-    for m in MODELS.keys():
+    for m in list(MODELS.keys()):
         resources[m] = np.zeros(256)
     tags = []
     for j in joblist:
         job = j.split()
         tags.append(job[0])
     for t in tags:
-        print "Looking up job "+t
+        print("Looking up job "+t)
         os.system("scontrol show job "+t+" > jinfo.tmp")
         jf = open("jinfo.tmp","r")
         jinfo = jf.read().split('\n')[:-2]

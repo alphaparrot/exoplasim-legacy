@@ -99,7 +99,7 @@ def gethistory(key="ts",mean=True,radius=6.371e6):
   
 def hasnans():
     files = sorted(glob.glob("*.nc"))
-    print "NetCDF  files:",files
+    print("NetCDF  files:",files)
     if type(files)!=type([1,2,3]):
         files = [files,]
     ncd = nc.Dataset(files[-1],"r") #Should be most recent
@@ -153,7 +153,7 @@ def energybalanced(threshhold = 1.0e-4,baseline=50): #Takes an average of 200 ye
         savgslope = abs(np.mean(sslopes[-30:])) #30-year average of 5-year slopes  
         tavgslope = abs(np.mean(tslopes[-30:]))
         os.system("echo '%02.8f  %02.8f'>>slopes.log"%(savgslope,tavgslope))
-        print "%02.8f %02.8f"%(savgslope,tavgslope)
+        print("%02.8f %02.8f"%(savgslope,tavgslope))
         if savgslope<threshhold and tavgslope<threshhold: #Both TOA and Surface are changing at average 
             return True                                  # of <0.1 mW/m^2/yr on 45-year baselines
         else:

@@ -82,7 +82,7 @@ if __name__=="__main__":
             except:
                 pass
         ncd.close()
-        print n
+        print(n)
         
     np.save(prefix+"_history.npy",history)
     

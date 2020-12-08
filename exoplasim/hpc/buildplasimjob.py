@@ -132,8 +132,8 @@ def prep(job):
   if "source" in job.parameters:
     source = job.parameters["source"]
   
-  print "Setting stuff for job "+sig+" in "+workdir
-  print "Arguments are:",fields[:]
+  print("Setting stuff for job "+sig+" in "+workdir)
+  print("Arguments are:",fields[:])
   
   notify = 'ae'
   scriptfile = "run.sh"
@@ -147,18 +147,18 @@ def prep(job):
   #os.system("mkdir plasim/errorlogs/")
   #os.system("cp "+workdir+"/*.e* plasim/errorlogs/")
   #os.system("rm "+workdir+"/*")
-  print "copying files....."
-  print "cp "+source+"/* "+workdir+"/"
+  print("copying files.....")
+  print("cp "+source+"/* "+workdir+"/")
   os.system("cp "+source+"/* "+workdir+"/")
-  print ("rm "+workdir+"/plasim_restart")
+  print(("rm "+workdir+"/plasim_restart"))
   os.system("rm "+workdir+"/plasim_restart")
-  print ("cp "+scriptfile+" "+workdir+"/")
+  print(("cp "+scriptfile+" "+workdir+"/"))
   os.system("cp "+scriptfile+" "+workdir+"/")
-  print ("cp synthoutput.py "+workdir+"/")
+  print(("cp synthoutput.py "+workdir+"/"))
   os.system("cp synthoutput.py "+workdir+"/")
-  print ("cp jobdefs.py "+workdir+"/")
+  print(("cp jobdefs.py "+workdir+"/"))
   os.system("cp jobdefs.py "+workdir+"/")
-  print ("cp identity.py "+workdir+"/")
+  print(("cp identity.py "+workdir+"/"))
   os.system("cp identity.py "+workdir+"/")
   
   #if "cleanup" in job.parameters:
@@ -638,9 +638,9 @@ def prep(job):
         name=args[0]
         edit_namelist(home,namelist,name,val)
       else:
-        print "Unknown parameter "+name+"! Submit unsupported parameters as KEY@NAMELIST in the header!"
+        print("Unknown parameter "+name+"! Submit unsupported parameters as KEY@NAMELIST in the header!")
       
-  print "Arguments set"
+  print("Arguments set")
   
   histargs = ''
   if weathrestart:

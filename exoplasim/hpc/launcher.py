@@ -56,7 +56,7 @@ if __name__=="__main__":
     f.close()
     ready=False
     queued = False
-    print "Getting job...."
+    print("Getting job....")
     while not ready:       #Search for a job to run 
       queued = False
       for i in range(0,len(tasks)-1):
@@ -74,7 +74,7 @@ if __name__=="__main__":
       if not queued:
           openjobs=False
           ready=False
-          print "We have run out of jobs and ARE TRYING TO BREAK"
+          print("We have run out of jobs and ARE TRYING TO BREAK")
           break
       ready=False
       f=open("tasklog.crwl","a")
@@ -102,7 +102,7 @@ if __name__=="__main__":
     #Engage next task
     if ready:
       
-      print "Creating a Job with header\n",header,"\n and arguments \n",' '.join(task) 
+      print("Creating a Job with header\n",header,"\n and arguments \n",' '.join(task)) 
       newjob = Job(header,' '.join(task),-1)       #Collect and organize the job parameters
       
       newjob.home = taskname
@@ -154,6 +154,6 @@ if __name__=="__main__":
   #f.write('0')
   #f.close()
   if dryrun:
-    print "%d jobs have been created!"%njobs
+    print("%d jobs have been created!"%njobs)
   else:
-    print "%d jobs have been created and submitted!"%njobs
+    print("%d jobs have been created and submitted!"%njobs)

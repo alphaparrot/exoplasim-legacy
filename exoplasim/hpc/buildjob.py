@@ -115,8 +115,8 @@ def prep(job):
   if "source" in job.parameters:
     source = job.parameters["source"]
   
-  print "Setting stuff for job "+sig+" in plasim/job"+jid+" which is task number "+pid
-  print "Arguments are:",fields[2:]
+  print("Setting stuff for job "+sig+" in plasim/job"+jid+" which is task number "+pid)
+  print("Arguments are:",fields[2:])
   
   notify = 'ae'
   scriptfile = "run.sh"
@@ -592,9 +592,9 @@ def prep(job):
         name=args[0]
         edit_namelist(jid,namelist,name,val)
       else:
-        print "Unknown parameter "+name+"! Submit unsupported parameters as KEY@NAMELIST in the header!"
+        print("Unknown parameter "+name+"! Submit unsupported parameters as KEY@NAMELIST in the header!")
       
-  print "Arguments set"
+  print("Arguments set")
   
   histargs = ''
   if weathrestart:
