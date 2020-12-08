@@ -8,8 +8,17 @@ ExoPlaSim Python API Documentation
 ==================================   
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`
+
+Package Contents
+================
+
+.. toctree::
+   :maxdepth: 3
+   
+   source/exoplasim
+   source/modules
+   :caption: Contents:
 
 
 Created by Adiv Paradise
@@ -99,13 +108,5 @@ output files and rename them after the model name we chose, and delete
 all the intermediate output and configuration files. 
 
 
-Package Contents
-================
 
-.. toctree::
-   :maxdepth: 3
-   
-   source/exoplasim
-   source/modules
-   :caption: Contents:
 
