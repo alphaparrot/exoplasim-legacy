@@ -106,5 +106,6 @@ Package Contents
    :maxdepth: 3
    
    source/exoplasim
+   source/modules
    :caption: Contents:
 
