@@ -5,7 +5,32 @@ import os
 import argparse as ag
 import matplotlib.colors as colors
 
-def wrap2d(datd,vals):
+    
+"""
+==========================
+Random Continent Generator
+==========================
+
+Command-line tool to randomly generate continents up to specified land fraction. Topography optional.
+
+Usage
+-----
+
+
+
+-z,--topo   Generate topographical geopotential map
+-c,--continents   Number of continental cratons
+-f,--landfraction   Land fraction
+-n,--name   Assign a name for the planet
+-m,--maxz   Maximum elevation in km assuming Earth gravity
+--nlats   Number of latitudes (evenly-spaced)--will also set longitudes (twice as many). If unset, PlaSim latitudes and longitudes will be used (T21 resolution)"
+-l,--hemispherelongitude   Confine land to a hemisphere centered on a given longitude
+-o,--orthographic   Plot orthographic projections centered on hemispherelongitude 
+
+
+"""
+
+def _wrap2d(datd,vals):
     modf=np.zeros(datd.ndim,dtype=int)
     modf[-1]=1
     dd=np.zeros(datd.shape+modf)
@@ -14,6 +39,22 @@ def wrap2d(datd,vals):
     return dd
 
 def writeSRA(name,kcode,field,NLAT,NLON):
+    """Write a lat-lon field to a formatted .sra file
+    
+    Parameters
+    ----------
+    name : str
+        The name with which to label this map
+    kcode : int
+        The integer map code for specifying what kind of boundary file this is (see the PlaSim documentation for more details)
+    field : numpy.ndarray
+        The map to write to file. Should have the dimensions (NLAT,NLON).
+    NLAT : int
+        The number of latitudes
+    NLON : int
+        The number of longitudes
+        
+    """
     label=name+'_surf_%04d.sra'%kcode
     header=[kcode,0,20170927,0,NLON,NLAT,0,0]
     fmap = field.reshape((NLAT*NLON/8,8))
@@ -37,7 +78,17 @@ def writeSRA(name,kcode,field,NLAT,NLON):
     f.close()
     
     
-def writePGM(name,heightfield):
+def writePGM(name,heightfield):    
+    """Write a lat-lon field to a .pgm image file (usually topo field)
+    
+    Parameters
+    ----------
+    name : str
+        The name with which to label this map
+    heightfield : numpy.ndarray
+        The 2-D map to write to file.
+        
+    """
     shape=heightfield.shape
     filetext = ("P2\n"+
                 "# Heightfield map for %s planet\n"%name+
@@ -48,21 +99,7 @@ def writePGM(name,heightfield):
         filetext+=' '.join(img[k,:])+'\n'
     with open(name+".pgm","w") as fw:
         fw.write(filetext)
-    
-'''
-Command-line tool to randomly generate continents up to specified land fraction. Topography optional.
 
--z,--topo   Generate topographical geopotential map
--c,--continents   Number of continental cratons
--f,--landfraction   Land fraction
--n,--name   Assign a name for the planet
--m,--maxz   Maximum elevation in km assuming Earth gravity
---nlats   Number of latitudes (evenly-spaced)--will also set longitudes (twice as many). If unset, PlaSim latitudes and longitudes will be used (T21 resolution)"
--l,--hemispherelongitude   Confine land to a hemisphere centered on a given longitude
--o,--orthographic   Plot orthographic projections centered on hemispherelongitude 
-
-
-'''
 
 parser = ag.ArgumentParser(description="Randomly generate continents up to a specified land-fraction. Topography optional.")
 parser.add_argument("-z","--topo",action="store_true",help="Generate topographical geopotential map",)
@@ -146,10 +183,10 @@ rcoord = 2*np.arcsin(np.sqrt(np.sin(0.5*rlats)**2+np.cos(rlats)*np.sin(0.5*(rlon
 thetacoord = np.arctan2(np.cos(rlats)*np.sin(rlons-rl0),np.sin(rlats))
 thetacoord[thetacoord<0] += 2*np.pi
 
-latsw=wrap2d(lats,lats[:,0])
-lonsw=wrap2d(lons,360.0)
-hlatsw=wrap2d(hlats,hlats[:,0])
-hlonsw=wrap2d(hlons,360.0)
+latsw=_wrap2d(lats,lats[:,0])
+lonsw=_wrap2d(lons,360.0)
+hlatsw=_wrap2d(hlats,hlats[:,0])
+hlonsw=_wrap2d(hlons,360.0)
 
 ncontinents = args.continents #There's no guarantee you actually get this many if it's >1, since continents can merge
 

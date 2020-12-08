@@ -6,7 +6,7 @@ setup(
     version='2.0.5',
     packages=['exoplasim',],
     zip_safe=False,
-    install_requires=["numpy","netCDF4","matplotlib"],
+    install_requires=["numpy","netCDF4","matplotlib","scipy"],
     include_package_data=True,
     author='Adiv Paradise',
     author_email='paradise.astro@gmail.com',
