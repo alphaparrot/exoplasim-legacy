@@ -12,5 +12,5 @@ setup(
     license='GNU General Public License',
     url='https://github.com/alphaparrot/ExoPlaSim',
     description='Exoplanet GCM',
-    long_description=open('README.txt').read(),
+    long_description=open('README.rst').read(),
     )
