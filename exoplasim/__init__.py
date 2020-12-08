@@ -2732,8 +2732,8 @@ class Earthlike(Model):
     timestep, snapshot output reporting every 480 timesteps, and 
     a model top pinned to 50 mbar. All these defaults can be overridden.
 """
-    def configure(self,timestep=45.0,snapshots=480,**kwargs):
-        super(Earthlike,self).configure(vtype=4,modeltop=50.0,timestep=timestep,
+    def configure(self,timestep=45.0,snapshots=480,vtype=4,modeltop=50.0,**kwargs):
+        super(Earthlike,self).configure(vtype=vtype,modeltop=modeltop,timestep=timestep,
                         snapshots=snapshots,**kwargs)
 
 class TLmodel(Model):
