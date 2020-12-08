@@ -21,6 +21,15 @@ exoplasim.randomcontinents module
    :undoc-members:
    :show-inheritance:
 
+
+exoplasim.makestellarspec module
+--------------------------------
+
+.. automodule:: exoplasim.makestellarspec
+   :members:
+   :undoc-members:
+   :show-inheritance:   
+   
 Module contents
 ---------------
 

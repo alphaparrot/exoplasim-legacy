@@ -14,10 +14,17 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../exoplasim'))
 
-#import mock, sys
-#MOCK_MODULES = ['exoplasim','exoplasim.gcmt','netCDF4','numpy']
-#for mod_name in MOCK_MODULES:
-    #sys.modules[mod_name] = mock.Mock()
+from mock import Mock as MagicMock
+ 
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+ 
+MOCK_MODULES = ['numpy', 'scipy', 'matplotlib.colors','matplotlib.pyplot','exoplasim',
+                'exoplasim.gcmt','exoplasim.randomcontinents','exoplasim.makestellarspec']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
 # -- Project information -----------------------------------------------------
 
 project = 'ExoPlaSim'
