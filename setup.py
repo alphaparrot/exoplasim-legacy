@@ -3,9 +3,9 @@ import os
  
 setup(
     name='exoplasim',
-    version='2.0.4',
+    version='2.0.5',
     packages=['exoplasim',],
-    install_requires=["numpy","netCDF4","sphinx=3.3.1"],
+    install_requires=["numpy","netCDF4"],
     include_package_data=True,
     author='Adiv Paradise',
     author_email='paradise.astro@gmail.com',

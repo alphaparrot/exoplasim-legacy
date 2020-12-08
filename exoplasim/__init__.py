@@ -2,104 +2,6 @@
 global sourcedir
 sourcedir = None
 
-
-"""
-
-===========================
-ExoPlaSim Python API README
-===========================
-
-Created by Adiv Paradise
-
-Copyright 2020, Distributed under the General Public License
-
-This API was written with Python 3 in mind, but should work with
-Python 2 and outdated versions of NumPy. 
-
-Requirements
-------------
-    
-* netCDF4
-* numpy
-* a Fortran compiler
-* a C compiler
-* (optionally) MPI libraries for those compilers
-    
-Installation
-------------
-
-::
-
-    pip install exoplasim
-    
-OR::
-
-    python setup.py install
-    
-The first time you import the module and try to create a model
-after either installing or updating, ExoPlaSim will run a 
-configuration script, write the install directory into its 
-source code, and compile the burn7 NetCDF postprocessor. You must 
-have NetCDF libraries available in the path when this happens.
-The burn7 compilation process will build and compile a patched
-version of the NetCDF libraries necessary for burn7--burn7 makes
-use of features anachronistic to a particular version of NetCDF
-that no longer exists.
-
-You may also configure and compile the model manually if you wish
-to not use the Python API, by entering the exoplasim/ directory
-and running first configure.sh, then compile.sh (compilation flags
-are shown by running ``./compile.sh -h``). The postprocessor and its
-libraries can be compiled by entering ``exoplasim/postprocessor/`` and
-running ``./build_init.sh``.
-
-PlaSim Documentation
---------------------
-
-Original PlaSim documentation is available in the exoplasim/docs/
-folder.
-
-Usage
------
-
-To use the ExoPlaSim Python API, you must import the module, create
-a Model or one of its subclasses, call its configure method and/or
-modify method, and then run it. 
-
-Basic example:::
-
-    import exoplasim as exo
-    mymodel = exo.Model(workdir="mymodel_testrun",modelname="mymodel",resolution="T21",layers=10,ncpus=8)
-    mymodel.configure()
-    mymodel.exportcfg()
-    mymodel.run(years=100,crashifbroken=True)
-    mymodel.finalize("mymodel_output")
-    
-In this example, we initialize a model that will run in the directory
-"mymodel_testrun", and has the name "mymodel", which will be used to
-label output and error logs. The model has T21 resolution, or 32x64,
-10 layers, and will run on 8 CPUs. By default, the compiler will use
-8-byte precision. 4-byte may run slightly faster, but possibly at the
-cost of reduced stability. If there are machine-specific optimization
-flags you would like to use when compiling, you may specify them as a
-string to the optimization argument, e.g. ``optimization='mavx'``. ExoPlaSim
-will check to see if an appropriate executable has already been created,
-and if not (or if flags indicating special compiler behavior such as 
-debug=True or an optimization flag are set) it will compile one. We then
-configure the model with all the default parameter choices, which means
-we will get a model of Earth. We then export the model configurations
-to a ``.cfg`` file (named automatically after the model), which will allow
-the model configuration to be recreated exactly by other users. We 
-run the model for 100 years, with error-handling enabled. Finally, we 
-tell the model to clean up after itself. It will take the most recent 
-output files and rename them after the model name we chose, and delete 
-all the intermediate output and configuration files. 
-
-
-"""
-
-
-
 import os
 import sys
 import numpy as np
@@ -118,14 +20,14 @@ smws = {'mH2': 2.01588,
         'mH2O':18.01528}
 
 gases_default = {'pH2': 0.0,
-                   'pHe': 5.24e-6,
-                   'pN2': 0.78084,
-                   'pO2': 0.20946,
-                   'pCO2':330.0e-6,
-                   'pAr': 9.34e-3,
-                   'pNe': 18.18e-6,
-                   'pKr': 1.14e-6,
-                   'pH2O':0.01}
+                'pHe': 5.24e-6,
+                'pN2': 0.78084,
+                'pO2': 0.20946,
+                'pCO2':330.0e-6,
+                'pAr': 9.34e-3,
+                'pNe': 18.18e-6,
+                'pKr': 1.14e-6,
+                'pH2O':0.01}
 
 def _noneparse(text,dtype):
     if text=="None" or text=="none":
@@ -144,94 +46,94 @@ def _noneparse(text,dtype):
     #return sourcedir
 
 class Model(object):
-"""Create an ExoPlaSim model in a particular directory.
+    """Create an ExoPlaSim model in a particular directory.
+            
+    Initialize an ExoPlaSim model in a particular directory. 
+    If the necessary executable does not yet exist, compile it.
+
+    Parameters
+    ----------
+    resolution : str, optional
+        The resolution of the model. Options are T21, T42, T63, T85, 
+        T106, T127, and T170, corresponding to 32, 64, 96, 128, 160, 
+        192, and 256 latitudes respectively, and twice as many 
+        longitudes. ExoPlaSim has been tested and validated most 
+        extensively at T21 and T42. Higher resolutions will take 
+        considerable time to run.
+    layers : int, optional
+        The number of vertical layers in the model atmosphere. The default
+        is 10, but PlaSim has been used with 5 layers in many studies.
+        More layers are supported, but not recommended except at higher
+        resolutions.
+    ncpus : int, optional
+        The number of MPI processes to use, typically the number of cores
+        available. If ncpus=1, MPI will not be used.
+    precision : int, optional
+        Either 4 or 8--specifies the number of bytes for a Fortran real.
+    debug : bool, optional
+        If True, compiler optimizations are disabled
+        and the code is compiled with debugging flags enabled that will
+        allow line-by-line tracebacks if ExoPlaSim crashes. Only use for
+        development purposes.
+    inityear : int, optional
+        The number to use for the initial model year (default 0).
+    recompile : bool, optional
+        True/False flag used to force a recompile. Cannot force the 
+        model to skip compilation if the executable does not exist or
+        compilation-inducing flags are set.
+    optimization : str, optional
+        Fortran compiler arguments for optimization. ANY compiler
+        flags can be passed here, but it's intended for optimization
+        flags. Setting this will trigger a recompile.
+    mars : bool, optional
+        True/False. If True, will use Mars-specific routines.
+    workdir : str, optional
+        The directory in which to construct the model.
+    source : str, optional
+        The directory in which to look for executables, namelists, 
+        boundary conditions, etc. If not set, will default to exoplasim/plasim/run/.        
+    modelname : str, optional 
+        The name to use for the model and its output files when finished.
         
-Initialize an ExoPlaSim model in a particular directory. 
-If the necessary executable does not yet exist, compile it.
+    Returns
+    -------
+    Model
+        An instantiated Model object that resides in a directory with the namelists
+        and executable necessary to run ExoPlaSim.
+        
+    Examples
+    --------
 
-Parameters
-----------
-resolution : str, optional
-    The resolution of the model. Options are T21, T42, T63, T85, 
-    T106, T127, and T170, corresponding to 32, 64, 96, 128, 160, 
-    192, and 256 latitudes respectively, and twice as many 
-    longitudes. ExoPlaSim has been tested and validated most 
-    extensively at T21 and T42. Higher resolutions will take 
-    considerable time to run.
-layers : int, optional
-    The number of vertical layers in the model atmosphere. The default
-    is 10, but PlaSim has been used with 5 layers in many studies.
-    More layers are supported, but not recommended except at higher
-    resolutions.
-ncpus : int, optional
-    The number of MPI processes to use, typically the number of cores
-    available. If ncpus=1, MPI will not be used.
-precision : int, optional
-    Either 4 or 8--specifies the number of bytes for a Fortran real.
-debug : bool, optional
-    If True, compiler optimizations are disabled
-    and the code is compiled with debugging flags enabled that will
-    allow line-by-line tracebacks if ExoPlaSim crashes. Only use for
-    development purposes.
-inityear : int, optional
-    The number to use for the initial model year (default 0).
-recompile : bool, optional
-    True/False flag used to force a recompile. Cannot force the 
-    model to skip compilation if the executable does not exist or
-    compilation-inducing flags are set.
-optimization : str, optional
-    Fortran compiler arguments for optimization. ANY compiler
-    flags can be passed here, but it's intended for optimization
-    flags. Setting this will trigger a recompile.
-mars : bool, optional
-    True/False. If True, will use Mars-specific routines.
-workdir : str, optional
-    The directory in which to construct the model.
-source : str, optional
-    The directory in which to look for executables, namelists, 
-    boundary conditions, etc. If not set, will default to exoplasim/plasim/run/.        
-modelname : str, optional 
-    The name to use for the model and its output files when finished.
-    
-Returns
--------
-Model
-    An instantiated Model object that resides in a directory with the namelists
-    and executable necessary to run ExoPlaSim.
-    
-Examples
---------
+    >>> import exoplasim as exo
+    >>> mymodel = exo.Model(workdir="mymodel_testrun",modelname="mymodel",resolution="T21",layers=10,ncpus=8)
+    >>> mymodel.configure()
+    >>> mymodel.exportcfg()
+    >>> mymodel.run(years=100,crashifbroken=True)
+    >>> mymodel.finalize("mymodel_output")
 
->>> import exoplasim as exo
->>> mymodel = exo.Model(workdir="mymodel_testrun",modelname="mymodel",resolution="T21",layers=10,ncpus=8)
->>> mymodel.configure()
->>> mymodel.exportcfg()
->>> mymodel.run(years=100,crashifbroken=True)
->>> mymodel.finalize("mymodel_output")
-
-In this example, we initialize a model that will run in the directory
-"mymodel_testrun", and has the name "mymodel", which will be used to
-label output and error logs. The model has T21 resolution, or 32x64,
-10 layers, and will run on 8 CPUs. By default, the compiler will use
-8-byte precision. 4-byte may run slightly faster, but possibly at the
-cost of reduced stability. If there are machine-specific optimization
-flags you would like to use when compiling, you may specify them as a
-string to the optimization argument, e.g. ``optimization='mavx'``. ExoPlaSim
-will check to see if an appropriate executable has already been created,
-and if not (or if flags indicating special compiler behavior such as 
-debug=True or an optimization flag are set) it will compile one. We then
-configure the model with all the default parameter choices, which means
-we will get a model of Earth. We then export the model configurations
-to a ``.cfg`` file (named automatically after the model), which will allow
-the model configuration to be recreated exactly by other users. We 
-run the model for 100 years, with error-handling enabled. Finally, we 
-tell the model to clean up after itself. It will take the most recent 
-output files and rename them after the model name we chose, and delete 
-all the intermediate output and configuration files. 
-"""
+    In this example, we initialize a model that will run in the directory
+    "mymodel_testrun", and has the name "mymodel", which will be used to
+    label output and error logs. The model has T21 resolution, or 32x64,
+    10 layers, and will run on 8 CPUs. By default, the compiler will use
+    8-byte precision. 4-byte may run slightly faster, but possibly at the
+    cost of reduced stability. If there are machine-specific optimization
+    flags you would like to use when compiling, you may specify them as a
+    string to the optimization argument, e.g. ``optimization='mavx'``. ExoPlaSim
+    will check to see if an appropriate executable has already been created,
+    and if not (or if flags indicating special compiler behavior such as 
+    debug=True or an optimization flag are set) it will compile one. We then
+    configure the model with all the default parameter choices, which means
+    we will get a model of Earth. We then export the model configurations
+    to a ``.cfg`` file (named automatically after the model), which will allow
+    the model configuration to be recreated exactly by other users. We 
+    run the model for 100 years, with error-handling enabled. Finally, we 
+    tell the model to clean up after itself. It will take the most recent 
+    output files and rename them after the model name we chose, and delete 
+    all the intermediate output and configuration files. 
+    """
     def __init__(self,resolution="T21",layers=10,ncpus=4,precision=8,debug=False,inityear=0,
-                 recompile=False,optimization=None,mars=False,workdir="most",source=None,
-                 modelname="MOST_EXP"):
+                recompile=False,optimization=None,mars=False,workdir="most",source=None,
+                modelname="MOST_EXP"):
         
         global sourcedir
         
@@ -260,18 +162,18 @@ all the intermediate output and configuration files.
                 os.chdir(sourcedir)
                 os.system("./configure.sh")
                 os.system("cd postprocessor && ./build_init.sh && "+
-                          "cp burn7.x ../plasim/run/ && cp burn7.x %s/"%source)
+                        "cp burn7.x ../plasim/run/ && cp burn7.x %s/"%source)
                 os.chdir(cwd)
             except PermissionError:
                 raise PermissionError("\nHi! Welcome to ExoPlaSim. It looks like this is the first "+
-                                      "time you're using this program since installing, and you "+
-                                      "may have installed it to a location that needs root "+
-                                      "privileges to modify. This is not ideal! If you want to "+
-                                      "use the program this way, you will need to run python code"+
-                                      " that uses ExoPlaSim with sudo privileges; i.e. sudo "+
-                                      "python3 myscript.py. If you did this because pip install "+
-                                      "breaks without sudo privileges, then try using \n\n\tpip "+ "install --user exoplasim \n\ninstead. It is generally a "+
-                                      "very bad idea to install things with sudo pip install.")
+                                    "time you're using this program since installing, and you "+
+                                    "may have installed it to a location that needs root "+
+                                    "privileges to modify. This is not ideal! If you want to "+
+                                    "use the program this way, you will need to run python code"+
+                                    " that uses ExoPlaSim with sudo privileges; i.e. sudo "+
+                                    "python3 myscript.py. If you did this because pip install "+
+                                    "breaks without sudo privileges, then try using \n\n\tpip "+ "install --user exoplasim \n\ninstead. It is generally a "+
+                                    "very bad idea to install things with sudo pip install.")
         
         self.runscript=None
         self.otherargs = {}
@@ -321,14 +223,14 @@ all the intermediate output and configuration files.
             self.nlats=256
         else:
             raise ValueError("Resolution unsupported. ExoPlaSim supports T21, T42, T63, T85, "+
-                             "T106, T127, and T170 (32, 64, 96, 128, 160, 192, and 256 "+
-                             "latitudes respectively")
+                            "T106, T127, and T170 (32, 64, 96, 128, 160, 192, and 256 "+
+                            "latitudes respectively")
         
         # If the executable does not exist, then regardless of whether we've been asked
         # to recompile, we'll have to recompile
         
         if not source:
-           source = "%s/plasim/run"%sourcedir
+            source = "%s/plasim/run"%sourcedir
         
         self.executable = source+"/most_plasim_t%d_l%d_p%d.x"%(self.nsp,self.layers,ncpus)
         
@@ -345,11 +247,11 @@ all the intermediate output and configuration files.
             if mars:
                 extraflags+= "-m "
             os.system("cwd=$(pwd) && "+
-                      "cd %s && ./compile.sh -n %d -p %d -r T%d -v %d "%(sourcedir,self.ncpus,
+                    "cd %s && ./compile.sh -n %d -p %d -r T%d -v %d "%(sourcedir,self.ncpus,
                                                                         precision,self.nsp,
                                                                         self.layers)+
-                      extraflags+" &&"+
-                      "cd $cwd")
+                    extraflags+" &&"+
+                    "cd $cwd")
         
         os.system("cp %s/* %s/"%(source,self.workdir))
         os.system("cp %s/burn7.x %s/"%(burnsource,self.workdir))
@@ -367,24 +269,24 @@ all the intermediate output and configuration files.
     
         
     def run(self,**kwargs):
-"""Run the Model's designated run routine.
+        """Run the Model's designated run routine.
 
-This may have been passed as runscript when the model was
-created, or it could be the model's internal ._run() routine. 
-That method takes the following arguments:
+        This may have been passed as runscript when the model was
+        created, or it could be the model's internal ._run() routine. 
+        That method takes the following arguments:
 
-Parameters
-----------
-years : int, optional
-    Number of years to run    
-postprocess : bool, optional
-    True/False. Whether or not NetCDF files should be produced on-the-fly
-crashifbroken : bool, optional
-    True/False. If True, use Pythonic error handling    
-clean : bool, optional
-    True/False. If True, delete raw output files once NetCDF files are made
-    
-"""
+        Parameters
+        ----------
+        years : int, optional
+            Number of years to run    
+        postprocess : bool, optional
+            True/False. Whether or not NetCDF files should be produced on-the-fly
+        crashifbroken : bool, optional
+            True/False. If True, use Pythonic error handling    
+        clean : bool, optional
+            True/False. If True, delete raw output files once NetCDF files are made
+            
+        """
         if not self.runscript:
             self._run(**kwargs)
         else:
@@ -395,7 +297,7 @@ clean : bool, optional
                 self._crash()
     
     def _checktimes(self):
-"""Get list of durations for each year computed so far."""
+        """Get list of durations for each year computed so far."""
         diagfiles = glob.glob(self.workdir+"/*DIAG*")
         times = []
         for df in diagfiles:
@@ -427,7 +329,7 @@ clean : bool, optional
             
     
     def _checktime(self,year=-1):
-"""Get walltime duration for a given year of output."""
+        """Get walltime duration for a given year of output."""
         diagfiles = sorted(glob.glob(self.workdir+"/*DIAG*"))
         recent = diagfiles[year]
         with open(recent,"r") as diagf:
@@ -450,37 +352,37 @@ clean : bool, optional
         
         
     def runtobalance(self,threshold = None,baseline=50,maxyears=300,minyears=75,
-                     timelimit=None,crashifbroken=True,clean=True):
-""" Run the model until energy balance equilibrium is reached at the top and surface.
-       
-Parameters
-----------
-threshold : float, optional
-   If specified, overrides the threshold set by ``.config()``. The model will run
-   until the energy balance at the top and surface drifts by less than this
-   amount per year over a given baseline.
-baseline : int, optional
-   The number of years over which to evaluate energy balance drift. Default 50
-maxyears : int, optional
-   The maximum number of years to run before returning. Default 300. This is
-   useful if you are running on a scratch disk with limited space.
-minyears : int, optional
-   The minimum number of years to run before determining that the model is in
-   equilibrium.
-timelimit : float, optional
-   If set, maxyears will be revised each year based on the average minutes
-   per year thus far, to try to avoid going over the time limit, which should
-   be given in minutes.
-crashifbroken : bool, optional
-   True/False. If True, Pythonic error handling is enabled. Default True.
-clean : bool, optional
-   True/False. If True, raw output is deleted once postprocessed. Default True.
-   
-Returns
--------
-bool
-    True if the model reached equilibrium, False if not.
-"""
+                    timelimit=None,crashifbroken=True,clean=True):
+        """ Run the model until energy balance equilibrium is reached at the top and surface.
+            
+        Parameters
+        ----------
+        threshold : float, optional
+            If specified, overrides the threshold set by ``.config()``. The model will run
+            until the energy balance at the top and surface drifts by less than this
+            amount per year over a given baseline.
+        baseline : int, optional
+            The number of years over which to evaluate energy balance drift. Default 50
+        maxyears : int, optional
+            The maximum number of years to run before returning. Default 300. This is
+            useful if you are running on a scratch disk with limited space.
+        minyears : int, optional
+            The minimum number of years to run before determining that the model is in
+            equilibrium.
+        timelimit : float, optional
+            If set, maxyears will be revised each year based on the average minutes
+            per year thus far, to try to avoid going over the time limit, which should
+            be given in minutes.
+        crashifbroken : bool, optional
+            True/False. If True, Pythonic error handling is enabled. Default True.
+        clean : bool, optional
+            True/False. If True, raw output is deleted once postprocessed. Default True.
+
+        Returns
+        -------
+        bool
+            True if the model reached equilibrium, False if not.
+        """
         runlimit = self.currentyear+maxyears
         if threshold:
             self.threshold = threshold
@@ -577,40 +479,40 @@ bool
     
             
     def getbalance(self,key,year=-1):
-"""Return the global annual mean of a given variable for a given year
-    
-Parameters
-----------
-key : str
-    The output variable string to return
-year : int, optional
-    Which year to go to for output
-    
-Returns
--------
-float
-    Global annual mean of requested quantity
-"""
+        """Return the global annual mean of a given variable for a given year
+            
+        Parameters
+        ----------
+        key : str
+            The output variable string to return
+        year : int, optional
+            Which year to go to for output
+            
+        Returns
+        -------
+        float
+            Global annual mean of requested quantity
+        """
         var = self.inspect(key,savg=True,tavg=True,year=year)
         return var
     
     def gethistory(self,key="ts",mean=True,layer=-1):
-"""Return the an array of global annual means of a given variable for each year
-    
-Parameters
-----------
-key : str, optional
-    The output variable string to return
-mean : bool, optional
-    Toggle whether we return the mean or the sum
-year : int, optional
-    Which year to go to for output
-    
-Returns
--------
-numpy.ndarray
-    1-D Array of global annual means
-"""
+        """Return the an array of global annual means of a given variable for each year
+            
+        Parameters
+        ----------
+        key : str, optional
+            The output variable string to return
+        mean : bool, optional
+            Toggle whether we return the mean or the sum
+        year : int, optional
+            Which year to go to for output
+            
+        Returns
+        -------
+        numpy.ndarray
+            1-D Array of global annual means
+        """
         files = sorted(glob.glob("%s/MOST*.nc"%self.workdir))
         dd=np.zeros(len(files))
         for n in range(0,len(files)):
@@ -621,26 +523,26 @@ numpy.ndarray
             if len(variable.shape)>3:
                 variable = variable[:,layer,:,:]
             dd[n] = gcmt.spatialmath(variable,lon=lon,lat=lat,
-                                     mean=mean,radius=self.radius)
+                                    mean=mean,radius=self.radius)
             ncd.close()
         return dd
     
     
     def _isbalanced(self,threshold = 5.0e-4,baseline=50):
-"""Return whether or not the model is in energy balance equilibrium
+        """Return whether or not the model is in energy balance equilibrium
 
-Parameters
-----------
-threshold : float, optional
-    The maximum annual energetic drift allowed on the given baseline in W/m^2
-baseline : int, optional
-    The number of years over which to assess energy balance
-    
-Returns
--------
-bool
-    Whether or not the model is in energy balance equilibrium
-    """
+        Parameters
+        ----------
+        threshold : float, optional
+            The maximum annual energetic drift allowed on the given baseline in W/m^2
+        baseline : int, optional
+            The number of years over which to assess energy balance
+            
+        Returns
+        -------
+        bool
+            Whether or not the model is in energy balance equilibrium
+        """
         nfiles = len((glob.glob("%s/MOST*.nc"%self.workdir)))
         prior=False
         if len(glob.glob(self.workdir+"/toahistory.ps*"))>0:
@@ -685,21 +587,21 @@ bool
                 return False
         
     def _run(self,years=1,postprocess=True,crashifbroken=False,clean=True):
-"""Run the model for a set number of years.
+        """Run the model for a set number of years.
 
-Parameters
-----------
-years : int, optional
-    Number of years to run    
-postprocess : bool, optional
-    True/False. Whether or not NetCDF files should be produced on-the-fly
-crashifbroken : bool, optional
-    True/False. If True, use Pythonic error handling    
-clean : bool, optional
-    True/False. If True, delete raw output files once NetCDF files are made
-    
+        Parameters
+        ----------
+        years : int, optional
+            Number of years to run    
+        postprocess : bool, optional
+            True/False. Whether or not NetCDF files should be produced on-the-fly
+        crashifbroken : bool, optional
+            True/False. If True, use Pythonic error handling    
+        clean : bool, optional
+            True/False. If True, delete raw output files once NetCDF files are made
+            
 
-"""
+        """
         if os.getcwd()!=self.workdir:
             os.chdir(self.workdir)
         os.system("mkdir snapshots")
@@ -767,24 +669,24 @@ clean : bool, optional
             self.currentyear += 1
     
     def postprocess(self,inputfile,namelist,log="postprocess.log",crashifbroken=False):
-"""    Produce NetCDF output from an input file, using a specified postprocessing namelist. 
+        """    Produce NetCDF output from an input file, using a specified postprocessing namelist. 
 
-Parameters
-----------
-inputfile : str
-   The raw output file to be processed
-namelist : str 
-   The burn7 namelist to use
-log : str, optional
-   The log file to which burn7 should output standard output and errors
-crashifbroken : bool, optional 
-   True/False. If True, exoplasim will run .integritycheck() on the file.
+        Parameters
+        ----------
+        inputfile : str
+            The raw output file to be processed
+        namelist : str 
+            The burn7 namelist to use
+        log : str, optional
+            The log file to which burn7 should output standard output and errors
+        crashifbroken : bool, optional 
+            True/False. If True, exoplasim will run .integritycheck() on the file.
 
-Returns
--------
-int
-    1 if successful, 0 if not
-"""
+        Returns
+        -------
+        int
+            1 if successful, 0 if not
+        """
         stat=os.system("./burn7.x -n<%s>%s %s %s.nc"%(namelist,log,inputfile,inputfile))
         if stat==0:
             print("NetCDF output written to %s.nc; log written to %s"%(inputfile,log))
@@ -801,23 +703,23 @@ int
             return 0
         
     def integritycheck(self,ncfile): #MUST pass a NetCDF file that contains surface temperature
-"""    Check an output file to see it contains the expected variables and isn't full of NaNs.
-    
-If the file does not exist, exoplasim will attempt to create it using the postprocessor.
-If the file does not have the expected variables or is full of trash, an exception will
-be raised. If the file is fine, this function returns a 1. If the file did not exist and
-cannot be created, this function will return a 0. 
-    
-Parameters
-----------
-ncfile : str 
-    The output file to check.
-    
-Returns
--------
-int
-    0 or 1 depending on failure or success respectively
-    """
+        """    Check an output file to see it contains the expected variables and isn't full of NaNs.
+            
+        If the file does not exist, exoplasim will attempt to create it using the postprocessor.
+        If the file does not have the expected variables or is full of trash, an exception will
+        be raised. If the file is fine, this function returns a 1. If the file did not exist and
+        cannot be created, this function will return a 0. 
+            
+        Parameters
+        ----------
+        ncfile : str 
+            The output file to check.
+            
+        Returns
+        -------
+        int
+            0 or 1 depending on failure or success respectively
+        """
         if os.getcwd()!=self.workdir:
             os.chdir(self.workdir)
         ioe=1
@@ -836,26 +738,26 @@ int
             return 0
                 
     def finalize(self,outputdir,allyears=False,keeprestarts=False,clean=True):
-"""Move outputs and optionally restarts to a specified output directory. 
-    
-If more than the final year of output is being kept, a folder will be created in the output directory using the model name. Otherwise, finalized files will be renamed using the model name.
+        """Move outputs and optionally restarts to a specified output directory. 
+            
+        If more than the final year of output is being kept, a folder will be created in the output directory using the model name. Otherwise, finalized files will be renamed using the model name.
 
-Parameters
-----------
-outputdir : str
-   Directory in which to put output.
-allyears : bool, optional
-   True/False. If True, output from all years will be kept, in a directory in
-   outputdir named with the model name. Otherwise, the most recent year will be
-   kept in outputdir, using the model name. Default False.
-keeprestarts : bool, optional
-   True/False: If True, restart files will be kept as well as output files.
-   Default False.
-clean : bool, optional
-   True/False. If True, the original working directory will be deleted after files
-   are moved. Default True.
-   
-"""
+        Parameters
+        ----------
+        outputdir : str
+            Directory in which to put output.
+        allyears : bool, optional
+            True/False. If True, output from all years will be kept, in a directory in
+            outputdir named with the model name. Otherwise, the most recent year will be
+            kept in outputdir, using the model name. Default False.
+        keeprestarts : bool, optional
+            True/False: If True, restart files will be kept as well as output files.
+            Default False.
+        clean : bool, optional
+            True/False. If True, the original working directory will be deleted after files
+            are moved. Default True.
+
+        """
         if outputdir[0]!="/":
             outputdir = os.getcwd()+"/"+outputdir
         if not os.path.isdir(outputdir):
@@ -901,22 +803,22 @@ clean : bool, optional
                 
     
     def get(self,year,snapshot=False,highcadence=False):
-"""Return an open NetCDF data object for the given year. Defaults is to return time-averaged output.
+        """Return an open NetCDF data object for the given year. Defaults is to return time-averaged output.
 
-Parameters
-----------
-year : int 
-   Integer year of output to return
-snapshot: bool, optional
-   True/False. If True, return the snapshot version.
-highcadence: bool, optional
-   True/False. If True, return the high-cadence version.
-   
-Returns
--------
-netCDF4.Dataset
-    An open netCDF4 data opject
-"""
+        Parameters
+        ----------
+        year : int 
+            Integer year of output to return
+        snapshot: bool, optional
+            True/False. If True, return the snapshot version.
+        highcadence: bool, optional
+            True/False. If True, return the high-cadence version.
+
+        Returns
+        -------
+        netCDF4.Dataset
+            An open netCDF4 data opject
+        """
         #Note: if the work directory has been cleaned out, only the final year will be returned.
         if snapshot and not highcadence:
             name = "snapshots/MOST_SNAP.%05d.nc"%year
@@ -939,36 +841,36 @@ netCDF4.Dataset
     
     def inspect(self,variable,year=-1,ignoreNaNs=True,snapshot=False,
                 highcadence=False,savg=False,tavg=False,layer=None):
-"""Return a given output variable from a given year, with optional averaging parameters.
+        """Return a given output variable from a given year, with optional averaging parameters.
 
-Parameters
-----------
-variable : str
-   The name of the variable to return.
-year : int, optional
-   Which year of output to return. Year indexing follows Pythonic rules. If the model
-   has been finalized, only the final year of output will be returned.
-ignoreNaNs : bool, optional
-   True/False. If True, use NaN-tolerant numpy functions.
-snapshot : bool, optional
-   True/False. If True, use snapshot output instead of time-averaged.
-highcadence : bool, optional
-   True/False. If True, use high-cadednce output instead of time-averaged.
-savg : bool, optional
-   True/False. If True, compute the spatial average. Default False
-tavg : bool, optional
-   True/False. If True, compute the annual average. Default False
-layer : int, optional
-   If specified and data has 3 spatial dimensions, extract the specified layer. If
-   unspecified and data has 3 spatial dimensions, the vertical dimension will be
-   preserved (even if spatial averages are being computed).
-   
-Returns
--------
-float or numpy.ndarray
-    The requested data, averaged if that was requested.
+        Parameters
+        ----------
+        variable : str
+            The name of the variable to return.
+        year : int, optional
+            Which year of output to return. Year indexing follows Pythonic rules. If the model
+            has been finalized, only the final year of output will be returned.
+        ignoreNaNs : bool, optional
+            True/False. If True, use NaN-tolerant numpy functions.
+        snapshot : bool, optional
+            True/False. If True, use snapshot output instead of time-averaged.
+        highcadence : bool, optional
+            True/False. If True, use high-cadednce output instead of time-averaged.
+        savg : bool, optional
+            True/False. If True, compute the spatial average. Default False
+        tavg : bool, optional
+            True/False. If True, compute the annual average. Default False
+        layer : int, optional
+            If specified and data has 3 spatial dimensions, extract the specified layer. If
+            unspecified and data has 3 spatial dimensions, the vertical dimension will be
+            preserved (even if spatial averages are being computed).
 
-"""
+        Returns
+        -------
+        float or numpy.ndarray
+            The requested data, averaged if that was requested.
+
+        """
         #Note: if the work directory has been cleaned out, only the final year will be returned.
         if snapshot and not highcadence:
             pattern = "snapshots/MOST_SNAP"
@@ -1007,7 +909,7 @@ float or numpy.ndarray
                     output = np.zeros(lev.shape)
                     for l in range(len(lev)):
                         output[l] = gcmt.spatialmath(var,lat=lat,lon=lon,
-                                                     ignoreNaNs=ignoreNaNs,lev=l)
+                                                    ignoreNaNs=ignoreNaNs,lev=l)
                     return output
                 elif len(var.shape)==3: #2D spatial array, plus time
                     return gcmt.spatialmath(var,lat=lat,lon=lon,ignoreNaNs=ignoreNaNs)
@@ -1017,7 +919,7 @@ float or numpy.ndarray
                     output = np.zeros(var.shape[0])
                     for t in range(len(output)):
                         output[t] = gcmt.spatialmath(var,lat=lat,lon=lon,ignoreNaNs=ignoreNaNs,
-                                                     lev=layer,time=t)
+                                                    lev=layer,time=t)
                     return output
                 elif type(layer)==type(None) and len(var.shape)==4:
                     #We're going to get a 1D vertical profile plus time
@@ -1025,14 +927,14 @@ float or numpy.ndarray
                     for t in range(var.shape[0]):
                         for l in range(len(lev)):
                             output[t,l] = gcmt.spatialmath(var,lat=lat,lon=lon,time=t,
-                                                     ignoreNaNs=ignoreNaNs,lev=l)
+                                                    ignoreNaNs=ignoreNaNs,lev=l)
                     return output
                 elif len(var.shape)==3: #2D spatial array, plus time
                     #We're going to get a 1D array
                     output = np.zeros(var.shape[0])
                     for t in range(len(output)):
                         output[t] = gcmt.spatialmath(var,lat=lat,lon=lon,
-                                                     time=t,ignoreNaNs=ignoreNaNs)
+                                                    time=t,ignoreNaNs=ignoreNaNs)
                     return output
                 else:
                     return -1
@@ -1041,406 +943,389 @@ float or numpy.ndarray
                 
     
     def _crash(self):
-"""Crash and burn. But gracefully."""
+        """Crash and burn. But gracefully."""
         os.chdir(self.workdir)
         os.chdir("..")
         os.system("mv %s %s_crashed"%(self.workdir,self.crashdir))
         raise RuntimeError("ExoPlaSim has crashed or begun producing garbage. All working files have been moved to %s_crashed/"%(os.getcwd()+"/"+self.modelname))
         
     def configure(self,noutput=True,flux=1367.0,startemp=None,starspec=None,pH2=None,
-               pHe=None,pN2=None,pO2=None,pCO2=None,pAr=None,pNe=None,
-               pKr=None,pH2O=None,gascon=None,pressure=None,pressurebroaden=True,
-               vtype=0,rotationperiod=24.0,synchronous=False,substellarlon=180.0,
-               year=None,glaciers={"toggle":False,"mindepth":2.0,"initialh":-1.0},
-               restartfile=None,gravity=9.80665,radius=1.0,eccentricity=None,
-               obliquity=None,lonvernaleq=None,fixedorbit=False,orography=None,
-               seaice=True,co2weathering=False,evolveco2=False,physicsfilter=None,
-               filterkappa=8.0,filterpower=8,filterLHN0=15.0,diffusionwaven=None,
-               qdiffusion=None,tdiffusion=None,zdiffusion=None,ddiffusion=None,
-               diffusionpower=None,erosionsupplylimit=None,outgassing=50.0,snowicealbedo=None,
-               twobandalbedo=False,maxsnow=None,soilalbedo=None,oceanalbedo=None,
-               oceanzenith="ECHAM-3",wetsoil=False,soilwatercap=None,aquaplanet=False,
-               desertplanet=False,soilsaturation=None,drycore=False,ozone=True,
-               cpsoil=None,soildepth=1.0,mldepth=50.0,
-               writefrequency=None,modeltop=None,stratosphere=False,
-               tropopause=None,timestep=45.0,runscript=None,columnmode=None,
-               highcadence={"toggle":0,"start":320,"end":576,"interval":4},
-               snapshots=None,resources=[],landmap=None,stormclim=False,nstorms=4,
-               stormcapture={"VITHRESH":0.145,"GPITHRESH":0.37,"VMXTHRESH":33.0,
-                             "LAVTHRESH":1.2e-5,"VRMTHRESH":0.577,"MINSURFTEMP":298.15,
-                             "MAXSURFTEMP":373.15,"WINDTHRESH":33.0,"SWINDTHRESH":20.5,
-                             "SIZETHRESH":30,"ENDTHRESH":16,"MINSTORMLEN":256,
-                             "MAXSTORMLEN":1024,"NKTRIGGER":0,"toggle":0},
-               topomap=None,threshold=5.0e-4,otherargs={}):
-"""Configure the model's namelists and boundary conditions.
-
-The defaults here are appropriate for an Earth model.
-
-Parameters
-----------
-
-Model Operation
-~~~~~~~~~~~~~~~
-noutput : bool, optional 
-   True/False. Whether or not model output should be written.
-   restartfile: Path to a restart file to use for initial conditions. Can be None.
-writefrequency : int, optional 
-   How many times per day ExoPlaSim should write output. Ignored by
-   default--default is to write time-averaged output once every 5 days.
-timestep : float, optional 
-   Model timestep. Defaults to 45 minutes.
-runscript : function , optional
-   A Python function that accepts a Model object as its first argument. This
-   is the routine that will be run when you issue the Model.run() command.
-   Any keyword arguments passed to run() will be forwarded to the specified
-   function. If not set, the default internal routine will be used.
-snapshots : int, optional 
-   How many timesteps should elapse between snapshot outputs. If not set,
-   no snapshots will be written.
-highcadence : dict, optional 
-   A dictionary containing the following arguments:
-    ``toggle``:    1/0. Whether or not high-cadence output should be written (1=yes).
-    ``start``:     Timestep at which high-cadence output should begin.
-    ``end``:       Timestep at which high-cadence output should end.
-    ``interval``:  How many timesteps should elapse between high-cadence outputs.
-threshold : float, optional 
-   Energy balance threshold model should run to, if using runtobalance().
-   Default is <0.05 W/m^2/yr average drift in TOA and surface energy balance
-   over 45-year timescales.
-resources : list, optional 
-   A list of paths to any additional files that should be available in the
-   run directory.
-otherargs : dict, optional 
-   Any namelist parameters not included by default in the configuration options.
-   These should be passed as a dictionary, with "PARAMETER@namelist" as the
-   form of the dictionary key, and the parameter value passed as a string.
-   e.g. ``otherargs={"N_RUN_MONTHS@plasim_namelist":'4',"NGUI@plasim_namelist:'1'}``
-      
-Model Dynamics
-~~~~~~~~~~~~~~
-columnmode : {None,"-","clear","static","static|clear","clear|static"}, optional 
-   The inclusion of 'static' will disable horizontal advection, forcing ExoPlaSim
-   into a column-only mode of operation. The inclusion of 'clear' will disable
-   the radiative effects of clouds.
-drycore : bool, optional 
-   True/False. If True, evaporation is turned off, and a dry atmosphere will
-   be used.
-physicsfilter : str, optional
-   If not an empty string, specifies the physics filter(s) to be used. Filters
-   can be used during the transform from gridpoint to spectral (``"gp"``), and/or
-   during the transform from spectral to gridpoint (``"sp"``). Filter types are
-   "none", "cesaro", "exp", or "lh" (see the Notes for more details).
-   Combinations of filter types and times should be combined with a ``|``,
-   e.g. ``physicsfilter="gp|exp|sp"`` or ``physicsfilter="gp|cesaro"``.
-filterkappa : float, optional 
-   A constant to be used with the exponential filter. Default is 8.0.
-filterpower : int, optional 
-   A constant integer to be used with the exponential filter. Default is 8.
-filterLHN0 : float, optional 
-   The constant used in the denominator of the Lander-Hoskins Filter. Default
-   is 15; typically chosen so f(N)=0.1.
-diffusionwaven : int, optional 
-   The critical wavenumber beyond which hyperdiffusion is applied. Default
-   is 15 for T21.
-qdiffusion : float, optional 
-   Timescale for humidity hyperdiffusion in days. Default for T21 is 0.1.
-tdiffusion : float, optional
-   Timescale for temperature hyperdiffusion in days. Default for T21 is 5.6.
-zdiffusion : float, optional
-   Timescale for vorticity hyperdiffusion in days. Default for T21 is 1.1.
-ddiffusion : float, optional
-   Timescale for divergence hyperdiffusion in days.. Default for T21 is 0.2.
-diffusionpower : int, optional
-   integer exponent used in hyperdiffusion. Default is 2 for T21.
+            pHe=None,pN2=None,pO2=None,pCO2=None,pAr=None,pNe=None,
+            pKr=None,pH2O=None,gascon=None,pressure=None,pressurebroaden=True,
+            vtype=0,rotationperiod=24.0,synchronous=False,substellarlon=180.0,
+            year=None,glaciers={"toggle":False,"mindepth":2.0,"initialh":-1.0},
+            restartfile=None,gravity=9.80665,radius=1.0,eccentricity=None,
+            obliquity=None,lonvernaleq=None,fixedorbit=False,orography=None,
+            seaice=True,co2weathering=False,evolveco2=False,physicsfilter=None,
+            filterkappa=8.0,filterpower=8,filterLHN0=15.0,diffusionwaven=None,
+            qdiffusion=None,tdiffusion=None,zdiffusion=None,ddiffusion=None,
+            diffusionpower=None,erosionsupplylimit=None,outgassing=50.0,snowicealbedo=None,
+            twobandalbedo=False,maxsnow=None,soilalbedo=None,oceanalbedo=None,
+            oceanzenith="ECHAM-3",wetsoil=False,soilwatercap=None,aquaplanet=False,
+            desertplanet=False,soilsaturation=None,drycore=False,ozone=True,
+            cpsoil=None,soildepth=1.0,mldepth=50.0,
+            writefrequency=None,modeltop=None,stratosphere=False,
+            tropopause=None,timestep=45.0,runscript=None,columnmode=None,
+            highcadence={"toggle":0,"start":320,"end":576,"interval":4},
+            snapshots=None,resources=[],landmap=None,stormclim=False,nstorms=4,
+            stormcapture={"VITHRESH":0.145,"GPITHRESH":0.37,"VMXTHRESH":33.0,
+                            "LAVTHRESH":1.2e-5,"VRMTHRESH":0.577,"MINSURFTEMP":298.15,
+                            "MAXSURFTEMP":373.15,"WINDTHRESH":33.0,"SWINDTHRESH":20.5,
+                            "SIZETHRESH":30,"ENDTHRESH":16,"MINSTORMLEN":256,
+                            "MAXSTORMLEN":1024,"NKTRIGGER":0,"toggle":0},
+            topomap=None,threshold=5.0e-4,otherargs={}):
+        """Configure the model's namelists and boundary conditions.
         
-Radiation
-~~~~~~~~~
-flux : float, optional
-   Incident stellar flux in W/m^2. Default 1367 for Earth.
-startemp : float, optional
-   Effective blackbody temperature for the star. Not used if not set.
-starspec : str, optional
-   Spectral file for the stellar spectrum. Should have two columns and 965 rows,
-   with wavelength in the first column and radiance or intensity in the second.
-   A similarly-named file with the "_hr.dat" suffix must also exist and have 
-   2048 wavelengths.
-twobandalbedo : bool, optional
-   True/False. If True, separate albedos will be calculated for each of the
-   two shortwave bands. If False (default), a single broadband albedo will be
-   computed and used for both.
-synchronous : bool, optional
-   True/False. If True, the Sun is fixed to one longitude in the sky.
-substellarlon : float, optional
-   The longitude of the substellar point, if synchronous==True. Default 180°
-pressurebroaden : bool, optional 
-   True/False. If False, pressure-broadening of absorbers no longer depends
-   on surface pressure. Default is True
-ozone : bool, optional
-   True/False. Whether or not forcing from stratospheric ozone should be included.
-snowicealbedo : float, optional
-   A uniform albedo to use for all snow and ice.
-soilalbedo : float, optional
-   A uniform albedo to use for all land.
-wetsoil : bool, optional
-   True/False. If True, land albedo depends on soil moisture (wet=darker).
-oceanalbedo : float, optional
-   A uniform albedo to use for the ocean.
-oceanzenith : {"ECHAM-3","ECHAM-6","Lambertian}, optional
-   The zenith-angle dependence to use for blue-light reflectance from the ocean.
-   Can be ``'Lambertian'``/``'uniform'``, ``'ECHAM-3'``/``'plasim'``/``'default'``, or ``'ECHAM-6'``.
-   The default is ``'ECHAM-3'`` (synonymous with ``'plasim'`` and ``'default'``), which is
-   the dependence used in the ECHAM-3 model.
-                     
-Orbital Parameters
-~~~~~~~~~~~~~~~~~~
-year : float, optional
-  Number of 24-hour days in a sidereal year. Not necessary if eccentricity and 
-  obliquity are zero. Defaults if not set to ~365.25 days
-rotationperiod : float, optional
-  Planetary rotation period, in days. Default is 1.0.
-eccentricity : float, optional
-  Orbital eccentricity. If not set, defaults to Earth's (0.016715)
-obliquity : float, optional
-  Axial tilt, in degrees. If not set, defaults to Earth's obliquity (23.441°).
-lonvernaleq : float, optional
-  Longitude of periapse, measured from vernal equinox, in degrees. If 
-  not set, defaults to Earth's (102.7°).
-fixedorbit : bool, optional
-  True/False. If True, orbital parameters do not vary over time. If False,
-  variations such as Milankovich cycles will be computed by PlaSim.
-        
-Planet Parameters
-~~~~~~~~~~~~~~~~~
-gravity : float, optional 
-  Surface gravity, in m/s^2. Defaults to 9.80665 m/s^2.
-radius : float, optional 
-  Planet radius in Earth radii. Default is 1.0.
-orography : float, optional 
-  If set, a scaling factor for topographic relief. If ``orography=0.0``, topography
-  will be zeroed-out.
-aquaplanet : bool, optional 
-  True/False. If True, the surface will be entirely ocean-covered.
-desertplanet : bool, optional 
-  True/False. If True, the surface will be entirely land-covered.
-seaice : bool, optional 
-  True/False. If False, disables radiative effects of sea ice (although sea ice 
-  itself is still computed).
-landmap : str, optional 
-  Path to a ``.sra`` file containing a land mask for the chosen resolution.
-topomap : str, optional 
-  Path to a ``.sra`` file containing geopotential height map. Must include landmap.
-        
-Atmosphere
-~~~~~~~~~~
-gascon : float, optional
-   Effective gas constant. Defaults to 287.0 (Earth), or the gas constant
-   corresponding to the composition specified by partial pressures.
-vtype : {0,1,2,3,4,5}, optional
-   Type of vertical discretization. Can be:
-   0   Pseudolinear scaling with pressure that maintains resolution near the ground.
-   1   Linear scaling with pressure.
-   2   Logarithmic scaling with pressure (resolves high altitudes)
-   3   Pseudologarithmic scaling with pressure that preserves resolution near the ground.
-   4   Pseudolinear scaling with pressure, pinned to a specified top pressure.
-   5   If >10 layers, bottom 10 as if ``vtype=4``, and upper layers as if ``vtype=2``.
-modeltop : float, optional
-   Pressure of the top layer
-tropopause : float, optional
-   If stratosphere is being included, pressure of the 10th layer (where scheme
-   switches from linear to logarithmic).
-stratosphere : bool, optional
-   True/False. If True, vtype=5 is used, and model is discretized to include
-   a stratosphere.
-pressure: float, optional
-      Surface pressure in bars, if not specified through partial pressures.
-        
-Gas Partial Pressures
-^^^^^^^^^^^^^^^^^^^^^
-Partial pressures of individual gases can be specified. If pressure and gascon
-are not explicitly set, these will determine surface pressure, mean molecular
-weight, and effective gas constant. Note however that Rayleigh scattering assumes
-an Earth-like composition, and the only absorbers explicitly included in the 
-radiation scheme are CO2 and H2O.
+        The defaults here are appropriate for an Earth model.
+                
+    **Model Operation**
     
-pH2 : float, optional   
-    H2 partial pressure in bars.
-pHe : float, optional   
-    He partial pressure in bars.
-pN2 : float, optional  
-    N2 partial pressure in bars.
-pO2 : float, optional  
-    O2 partial pressure in bars.
-pH2 : float, optional  
-    H2 partial pressure in bars.
-pAr : float, optional  
-    Ar partial pressure in bars.
-pNe : float, optional  
-    Ne partial pressure in bars.
-pKr : float, optional  
-    Kr partial pressure in bars.
-pCO2 : float, optional  
-    CO2 partial pressure in bars. This gets translated into a ppmv concentration, so if you want to specify/vary CO2 but don't need the other gases, specifying pCO2, pressure, and gascon will do the trick. In most use cases, however, just specifying pN2 and pCO2 will give good enough behavior.
-pH2O : float, optional  
-    H2O partial pressure in bars. This is only useful in setting the gas constant and surface pressure; it will have no effect on actual moist processes.
+            noutput : bool, optional 
+               True/False. Whether or not model output should be written.
+               restartfile: Path to a restart file to use for initial conditions. Can be None.
+            writefrequency : int, optional 
+               How many times per day ExoPlaSim should write output. Ignored by
+               default--default is to write time-averaged output once every 5 days.
+            timestep : float, optional 
+               Model timestep. Defaults to 45 minutes.
+            runscript : function , optional
+               A Python function that accepts a Model object as its first argument. This
+               is the routine that will be run when you issue the Model.run() command.
+               Any keyword arguments passed to run() will be forwarded to the specified
+               function. If not set, the default internal routine will be used.
+            snapshots : int, optional 
+               How many timesteps should elapse between snapshot outputs. If not set,
+               no snapshots will be written.
+            highcadence : dict, optional 
+               A dictionary containing the following arguments:
+               
+                ``'toggle'`` : {0,1}
+                    Whether or not high-cadence output should be written (1=yes).
+                ``'start'`` : int
+                    Timestep at which high-cadence output should begin.
+                ``'end'`` : int
+                    Timestep at which high-cadence output should end.
+                ``'interval'`` : int
+                    How many timesteps should elapse between high-cadence outputs.
+            threshold : float, optional 
+               Energy balance threshold model should run to, if using runtobalance().
+               Default is <0.05 W/m^2/yr average drift in TOA and surface energy balance
+               over 45-year timescales.
+            resources : list, optional 
+               A list of paths to any additional files that should be available in the
+               run directory.
+            otherargs : dict, optional 
+               Any namelist parameters not included by default in the configuration options.
+               These should be passed as a dictionary, with "PARAMETER@namelist" as the
+               form of the dictionary key, and the parameter value passed as a string.
+               e.g. ``otherargs={"N_RUN_MONTHS@plasim_namelist":'4',"NGUI@plasim_namelist:'1'}``
+              
+    **Model Dynamics**
+    
+            columnmode : {None,"-","clear","static","static|clear","clear|static"}, optional 
+               The inclusion of 'static' will disable horizontal advection, forcing ExoPlaSim
+               into a column-only mode of operation. The inclusion of 'clear' will disable
+               the radiative effects of clouds.
+            drycore : bool, optional 
+               True/False. If True, evaporation is turned off, and a dry atmosphere will
+               be used.
+            physicsfilter : str, optional
+               If not an empty string, specifies the physics filter(s) to be used. Filters
+               can be used during the transform from gridpoint to spectral (``"gp"``), and/or
+               during the transform from spectral to gridpoint (``"sp"``). Filter types are
+               "none", "cesaro", "exp", or "lh" (see the Notes for more details).
+               Combinations of filter types and times should be combined with a ``|``,
+               e.g. ``physicsfilter="gp|exp|sp"`` or ``physicsfilter="gp|cesaro"``.
+            filterkappa : float, optional 
+               A constant to be used with the exponential filter. Default is 8.0.
+            filterpower : int, optional 
+               A constant integer to be used with the exponential filter. Default is 8.
+            filterLHN0 : float, optional 
+               The constant used in the denominator of the Lander-Hoskins Filter. Default
+               is 15; typically chosen so f(N)=0.1.
+            diffusionwaven : int, optional 
+               The critical wavenumber beyond which hyperdiffusion is applied. Default
+               is 15 for T21.
+            qdiffusion : float, optional 
+               Timescale for humidity hyperdiffusion in days. Default for T21 is 0.1.
+            tdiffusion : float, optional
+               Timescale for temperature hyperdiffusion in days. Default for T21 is 5.6.
+            zdiffusion : float, optional
+               Timescale for vorticity hyperdiffusion in days. Default for T21 is 1.1.
+            ddiffusion : float, optional
+               Timescale for divergence hyperdiffusion in days.. Default for T21 is 0.2.
+            diffusionpower : int, optional
+               integer exponent used in hyperdiffusion. Default is 2 for T21.
+                
+    **Radiation**
+    
+            flux : float, optional
+               Incident stellar flux in W/m^2. Default 1367 for Earth.
+            startemp : float, optional
+               Effective blackbody temperature for the star. Not used if not set.
+            starspec : str, optional
+               Spectral file for the stellar spectrum. Should have two columns and 965 rows,
+               with wavelength in the first column and radiance or intensity in the second.
+               A similarly-named file with the "_hr.dat" suffix must also exist and have 
+               2048 wavelengths.
+            twobandalbedo : bool, optional
+               True/False. If True, separate albedos will be calculated for each of the
+               two shortwave bands. If False (default), a single broadband albedo will be
+               computed and used for both.
+            synchronous : bool, optional
+               True/False. If True, the Sun is fixed to one longitude in the sky.
+            substellarlon : float, optional
+               The longitude of the substellar point, if synchronous==True. Default 180°
+            pressurebroaden : bool, optional 
+               True/False. If False, pressure-broadening of absorbers no longer depends
+               on surface pressure. Default is True
+            ozone : bool, optional
+               True/False. Whether or not forcing from stratospheric ozone should be included.
+            snowicealbedo : float, optional
+               A uniform albedo to use for all snow and ice.
+            soilalbedo : float, optional
+               A uniform albedo to use for all land.
+            wetsoil : bool, optional
+               True/False. If True, land albedo depends on soil moisture (wet=darker).
+            oceanalbedo : float, optional
+               A uniform albedo to use for the ocean.
+            oceanzenith : {"ECHAM-3","ECHAM-6","Lambertian}, optional
+               The zenith-angle dependence to use for blue-light reflectance from the ocean.
+               Can be ``'Lambertian'``/``'uniform'``, ``'ECHAM-3'``/``'plasim'``/``'default'``, or ``'ECHAM-6'``.
+               The default is ``'ECHAM-3'`` (synonymous with ``'plasim'`` and ``'default'``), which is
+               the dependence used in the ECHAM-3 model.
+                                 
+    **Orbital Parameters**
+    
+            year : float, optional
+              Number of 24-hour days in a sidereal year. Not necessary if eccentricity and 
+              obliquity are zero. Defaults if not set to ~365.25 days
+            rotationperiod : float, optional
+              Planetary rotation period, in days. Default is 1.0.
+            eccentricity : float, optional
+              Orbital eccentricity. If not set, defaults to Earth's (0.016715)
+            obliquity : float, optional
+              Axial tilt, in degrees. If not set, defaults to Earth's obliquity (23.441°).
+            lonvernaleq : float, optional
+              Longitude of periapse, measured from vernal equinox, in degrees. If 
+              not set, defaults to Earth's (102.7°).
+            fixedorbit : bool, optional
+              True/False. If True, orbital parameters do not vary over time. If False,
+              variations such as Milankovich cycles will be computed by PlaSim.
+                
+    **Planet Parameters**
+    
+            gravity : float, optional 
+              Surface gravity, in m/s^2. Defaults to 9.80665 m/s^2.
+            radius : float, optional 
+              Planet radius in Earth radii. Default is 1.0.
+            orography : float, optional 
+              If set, a scaling factor for topographic relief. If ``orography=0.0``, topography
+              will be zeroed-out.
+            aquaplanet : bool, optional 
+              True/False. If True, the surface will be entirely ocean-covered.
+            desertplanet : bool, optional 
+              True/False. If True, the surface will be entirely land-covered.
+            seaice : bool, optional 
+              True/False. If False, disables radiative effects of sea ice (although sea ice 
+              itself is still computed).
+            landmap : str, optional 
+              Path to a ``.sra`` file containing a land mask for the chosen resolution.
+            topomap : str, optional 
+              Path to a ``.sra`` file containing geopotential height map. Must include landmap.
+                
+    **Atmosphere**
+    
+            gascon : float, optional
+               Effective gas constant. Defaults to 287.0 (Earth), or the gas constant
+               corresponding to the composition specified by partial pressures.
+            vtype : {0,1,2,3,4,5}, optional
+               Type of vertical discretization. Can be:
+               0   Pseudolinear scaling with pressure that maintains resolution near the ground.
+               1   Linear scaling with pressure.
+               2   Logarithmic scaling with pressure (resolves high altitudes)
+               3   Pseudologarithmic scaling with pressure that preserves resolution near the ground.
+               4   Pseudolinear scaling with pressure, pinned to a specified top pressure.
+               5   If >10 layers, bottom 10 as if ``vtype=4``, and upper layers as if ``vtype=2``.
+            modeltop : float, optional
+               Pressure of the top layer
+            tropopause : float, optional
+               If stratosphere is being included, pressure of the 10th layer (where scheme
+               switches from linear to logarithmic).
+            stratosphere : bool, optional
+               True/False. If True, vtype=5 is used, and model is discretized to include
+               a stratosphere.
+            pressure: float, optional
+                  Surface pressure in bars, if not specified through partial pressures.
+                
+    **Gas Partial Pressures**
         
-Surface Parameters
-~~~~~~~~~~~~~~~~~~
-mldepth : float, optional
-   Depth of the mixed-layer ocean. Default is 50 meters.
-
-soildepth : float, optional
-   Scaling factor for the depth of soil layers (default total of 12.4 meters)
-
-cpsoil : float, optional
-   Heat capacity of the soil, in J/m^3/K. Default is 2.4*10^6.
-
-soilwatercap : float, optional
-   Water capacity of the soil, in meters. Defaults to 0.5 meters
-
-soilsaturation : float, optional
-   Initial fractional saturation of the soil. Default is 0.0 (dry).
-
-maxsnow : float, optional
-   Maximum snow depth (Default is 5 meters; set to -1 to have no limit).
+    Partial pressures of individual gases can be specified. If pressure and gascon are not explicitly set, these will determine surface pressure, mean molecular weight, and effective gas constant. Note however that Rayleigh scattering assumes an Earth-like composition, and the only absorbers explicitly included in the radiation scheme are CO2 and H2O.
+            
+            pH2 : float, optional   
+                H2 partial pressure in bars.
+            pHe : float, optional   
+                He partial pressure in bars.
+            pN2 : float, optional  
+                N2 partial pressure in bars.
+            pO2 : float, optional  
+                O2 partial pressure in bars.
+            pH2 : float, optional  
+                H2 partial pressure in bars.
+            pAr : float, optional  
+                Ar partial pressure in bars.
+            pNe : float, optional  
+                Ne partial pressure in bars.
+            pKr : float, optional  
+                Kr partial pressure in bars.
+            pCO2 : float, optional  
+                CO2 partial pressure in bars. This gets translated into a ppmv concentration, so if you want to specify/vary CO2 but don't need the other gases, specifying pCO2, pressure, and gascon will do the trick. In most use cases, however, just specifying pN2 and pCO2 will give good enough behavior.
+            pH2O : float, optional  
+                H2O partial pressure in bars. This is only useful in setting the gas constant and surface pressure; it will have no effect on actual moist processes.
+                    
+    **Surface Parameters**
+    
+        mldepth : float, optional
+           Depth of the mixed-layer ocean. Default is 50 meters.
+        soildepth : float, optional
+           Scaling factor for the depth of soil layers (default total of 12.4 meters)
+        cpsoil : float, optional
+           Heat capacity of the soil, in J/m^3/K. Default is 2.4*10^6.
+        soilwatercap : float, optional
+           Water capacity of the soil, in meters. Defaults to 0.5 meters
+        soilsaturation : float, optional
+           Initial fractional saturation of the soil. Default is 0.0 (dry).
+        maxsnow : float, optional
+           Maximum snow depth (Default is 5 meters; set to -1 to have no limit).
+                
+    **Additional Physics**
         
-Additional Physics
-~~~~~~~~~~~~~~~~~~
-
-Carbon-Silicate Weathering
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-co2weathering : bool, optional
-   True/False. Toggles whether or not carbon-silicate weathering should be
-   computed. Default is False.   
-evolveco2 : bool, optional
-   True/False. If co2weathering==True, toggles whether or not the CO2 partial
-   pressure should be updated every year. Usually the change in pCO2 will be 
-   extremely small, so this is not necessary, and weathering experiments try
-   to estimate the average weathering rate for a given climate in order to 
-   interpolate timescales between climates, rather than modelling changes in CO2
-   over time directly.
-outgassing : float, optional 
-   The assumed CO2 outgassing rate in units of Earth outgassing. Default is 1.0.
-erosionsupplylimit : float, optional
-   If set, the maximum CO2 weathering rate per year permitted by
-   erosion, in ubars/year. This is not simply a hard cutoff, but follows
-   Foley 2015 so high weathering below the cutoff is also reduced.
-
-See [1] for details on the implementation of supply-limited weathering.
-
-Glaciology
-^^^^^^^^^^
-glaciers : dict, optional 
-   A dictionary containing the following arguments:
-   toggle : bool
-        True/False. Whether or not glaciers should be allowed to grow or shrink in thickness, or be formed from persistent snow on land.
-   mindepth : float 
-        The minimum snow depth in meters of liquid water equivalent that must persist year-round before the grid cell is considered glaciated. Default is 2 meters.
-   initialh : float 
-        If >=0, covers the land surface with ice sheets of a height given in meterss. If -1, no initial ice sheets are assumed.
-
-Storm Climatology
-^^^^^^^^^^^^^^^^^
-stormclim : bool, optional 
-   True/False. Toggles whether or not storm climatology (convective available
-   potential energy, maximum potential intensity, ventilation index, etc)
-   should be computed. If True, output fields related to storm climatology 
-   will be added to standard output files. Enabling this mode currently roughly
-   doubles the computational cost of the model. This may improve in future 
-   updates. Refer to Paradise, et al 2021 for implementation description. 
-   
-stormcapture : dict, optional
-   A dictionary containing arguments controlling when high-cadence output
-   is triggered by storm activity. This dictionary must contain 'toggle', which
-   can be either 1 or 0 (yes or no). It may also contain any namelist
-   parameters accepted by hurricanemod.f90, including the following:
-   
-   toggle : {0,1}
-        Whether (1) or not (0) to write high-cadence output when storms occur
-   NKTRIGGER : {0,1}, optional 
-        (0/1=no/yes). Whether or not to use the Komacek, et al 2020 conditions for hurricane cyclogenesis as the output trigger. Default is no.
-   VITHRESH : float, optional
-        (nktrigger) Ventilation index threshold for nktrigger output. Default 0.145
-   VMXTHRESH : float, optional 
-        (nktrigger) Max potential intensity threshold for nktrigger output.Default 33 m/s
-   LAVTHRESH : float, optional 
-        (nktrigger) Lower-atmosphere vorticity threshold for nktrigger output. Default 1.2*10^-5 s^-1
-   VRMTHRESH : float, optional 
-        (unused) Ventilation-reduced maximum intensity threshold. Default 0.577
-   GPITHRESH : float, optional  
-        (default) Genesis Potential Index threshold. Default 0.37.
-   MINSURFTEMP : float, optional  
-        (default) Min. surface temperature for storm activity. Default 25C
-   MAXSURFTEMP : float, optional  
-        (default) Max. surface temperature for storm activity. Default 100C
-   WINDTHRESH : float, optional   
-        (default) Lower-atmosphere maximum wind threshold for storm activity.  Default 33 m/s
-   SWINDTHRESH : float, optional  
-        (default) Minimum surface windspeed for storm activity. Default 20.5 m/s
-   SIZETHRESH : float, optional  
-        (default) Minimum number of cells that must trigger to start outputDefault 30
-   ENDTHRESH : float, optional  
-        (default) Minimum number of cells at which point storm output ends.Default 16
-   MINSTORMLEN : float, optional  
-        (default) Minimum number of timesteps to write output. Default 256
-   MAXSTORMLEN : float, optional  
-        (default) Maximum number of timesteps to write output. Default 1024
-
-Note that actual number of writes will be stormlen/interval, as set in
-highcadence. This interval defaults to 4, so 64 writes minimum, 256 max.
-For more details on the storm climatology factors considered here, see [5].
-
+        Carbon-Silicate Weathering
+           co2weathering : bool, optional
+              True/False. Toggles whether or not carbon-silicate weathering should be
+              computed. Default is False.   
+           evolveco2 : bool, optional
+              True/False. If co2weathering==True, toggles whether or not the CO2 partial
+              pressure should be updated every year. Usually the change in pCO2 will be 
+              extremely small, so this is not necessary, and weathering experiments try
+              to estimate the average weathering rate for a given climate in order to 
+              interpolate timescales between climates, rather than modelling changes in CO2
+              over time directly.
+           outgassing : float, optional 
+              The assumed CO2 outgassing rate in units of Earth outgassing. Default is 1.0.
+           erosionsupplylimit : float, optional
+              If set, the maximum CO2 weathering rate per year permitted by
+              erosion, in ubars/year. This is not simply a hard cutoff, but follows
+              Foley 2015 so high weathering below the cutoff is also reduced.
+        
+    See [1]_ for details on the implementation of supply-limited weathering.
+        
+        Glaciology
+           glaciers : dict, optional 
+              A dictionary containing the following arguments:
+              toggle : bool
+                   True/False. Whether or not glaciers should be allowed to grow or shrink in thickness, or be formed from persistent snow on land.
+              mindepth : float 
+                   The minimum snow depth in meters of liquid water equivalent that must persist year-round before the grid cell is considered glaciated. Default is 2 meters.
+              initialh : float 
+                   If >=0, covers the land surface with ice sheets of a height given in meterss. If -1, no initial ice sheets are assumed.
+           
+        Storm Climatology
+           stormclim : bool, optional 
+              True/False. Toggles whether or not storm climatology (convective available
+              potential energy, maximum potential intensity, ventilation index, etc)
+              should be computed. If True, output fields related to storm climatology 
+              will be added to standard output files. Enabling this mode currently roughly
+              doubles the computational cost of the model. This may improve in future 
+              updates. Refer to Paradise, et al 2021 for implementation description. 
+              
+           stormcapture : dict, optional
+              A dictionary containing arguments controlling when high-cadence output
+              is triggered by storm activity. This dictionary must contain 'toggle', which
+              can be either 1 or 0 (yes or no). It may also contain any namelist
+              parameters accepted by hurricanemod.f90, including the following:
+              
+              toggle : {0,1}
+                   Whether (1) or not (0) to write high-cadence output when storms occur
+              NKTRIGGER : {0,1}, optional 
+                   (0/1=no/yes). Whether or not to use the Komacek, et al 2020 conditions for hurricane cyclogenesis as the output trigger. Default is no.
+              VITHRESH : float, optional
+                   (nktrigger) Ventilation index threshold for nktrigger output. Default 0.145
+              VMXTHRESH : float, optional 
+                   (nktrigger) Max potential intensity threshold for nktrigger output.Default 33 m/s
+              LAVTHRESH : float, optional 
+                   (nktrigger) Lower-atmosphere vorticity threshold for nktrigger output. Default 1.2*10^-5 s^-1
+              VRMTHRESH : float, optional 
+                   (unused) Ventilation-reduced maximum intensity threshold. Default 0.577
+              GPITHRESH : float, optional  
+                   (default) Genesis Potential Index threshold. Default 0.37.
+              MINSURFTEMP : float, optional  
+                   (default) Min. surface temperature for storm activity. Default 25C
+              MAXSURFTEMP : float, optional  
+                   (default) Max. surface temperature for storm activity. Default 100C
+              WINDTHRESH : float, optional   
+                   (default) Lower-atmosphere maximum wind threshold for storm activity.  Default 33 m/s
+              SWINDTHRESH : float, optional  
+                   (default) Minimum surface windspeed for storm activity. Default 20.5 m/s
+              SIZETHRESH : float, optional  
+                   (default) Minimum number of cells that must trigger to start outputDefault 30
+              ENDTHRESH : float, optional  
+                   (default) Minimum number of cells at which point storm output ends.Default 16
+              MINSTORMLEN : float, optional  
+                   (default) Minimum number of timesteps to write output. Default 256
+              MAXSTORMLEN : float, optional  
+                   (default) Maximum number of timesteps to write output. Default 1024
+           
+    Note that actual number of writes will be stormlen/interval, as set in highcadence. This interval defaults to 4, so 64 writes minimum, 256 max. For more details on the storm climatology factors considered here, see [5]_.
+        
 Notes
 -----
-
-Physics Filters
-~~~~~~~~~~~~~~~
-
-In some cases, it may be necessary to include physics filters. This typically becomes 
-necessary when sharp features are projected on the model's smallest spectral modes, causing
-Gibbs "ripples". Earth-like models typically do not require filtering, but tidally-locked
-models do. Filtering may be beneficial for Earth-like models at very high resolutions as well,
-or if there is sharp topography. 
-
-Three filter functional forms are included in ExoPlaSim: Cesaro, exponential, and Lander-Hoskins. Their functional forms are given below, where `n` is the wavenumber, and `N` is the
-truncation wavenumber (e.g. 21 for T21):
-
-Cesaro: :math:`f(n)=1-\frac{n}{N+1}` [2]_
-
-Exponential: :math:`f(n)=\exp\left[-\kappa\left(\frac{n}{N}\right)^\gamma\right]` [3]_
-
-Lander-Hoskins: :math:`f(n)=\exp\left[-\left(\frac{n(n+1)}{n_0(n_0+1}\right)^2\right]` [3,4]_
-
-:math:`\kappa` is exposed to the user through `filterkappa`, 
-:math:`gamma` is exposed through `filterpower`, and :math:`n_0` is
-exposed through `filterLHN0`.
-
-Physics filters can be applied at two different points; either at the transform from gridpoint
-to spectral, or the reverse. We find that in most cases, the ideal usage is to use both. 
-Generally, a filter at the gridpoint->spectral transform is good for dealing with oscillations
-caused by sharp jumps and small features in the gridpoint tendencies. Conversely, a filter
-at the spectral->gridpoint transform is good for dealing with oscillations that come from
-small-scale features in the spectral fields causing small-scale features to appear in the
-gridpoint tendencies.[3]_ Since we deal with climate systems where everything is coupled, 
-any oscillations not removed by one filter will be amplified through physical feedbacks if not 
-suppressed by the other filter.
-
+        In some cases, it may be necessary to include physics filters. This typically becomes 
+        necessary when sharp features are projected on the model's smallest spectral modes, causing
+        Gibbs "ripples". Earth-like models typically do not require filtering, but tidally-locked
+        models do. Filtering may be beneficial for Earth-like models at very high resolutions as well,
+        or if there is sharp topography. 
+        
+        Three filter functional forms are included in ExoPlaSim: Cesaro, exponential, and Lander-Hoskins. Their functional forms are given below, where `n` is the wavenumber, and `N` is the
+        truncation wavenumber (e.g. 21 for T21):
+        
+        Cesaro: :math:`f(n)=1-\\frac{n}{N+1}` [2]_
+        
+        Exponential: :math:`f(n)=\exp\left[-\kappa\left(\\frac{n}{N}\\right)^\gamma\\right]` [3]_
+        
+        Lander-Hoskins: :math:`f(n)=\exp\left[-\left(\\frac{n(n+1)}{n_0(n_0+1}\\right)^2\\right]` [3]_ [4]_
+        
+        :math:`\kappa` is exposed to the user through ``filterkappa``, 
+        :math:`\gamma` is exposed through ``filterpower``, and :math:`n_0` is
+        exposed through ``filterLHN0``.
+        
+        Physics filters can be applied at two different points; either at the transform from gridpoint
+        to spectral, or the reverse. We find that in most cases, the ideal usage is to use both. 
+        Generally, a filter at the gridpoint->spectral transform is good for dealing with oscillations
+        caused by sharp jumps and small features in the gridpoint tendencies. Conversely, a filter
+        at the spectral->gridpoint transform is good for dealing with oscillations that come from
+        small-scale features in the spectral fields causing small-scale features to appear in the
+        gridpoint tendencies [3]_. Since we deal with climate systems where everything is coupled, 
+        any oscillations not removed by one filter will be amplified through physical feedbacks if not 
+        suppressed by the other filter.
+        
 See Also
 --------
-modify : Change model configuration after it has been initialized
-
+    modify : Change model configuration after it has been initialized
+        
 References
 ----------
-.. [1] Foley, B. J. (2015). The Role of Plate Tectonic-Climate Coupling and Exposed Land Area in the Development of Habitable Climates on Rocky Planets. The Astrophysical Journal, 812(1), 36. https://doi.org/10.1088/0004-637X/812/1/36
-
-.. [2] Navarra, A., Stern, W. F., & Miyakoda, K. (1994). Reduction of the Gibbs Oscillation in Spectral Model Simulations. Journal of Climate, 7(8), 1169–1183. https://doi.org/10.1175/1520-0442(1994)007<1169:ROTGOI>2.0.CO;2
-
-.. [3] Lander, J., & Hoskins, B. J. (1997). Believable Scales and Parameterizations in a Spectral Transform Model. Monthly Weather Review, 125(2), 292–303. https://doi.org/10.1175/1520-0493(1997)125<0292:BSAPIA>2.0.CO;2
-
-.. [4] Scinocca, J. F., McFarlane, N. A., Lazare, M., Li, J., & Plummer, D. (2008). Technical Note: The CCCma third generation AGCM and its extension into the middle atmosphere. Atmospheric Chemistry and Physics, 8(23), 7055–7074. https://doi.org/10.5194/acp-8-7055-2008
-
-.. [5] Komacek, T. D., Chavas, D. R., & Abbot, D. S. (2020). Hurricane Genesis is Favorable on Terrestrial Exoplanets Orbiting Late-type M Dwarf Stars. The Astrophysical Journal, 898(2), 115. https://doi.org/10.3847/1538-4357/aba0b9
-
-"""
+        .. [1] Foley, B. J. (2015). The Role of Plate Tectonic-Climate Coupling and Exposed Land Area in the Development of Habitable Climates on Rocky Planets. The Astrophysical Journal, 812(1), 36. https://doi.org/10.1088/0004-637X/812/1/36
+        
+        .. [2] Navarra, A., Stern, W. F., & Miyakoda, K. (1994). Reduction of the Gibbs Oscillation in Spectral Model Simulations. Journal of Climate, 7(8), 1169–1183. https://doi.org/10.1175/1520-0442(1994)007<1169:ROTGOI>2.0.CO;2
+        
+        .. [3] Lander, J., & Hoskins, B. J. (1997). Believable Scales and Parameterizations in a Spectral Transform Model. Monthly Weather Review, 125(2), 292–303. https://doi.org/10.1175/1520-0493(1997)125<0292:BSAPIA>2.0.CO;2
+        
+        .. [4] Scinocca, J. F., McFarlane, N. A., Lazare, M., Li, J., & Plummer, D. (2008). Technical Note: The CCCma third generation AGCM and its extension into the middle atmosphere. Atmospheric Chemistry and Physics, 8(23), 7055–7074. https://doi.org/10.5194/acp-8-7055-2008
+        
+        .. [5] Komacek, T. D., Chavas, D. R., & Abbot, D. S. (2020). Hurricane Genesis is Favorable on Terrestrial Exoplanets Orbiting Late-type M Dwarf Stars. The Astrophysical Journal, 898(2), 115. https://doi.org/10.3847/1538-4357/aba0b9
+        
+        """
         self._edit_namelist("plasim_namelist","NOUTPUT",str(noutput*1))
         self.noutput = noutput
         self._edit_namelist("planet_namelist","GSOL0",str(flux))
@@ -1795,19 +1680,19 @@ References
                 namelist=destination[1]
                 self._edit_namelist(namelist,field,value)
                 self.otherargs.append(key)
-     
-    def loadconfig(self,configfile):
-"""    Load a previously-exported configuration file and configure the model accordingly.
-
-Parameters
-----------
-configfile : str 
-    Path to the configuration file to load
     
-See Also
---------
-exportcfg : Export model configuration to a text file.
-"""
+    def loadconfig(self,configfile):
+        """    Load a previously-exported configuration file and configure the model accordingly.
+        
+        Parameters
+        ----------
+        configfile : str 
+            Path to the configuration file to load
+            
+        See Also
+        --------
+        exportcfg : Export model configuration to a text file.
+        """
         with open(configfile,"r") as cfgf:
             cfg = cfgf.read().split("\n")
         noutput=bool(int(cfg[0]))
@@ -1893,7 +1778,7 @@ exportcfg : Export model configuration to a text file.
         for item in stormdict:
             parts = item.split("|")
             if parts[0]=="toggle" or parts[0]=="NKTRIGGER" or parts[0]=="SIZETHRESH" \
-             or parts[0]=="ENDTHRESH" or parts[0]=="MINSTORMLEN" or parts[0]=="MAXSTORMLEN":
+            or parts[0]=="ENDTHRESH" or parts[0]=="MINSTORMLEN" or parts[0]=="MAXSTORMLEN":
                 stormcapture[parts[0]] = int(parts[1])
             else:
                 stormcapture[parts[0]] = float(parts[1])
@@ -1921,38 +1806,38 @@ exportcfg : Export model configuration to a text file.
         #PAST THIS POINT ALL ADDITIONAL LOADS SHOULD BE IN TRY-EXCEPT FOR BACKWARDS COMPAT.
             
         self.configure(noutput=noutput,flux=flux,startemp=startemp,starspec=starspec,
-                       gascon=gascon,pressure=pressure,pressurebroaden=pressurebroaden,
-                       vtype=vtype,rotationperiod=rotationperiod,synchronous=synchronous,
-                       year=year,
-                       substellarlon=substellarlon,restartfile=restartfile,gravity=gravity,
-                       radius=radius,eccentricity=eccentricity,obliquity=obliquity,
-                       lonvernaleq=lonvernaleq,fixedorbit=fixedorbit,orography=orography,
-                       seaice=seaice,co2weathering=co2weathering,evolveco2=evolveco2,
-                       physicsfilter=physicsfilter,filterkappa=filterkappa,
-                       filterpower=filterpower,filterLHN0=filterLHN0,diffusionwaven=diffusionwaven,
-                       qdiffusion=qdiffusion,tdiffusion=tdiffusion,zdiffusion=zdiffusion,
-                       ddiffusion=ddiffusion,diffusionpower=diffusionpower,
-                       erosionsupplylimit=erosionsupplylimit,outgassing=outgassing,
-                       snowicealbedo=snowicealbedo,twobandalbedo=twobandalbedo,maxsnow=maxsnow,
-                       soilalbedo=soilalbedo,oceanalbedo=oceanalbedo,oceanzenith=oceanzenith,
-                       wetsoil=wetsoil,soilwatercap=soilwatercap,aquaplanet=aquaplanet,
-                       desertplanet=desertplanet,soilsaturation=soilsaturation,
-                       drycore=drycore,ozone=ozone,cpsoil=cpsoil,soildepth=soildepth,
-                       mldepth=mldepth,writefrequency=writefrequency,modeltop=modeltop,
-                       stratosphere=stratosphere,tropopause=tropopause,timestep=timestep,
-                       runscript=runscript,columnmode=columnmode,highcadence=highcadence,
-                       snapshots=snapshots,resources=resources,landmap=landmap,stormclim=stormclim,
-                       nstorms=nstorms,stormcapture=stormcapture,topomap=topomap,
-                       otherargs=otherargs,glaciers=glaciers,threshold=threshold)       
+                    gascon=gascon,pressure=pressure,pressurebroaden=pressurebroaden,
+                    vtype=vtype,rotationperiod=rotationperiod,synchronous=synchronous,
+                    year=year,
+                    substellarlon=substellarlon,restartfile=restartfile,gravity=gravity,
+                    radius=radius,eccentricity=eccentricity,obliquity=obliquity,
+                    lonvernaleq=lonvernaleq,fixedorbit=fixedorbit,orography=orography,
+                    seaice=seaice,co2weathering=co2weathering,evolveco2=evolveco2,
+                    physicsfilter=physicsfilter,filterkappa=filterkappa,
+                    filterpower=filterpower,filterLHN0=filterLHN0,diffusionwaven=diffusionwaven,
+                    qdiffusion=qdiffusion,tdiffusion=tdiffusion,zdiffusion=zdiffusion,
+                    ddiffusion=ddiffusion,diffusionpower=diffusionpower,
+                    erosionsupplylimit=erosionsupplylimit,outgassing=outgassing,
+                    snowicealbedo=snowicealbedo,twobandalbedo=twobandalbedo,maxsnow=maxsnow,
+                    soilalbedo=soilalbedo,oceanalbedo=oceanalbedo,oceanzenith=oceanzenith,
+                    wetsoil=wetsoil,soilwatercap=soilwatercap,aquaplanet=aquaplanet,
+                    desertplanet=desertplanet,soilsaturation=soilsaturation,
+                    drycore=drycore,ozone=ozone,cpsoil=cpsoil,soildepth=soildepth,
+                    mldepth=mldepth,writefrequency=writefrequency,modeltop=modeltop,
+                    stratosphere=stratosphere,tropopause=tropopause,timestep=timestep,
+                    runscript=runscript,columnmode=columnmode,highcadence=highcadence,
+                    snapshots=snapshots,resources=resources,landmap=landmap,stormclim=stormclim,
+                    nstorms=nstorms,stormcapture=stormcapture,topomap=topomap,
+                    otherargs=otherargs,glaciers=glaciers,threshold=threshold)       
     
     def modify(self,**kwargs):
-"""Modify any already-configured parameters. All parameters accepted by configure() can be passed as arguments.
-
-See Also
---------
-configure : Set model parameters and boundary conditions
-
-"""
+        """Modify any already-configured parameters. All parameters accepted by configure() can be passed as arguments.
+        
+        See Also
+        --------
+        configure : Set model parameters and boundary conditions
+        
+        """
         setgas=False
         setgascon=False
         setpressure=False
@@ -2189,7 +2074,7 @@ configure : Set model parameters and boundary conditions
                 self.diffusionpower=value
                 if value:
                     self._edit_namelist("plasim_namelist","NDEL","%d*%d"%(self.layers,
-                                                                      self.diffusionpower))
+                                                                    self.diffusionpower))
                 else:
                     self._rm_namelist_param("plasim_namelist","NDEL")
                     
@@ -2203,7 +2088,7 @@ configure : Set model parameters and boundary conditions
                                     str(self.glaciers["initialh"]))
                 if self.glaciers["initialh"]>0:
                     os.system("rm %s/*174.sra %s/*1740.sra "+
-                              "%s/*210.sra %s/*232.sra"%([self.workdir,]*4))
+                            "%s/*210.sra %s/*232.sra"%([self.workdir,]*4))
                 
             if key=="snowicealbedo":
                 self.snowicealbedo=value
@@ -2365,7 +2250,7 @@ configure : Set model parameters and boundary conditions
             if key=="tropopause":
                 changeatmo=True
                 self.tropopause=value
-             
+            
             if key=="timestep":
                 self.timestep=value
                 self._edit_namelist("plasim_namelist","MPSTEP",str(self.timestep))
@@ -2489,7 +2374,7 @@ configure : Set model parameters and boundary conditions
                 self._edit_namelist("plasim_namelist","PSURF",str(self.pressure))
             
         if changeatmo:
-               
+            
             if self.stratosphere:
                 self._edit_namelist("plasim_namelist","NEQSIG","5")
                 if self.modeltop:
@@ -2511,23 +2396,23 @@ configure : Set model parameters and boundary conditions
                 os.system("cp %s %s/N%03d_surf_0129.sra"%(self.topomap,self.workdir,self.nlats))
     
     def save(self,filename=None):
-"""Save the current Model object to a NumPy save file. 
+        """Save the current Model object to a NumPy save file. 
 
-The model object can then be reinstantiated using ``numpy.load(savefile).item()``. 
+        The model object can then be reinstantiated using ``numpy.load(savefile).item()``. 
 
-Parameters
-----------
-filename : str, optional
-    Filename to save to. If unspecified, will default to <modelname>.npy.
+        Parameters
+        ----------
+        filename : str, optional
+            Filename to save to. If unspecified, will default to <modelname>.npy.
 
-Notes
------
-Note that these files are often not portable between versions of Python or machine architectures, so their use is only recommended internally. For sharing with other
-users, it is recommended that you use the ``.exportcfg()`` function.
+        Notes
+        -----
+        Note that these files are often not portable between versions of Python or machine architectures, so their use is only recommended internally. For sharing with other
+        users, it is recommended that you use the ``.exportcfg()`` function.
 
-See Also
---------
-exportcfg : Export model configuration to a portable text file.
+        See Also
+        --------
+        exportcfg : Export model configuration to a portable text file.
 
 """
         if not filename:
@@ -2538,20 +2423,20 @@ exportcfg : Export model configuration to a portable text file.
             np.save(filename,self)
             
     def exportcfg(self,filename=None):
-"""Export model configuration to a text file that can be used as configuration input
+        """Export model configuration to a text file that can be used as configuration input
 
-Write the current model configuration to a text file. This file can be shared and used by
-other users to recreate your model configuration.
-    
-Parameters
-----------
-filename : str, optional 
-    Path to the file that should be written. If None (default), <modelname>.cfg
-    will be created in the working directory.
-    
-See Also
---------
-loadconfig : Load a saved configuration.
+        Write the current model configuration to a text file. This file can be shared and used by
+        other users to recreate your model configuration.
+            
+        Parameters
+        ----------
+        filename : str, optional 
+            Path to the file that should be written. If None (default), <modelname>.cfg
+            will be created in the working directory.
+            
+        See Also
+        --------
+        loadconfig : Load a saved configuration.
 """
         if not filename:
             filename = self.workdir+"/"+self.modelname+".cfg"
@@ -2651,8 +2536,8 @@ loadconfig : Load a saved configuration.
         else:
             cfg.append(str(self.sidyear))
         cfg.append("&".join([str(self.glaciers["toggle"]*1),
-                             str(self.glaciers["mindepth"]),
-                             str(self.glaciers["initialh"])]))
+                            str(self.glaciers["mindepth"]),
+                            str(self.glaciers["initialh"])]))
         cfg.append(str(self.threshold))
         with open(filename,"w") as cfgf:
             cfgf.write("\n".join(cfg))
@@ -2689,7 +2574,7 @@ loadconfig : Load a saved configuration.
         f=open(self.workdir+"/"+namelist,"w")
         f.write('\n'.join(fnl))
         f.close()
-              
+            
     def _edit_namelist(self,namelist,arg,val):
         """Either edit or add argument/value pair to a namelist"""
         
@@ -2800,67 +2685,67 @@ loadconfig : Load a saved configuration.
 
 
 class TLaquaplanet(Model):
-"""Create a tidally-locked planet with no land.
+    """Create a tidally-locked planet with no land.
 
-Identical to Model, except configuration options suitable for
-tidally-locked models are the default when configure() is called,
-and the surface is entirely ocean-covered. Specifically, a 30-minute
-timestep, snapshot outputs every 720 timesteps, eccentricity=0.0,
-0-degree obliquity, exponential physics filtering, fixed orbital
-parameters, and no ozone. All these defaults can be overridden.
+    Identical to Model, except configuration options suitable for
+    tidally-locked models are the default when configure() is called,
+    and the surface is entirely ocean-covered. Specifically, a 30-minute
+    timestep, snapshot outputs every 720 timesteps, eccentricity=0.0,
+    0-degree obliquity, exponential physics filtering, fixed orbital
+    parameters, and no ozone. All these defaults can be overridden.
 """
     def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
-                  obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
+                obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
         super(TLaquaplanet,self).configure(synchronous=True,fixedorbit=True,aquaplanet=True,
-                          eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
-                          snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
-                          **kwargs)
+                        eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
+                        snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
+                        **kwargs)
         
 class TLlandplanet(Model): #Default will be ZERO soil water; set soilsaturation if you want any
-"""Create a tidally-locked model with no oceans.
+    """Create a tidally-locked model with no oceans.
 
-Identical to Model, except configuration options suitable for
-tidally-locked models are the default when configure() is called,
-and the surface is entirely land-covered. Specifically, a 30-minute
-timestep, snapshot outputs every 720 timesteps, eccentricity=0.0,
-0-degree obliquity, exponential physics filtering, fixed orbital
-parameters, and no ozone. All these defaults can be overridden.
+    Identical to Model, except configuration options suitable for
+    tidally-locked models are the default when configure() is called,
+    and the surface is entirely land-covered. Specifically, a 30-minute
+    timestep, snapshot outputs every 720 timesteps, eccentricity=0.0,
+    0-degree obliquity, exponential physics filtering, fixed orbital
+    parameters, and no ozone. All these defaults can be overridden.
 
-Notes
------
-The default is to include zero soil water initially. This will result in a completely dry
-model. Set soilsaturation to something nonzero if you want groundwater.
+    Notes
+    -----
+    The default is to include zero soil water initially. This will result in a completely dry
+    model. Set soilsaturation to something nonzero if you want groundwater.
 """
     def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
-                  obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
+                obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
         super(TLlandplanet,self).configure(synchronous=True,fixedorbit=True,desertplanet=True,
-                          eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
-                          snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
-                          **kwargs)
+                        eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
+                        snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
+                        **kwargs)
         
 class Earthlike(Model):
-"""Create an Earth-like model, but more flexible.
+    """Create an Earth-like model, but more flexible.
 
-Identical to Model, except configuration options common for
-Earth-like models requiring slightly more flexibility are 
-the default when configure is called--specifically, 45-minute 
-timestep, snapshot output reporting every 480 timesteps, and 
-a model top pinned to 50 mbar. All these defaults can be overridden.
+    Identical to Model, except configuration options common for
+    Earth-like models requiring slightly more flexibility are 
+    the default when configure is called--specifically, 45-minute 
+    timestep, snapshot output reporting every 480 timesteps, and 
+    a model top pinned to 50 mbar. All these defaults can be overridden.
 """
     def configure(self,timestep=45.0,snapshots=480,**kwargs):
         super(Earthlike,self).configure(vtype=4,modeltop=50.0,timestep=timestep,
-                          snapshots=snapshots,**kwargs)
+                        snapshots=snapshots,**kwargs)
 
 class TLmodel(Model):
-"""Create a tidally-locked model.    
+    """Create a tidally-locked model.    
 
-Identical to exoplasim.Model, except configuration options suitable for
-tidally-locked models are the default when configure() is called.
+    Identical to exoplasim.Model, except configuration options suitable for
+    tidally-locked models are the default when configure() is called.
 """
     def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
-                  obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
+                obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
         super(TLmodel,self).configure(synchronous=True,fixedorbit=True,
-                          eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
-                          snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
-                          **kwargs)
+                        eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
+                        snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
+                        **kwargs)
     

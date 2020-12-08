@@ -1,0 +1,557 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>exoplasim.gcmt &mdash; ExoPlaSim 2.0.4 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> ExoPlaSim
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../source/exoplasim.html">exoplasim package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">ExoPlaSim</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+          <li><a href="../exoplasim.html">exoplasim</a> &raquo;</li>
+        
+      <li>exoplasim.gcmt</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for exoplasim.gcmt</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">netCDF4</span> <span class="k">as</span> <span class="nn">nc</span>
+
+<span class="k">class</span> <span class="nc">_Dataset</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">filename</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]</span><span class="o">==</span><span class="s2">&quot;.nc&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="n">nc</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">variables</span>
+        <span class="k">elif</span> <span class="n">filename</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">:]</span><span class="o">==</span><span class="s2">&quot;.npy&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">variables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DatafileError</span><span class="p">(</span><span class="s2">&quot;Unknown dataset format&quot;</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+<div class="viewcode-block" id="DimensionError"><a class="viewcode-back" href="../../source/exoplasim.html#exoplasim.gcmt.DimensionError">[docs]</a><span class="k">class</span> <span class="nc">DimensionError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="UnitError"><a class="viewcode-back" href="../../source/exoplasim.html#exoplasim.gcmt.UnitError">[docs]</a><span class="k">class</span> <span class="nc">UnitError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="DatafileError"><a class="viewcode-back" href="../../source/exoplasim.html#exoplasim.gcmt.DatafileError">[docs]</a><span class="k">class</span> <span class="nc">DatafileError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="parse"><a class="viewcode-back" href="../../source/exoplasim.html#exoplasim.gcmt.parse">[docs]</a><span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="n">variable</span><span class="p">,</span><span class="n">lat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">lon</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Retrieve a variable from a NetCDF file</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file : str</span>
+<span class="sd">        Path to a NetCDF file</span>
+<span class="sd">    variable : str</span>
+<span class="sd">        Name of the variable to extract</span>
+<span class="sd">    lat,lon : str, optional</span>
+<span class="sd">        If the latitude and longitude arrays have non-standard names, specify them here.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        Requested output field</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ncd</span><span class="o">=</span><span class="n">_Dataset</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+    <span class="n">variable</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">variable</span><span class="p">][:]</span>
+    
+    <span class="k">if</span> <span class="n">lat</span><span class="p">:</span>
+        <span class="n">lt</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">lat</span><span class="p">][:]</span>
+    <span class="k">elif</span> <span class="s2">&quot;lat&quot;</span> <span class="ow">in</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">:</span>
+        <span class="n">lt</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s1">&#39;lat&#39;</span><span class="p">][:]</span>
+    <span class="k">elif</span> <span class="s2">&quot;lt&quot;</span> <span class="ow">in</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">:</span>
+        <span class="n">lt</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s2">&quot;lt&quot;</span><span class="p">][:]</span>
+    <span class="k">elif</span> <span class="s2">&quot;lats&quot;</span> <span class="ow">in</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">:</span>
+        <span class="n">lt</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s1">&#39;lats&#39;</span><span class="p">][:]</span>
+    <span class="k">elif</span> <span class="s2">&quot;latitude&quot;</span> <span class="ow">in</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">:</span>
+        <span class="n">lt</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s1">&#39;latitude&#39;</span><span class="p">][:]</span>
+    <span class="k">elif</span> <span class="s2">&quot;latitudes&quot;</span> <span class="ow">in</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">:</span>
+        <span class="n">lt</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s1">&#39;latitudes&#39;</span><span class="p">][:]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DatafileError</span><span class="p">(</span><span class="s2">&quot;Unknown datafile format; unsure how to extract latitude&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">lon</span><span class="p">:</span>
+        <span class="n">ln</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">lon</span><span class="p">][:]</span>
+    <span class="k">elif</span> <span class="s2">&quot;lat&quot;</span> <span class="ow">in</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">:</span>
+        <span class="n">ln</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s1">&#39;lon&#39;</span><span class="p">][:]</span>
+    <span class="k">elif</span> <span class="s2">&quot;lt&quot;</span> <span class="ow">in</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">:</span>
+        <span class="n">ln</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s2">&quot;ln&quot;</span><span class="p">][:]</span>
+    <span class="k">elif</span> <span class="s2">&quot;lats&quot;</span> <span class="ow">in</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">:</span>
+        <span class="n">ln</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s1">&#39;lons&#39;</span><span class="p">][:]</span>
+    <span class="k">elif</span> <span class="s2">&quot;latitude&quot;</span> <span class="ow">in</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">:</span>
+        <span class="n">ln</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s1">&#39;longitude&#39;</span><span class="p">][:]</span>
+    <span class="k">elif</span> <span class="s2">&quot;latitudes&quot;</span> <span class="ow">in</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">:</span>
+        <span class="n">ln</span> <span class="o">=</span> <span class="n">ncd</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s1">&#39;longitudes&#39;</span><span class="p">][:]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DatafileError</span><span class="p">(</span><span class="s2">&quot;Unknown datafile format; unsure how to extract longitude&quot;</span><span class="p">)</span>
+    
+    <span class="n">ncd</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    
+    <span class="k">return</span> <span class="n">ln</span><span class="p">,</span><span class="n">lt</span><span class="p">,</span><span class="n">variable</span></div>
+
+<div class="viewcode-block" id="make2d"><a class="viewcode-back" href="../../source/exoplasim.html#exoplasim.gcmt.make2d">[docs]</a><span class="k">def</span> <span class="nf">make2d</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">lat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">lon</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">lev</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">ignoreNaNs</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compress a variable in two dimensions by slicing or averaging.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    variable : numpy.ndarray</span>
+<span class="sd">        The variable to operate on</span>
+<span class="sd">    lat,lon,lev : int, str, optional</span>
+<span class="sd">        Either an index on which to slice, or either of &quot;sum&quot; or &quot;mean&quot;, indicating what</span>
+<span class="sd">        should be done along that axis.</span>
+<span class="sd">    time : int, optional</span>
+<span class="sd">        The time index on which to slice. If unspecified, a time average will be returned.</span>
+<span class="sd">    ignoreNaNs : bool, optional</span>
+<span class="sd">        If set, will use NaN-safe numpy operators.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        A 2-D array</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">ignoreNaNs</span><span class="p">:</span>
+        <span class="n">sumop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nansum</span>
+        <span class="n">meanop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sumop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span>
+        <span class="n">meanop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">variable</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">variable</span>
+    <span class="k">if</span> <span class="n">time</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">variable</span><span class="o">=</span><span class="n">variable</span><span class="p">[</span><span class="n">time</span><span class="p">,:]</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">UnitError</span><span class="p">(</span><span class="s2">&quot;You have probably passed a float time to a variable with no &quot;</span><span class="o">+</span>
+                            <span class="s2">&quot;information about what that means. You should pass an integer &quot;</span><span class="o">+</span>
+                            <span class="s2">&quot;time index instead&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">time</span><span class="o">==</span><span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">variable</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">2</span><span class="p">:</span>
+        <span class="n">variable</span><span class="o">=</span><span class="n">meanop</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">time</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+        <span class="n">variable</span><span class="o">=</span><span class="n">variable</span><span class="p">[</span><span class="n">time</span><span class="p">,:]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">variable</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">2</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">lev</span><span class="o">!=</span><span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">lev</span><span class="p">)</span><span class="o">==</span><span class="nb">int</span><span class="p">:</span>
+                <span class="n">variable</span><span class="o">=</span><span class="n">variable</span><span class="p">[</span><span class="n">lev</span><span class="p">,:]</span>
+            <span class="k">elif</span> <span class="n">lev</span><span class="o">==</span><span class="s2">&quot;sum&quot;</span><span class="p">:</span>
+                <span class="n">variable</span><span class="o">=</span><span class="n">sumop</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">lev</span><span class="o">==</span><span class="s2">&quot;mean&quot;</span><span class="p">:</span>
+                <span class="n">variable</span><span class="o">=</span><span class="n">meanop</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">UnitError</span><span class="p">(</span><span class="s2">&quot;Unknown level specification&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">lat</span><span class="o">!=</span><span class="kc">None</span> <span class="ow">and</span> <span class="n">lon</span><span class="o">==</span><span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">lat</span><span class="p">)</span><span class="o">==</span><span class="nb">int</span><span class="p">:</span>
+                <span class="n">variable</span><span class="o">=</span><span class="n">variable</span><span class="p">[:,</span><span class="n">lat</span><span class="p">,:]</span>
+            <span class="k">elif</span> <span class="n">lat</span><span class="o">==</span><span class="s2">&quot;sum&quot;</span><span class="p">:</span>
+                <span class="n">variable</span><span class="o">=</span><span class="n">sumop</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">lat</span><span class="o">==</span><span class="s2">&quot;mean&quot;</span><span class="p">:</span>
+                <span class="n">variable</span><span class="o">=</span><span class="n">meanop</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">UnitError</span><span class="p">(</span><span class="s2">&quot;Unknown latitude specification&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">lon</span><span class="o">!=</span><span class="kc">None</span> <span class="ow">and</span> <span class="n">lat</span><span class="o">==</span><span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">lon</span><span class="p">)</span><span class="o">==</span><span class="nb">int</span><span class="p">:</span>
+                <span class="n">variable</span><span class="o">=</span><span class="n">variable</span><span class="p">[:,:,</span><span class="n">lon</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">lon</span><span class="o">==</span><span class="s2">&quot;sum&quot;</span><span class="p">:</span>
+                <span class="n">variable</span><span class="o">=</span><span class="n">sumop</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">lon</span><span class="o">==</span><span class="s2">&quot;mean&quot;</span><span class="p">:</span>
+                <span class="n">variable</span><span class="o">=</span><span class="n">meanop</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">UnitError</span><span class="p">(</span><span class="s2">&quot;Unknown longitude specification&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DimensionError</span><span class="p">(</span><span class="s2">&quot;Inappropriate or insufficient dimensional constraints&quot;</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">variable</span></div>
+    
+
+<div class="viewcode-block" id="spatialmath"><a class="viewcode-back" href="../../source/exoplasim.html#exoplasim.gcmt.spatialmath">[docs]</a><span class="k">def</span> <span class="nf">spatialmath</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">lat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">lon</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">mean</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">ignoreNaNs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">lev</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">radius</span><span class="o">=</span><span class="mf">6.371e6</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute spatial means or sums of data</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    variable : str, numpy.ndarray</span>
+<span class="sd">        The variable to operate on. Can either be a data array, or the name of a variable. If the latter, file must be specified.</span>
+<span class="sd">    lat,lon : numpy.ndarray, optional</span>
+<span class="sd">        Latitude and longitude arrays. If file is provided and lat and lon are not, they will be</span>
+<span class="sd">        extracted from the file.</span>
+<span class="sd">    file : str, optional</span>
+<span class="sd">        Path to a NetCDF output file to open and extract data from.</span>
+<span class="sd">    mean : bool, optional</span>
+<span class="sd">        If True, compute a global mean. If False, compute a global sum.</span>
+<span class="sd">    time : int, optional</span>
+<span class="sd">        The time index on which to slice. If unspecified, a time average will be returned.</span>
+<span class="sd">    ignoreNaNs : bool, optional</span>
+<span class="sd">        If True, use NaN-safe numpy operators.</span>
+<span class="sd">    lev : int, optional</span>
+<span class="sd">        If set, slice a 3D spatial array at the specified level.</span>
+<span class="sd">    radius : float, optional</span>
+<span class="sd">        Radius of the planet in meters. Only used if mean=False.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">if</span> <span class="n">ignoreNaNs</span><span class="p">:</span>
+        <span class="n">sumop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nansum</span>
+        <span class="n">meanop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sumop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span>
+        <span class="n">meanop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span>
+        
+    <span class="k">if</span> <span class="n">file</span><span class="p">:</span>
+        <span class="n">ln</span><span class="p">,</span><span class="n">lt</span><span class="p">,</span><span class="n">variable</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="n">variable</span><span class="p">,</span><span class="n">lat</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span><span class="n">lon</span><span class="o">=</span><span class="n">lon</span><span class="p">)</span>
+        
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">lat</span><span class="p">)</span><span class="o">==</span><span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="n">lon</span><span class="p">)</span><span class="o">==</span><span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">DimensionError</span><span class="p">(</span><span class="s2">&quot;Need to provide latitude and longitude data&quot;</span><span class="p">)</span>
+        <span class="n">ln</span><span class="o">=</span><span class="n">lon</span>
+        <span class="n">lt</span><span class="o">=</span><span class="n">lat</span>
+    <span class="n">variable</span> <span class="o">=</span> <span class="n">make2d</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="p">,</span><span class="n">lev</span><span class="o">=</span><span class="n">lev</span><span class="p">,</span><span class="n">ignoreNaNs</span><span class="o">=</span><span class="n">ignoreNaNs</span><span class="p">)</span>
+    
+    <span class="n">lt1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lt</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">lt1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">90</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">lt</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">lt1</span><span class="p">[</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">lt</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">+</span><span class="n">lt</span><span class="p">[</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">lt1</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">90</span>
+    <span class="n">dln</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">ln</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ln1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ln</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">ln1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">dln</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">ln</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">ln1</span><span class="p">[</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">ln</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">+</span><span class="n">ln</span><span class="p">[</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">ln1</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">360.0</span><span class="o">-</span><span class="n">dln</span>
+    
+    <span class="n">lt1</span><span class="o">*=</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mf">180.0</span>
+    <span class="n">ln1</span><span class="o">*=</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mf">180.0</span>
+    
+    <span class="n">darea</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">lt</span><span class="p">),</span><span class="nb">len</span><span class="p">(</span><span class="n">ln</span><span class="p">)))</span>
+    <span class="k">for</span> <span class="n">jlat</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">lt</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">jlon</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">ln</span><span class="p">)):</span>
+            <span class="n">dln</span> <span class="o">=</span> <span class="n">ln1</span><span class="p">[</span><span class="n">jlon</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">ln1</span><span class="p">[</span><span class="n">jlon</span><span class="p">]</span>
+            <span class="n">darea</span><span class="p">[</span><span class="n">jlat</span><span class="p">,</span><span class="n">jlon</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">lt1</span><span class="p">[</span><span class="n">jlat</span><span class="p">])</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">lt1</span><span class="p">[</span><span class="n">jlat</span><span class="o">+</span><span class="mi">1</span><span class="p">]))</span><span class="o">*</span><span class="n">dln</span>
+    
+    <span class="n">svar</span> <span class="o">=</span> <span class="n">variable</span><span class="o">*</span><span class="n">darea</span>
+    <span class="k">if</span> <span class="n">mean</span><span class="p">:</span>
+        <span class="n">outvar</span> <span class="o">=</span> <span class="n">sumop</span><span class="p">(</span><span class="n">svar</span><span class="p">)</span><span class="o">/</span><span class="n">sumop</span><span class="p">(</span><span class="n">darea</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">outvar</span> <span class="o">=</span> <span class="n">sumop</span><span class="p">(</span><span class="n">svar</span><span class="p">)</span> <span class="o">*</span> <span class="n">radius</span><span class="o">**</span><span class="mi">2</span>
+    
+    <span class="k">return</span> <span class="n">outvar</span></div>
+
+
+<div class="viewcode-block" id="cspatialmath"><a class="viewcode-back" href="../../source/exoplasim.html#exoplasim.gcmt.cspatialmath">[docs]</a><span class="k">def</span> <span class="nf">cspatialmath</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">lat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">lon</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">mean</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">ignoreNaNs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">lev</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">radius</span><span class="o">=</span><span class="mf">6.371e6</span><span class="p">,</span><span class="n">poles</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute spatial means or sums of data, but optionally don&#39;t go all the way to the poles.</span>
+
+<span class="sd">    Sometimes, saying that the latitudes covered go all the way to :math:`\pm90^\circ` results in</span>
+<span class="sd">    errors, and accurate accounting requires excluding the poles themselves. This function</span>
+<span class="sd">    is identical to spatialmath, except that it provides that option.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    variable : str, numpy.ndarray</span>
+<span class="sd">        The variable to operate on. Can either be a data array, or the name of a variable. If the latter, file must be specified.</span>
+<span class="sd">    lat,lon : numpy.ndarray, optional</span>
+<span class="sd">        Latitude and longitude arrays. If file is provided and lat and lon are not, they will be</span>
+<span class="sd">        extracted from the file.</span>
+<span class="sd">    file : str, optional</span>
+<span class="sd">        Path to a NetCDF output file to open and extract data from.</span>
+<span class="sd">    mean : bool, optional</span>
+<span class="sd">        If True, compute a global mean. If False, compute a global sum.</span>
+<span class="sd">    time : int, optional</span>
+<span class="sd">        The time index on which to slice. If unspecified, a time average will be returned.</span>
+<span class="sd">    ignoreNaNs : bool, optional</span>
+<span class="sd">        If True, use NaN-safe numpy operators.</span>
+<span class="sd">    lev : int, optional</span>
+<span class="sd">        If set, slice a 3D spatial array at the specified level.</span>
+<span class="sd">    radius : float, optional</span>
+<span class="sd">        Radius of the planet in meters. Only used if mean=False.</span>
+<span class="sd">    poles : bool, optional</span>
+<span class="sd">        If False (default), exclude the poles.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">if</span> <span class="n">ignoreNaNs</span><span class="p">:</span>
+        <span class="n">sumop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nansum</span>
+        <span class="n">meanop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sumop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span>
+        <span class="n">meanop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span>
+        
+    <span class="k">if</span> <span class="n">file</span><span class="p">:</span>
+        <span class="n">ln</span><span class="p">,</span><span class="n">lt</span><span class="p">,</span><span class="n">variable</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="n">variable</span><span class="p">,</span><span class="n">lat</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span><span class="n">lon</span><span class="o">=</span><span class="n">lon</span><span class="p">)</span>
+        
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">lat</span><span class="p">)</span><span class="o">==</span><span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="n">lon</span><span class="p">)</span><span class="o">==</span><span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">DimensionError</span><span class="p">(</span><span class="s2">&quot;Need to provide latitude and longitude data&quot;</span><span class="p">)</span>
+        <span class="n">ln</span><span class="o">=</span><span class="n">lon</span>
+        <span class="n">lt</span><span class="o">=</span><span class="n">lat</span>
+    <span class="n">variable</span> <span class="o">=</span> <span class="n">make2d</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span><span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="p">,</span><span class="n">lev</span><span class="o">=</span><span class="n">lev</span><span class="p">,</span><span class="n">ignoreNaNs</span><span class="o">=</span><span class="n">ignoreNaNs</span><span class="p">)</span>
+    
+    <span class="n">lt1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lt</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">dlt1</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">lt</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">dlt2</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">lt</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">lt1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">lt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mf">0.5</span><span class="o">*</span><span class="n">dlt1</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">lt</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">lt1</span><span class="p">[</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">lt</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">+</span><span class="n">lt</span><span class="p">[</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">lt1</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">lt</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="n">dlt2</span>
+    <span class="k">if</span> <span class="n">poles</span><span class="p">:</span>
+        <span class="n">lt1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">90.0</span>
+        <span class="n">lt1</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">90.0</span>
+    
+    <span class="n">dln</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">ln</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ln1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ln</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">ln1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">ln</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="n">dln</span><span class="o">*</span><span class="mf">0.5</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">ln</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">ln1</span><span class="p">[</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">ln</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">+</span><span class="n">ln</span><span class="p">[</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">ln1</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">ln</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">dln</span><span class="o">*</span><span class="mf">0.5</span>
+    
+    <span class="n">lt1</span><span class="o">*=</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mf">180.0</span>
+    <span class="n">ln1</span><span class="o">*=</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mf">180.0</span>
+    
+    <span class="n">darea</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">lt</span><span class="p">),</span><span class="nb">len</span><span class="p">(</span><span class="n">ln</span><span class="p">)))</span>
+    <span class="k">for</span> <span class="n">jlat</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">lt</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">jlon</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">ln</span><span class="p">)):</span>
+            <span class="n">dln</span> <span class="o">=</span> <span class="n">ln1</span><span class="p">[</span><span class="n">jlon</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">ln1</span><span class="p">[</span><span class="n">jlon</span><span class="p">]</span>
+            <span class="n">darea</span><span class="p">[</span><span class="n">jlat</span><span class="p">,</span><span class="n">jlon</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">lt1</span><span class="p">[</span><span class="n">jlat</span><span class="p">])</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">lt1</span><span class="p">[</span><span class="n">jlat</span><span class="o">+</span><span class="mi">1</span><span class="p">]))</span><span class="o">*</span><span class="n">dln</span>
+    
+    <span class="n">svar</span> <span class="o">=</span> <span class="n">variable</span><span class="o">*</span><span class="n">darea</span>
+    <span class="k">if</span> <span class="n">mean</span><span class="p">:</span>
+        <span class="n">outvar</span> <span class="o">=</span> <span class="n">sumop</span><span class="p">(</span><span class="n">svar</span><span class="p">)</span><span class="o">/</span><span class="n">sumop</span><span class="p">(</span><span class="n">darea</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">outvar</span> <span class="o">=</span> <span class="n">sumop</span><span class="p">(</span><span class="n">svar</span><span class="p">)</span> <span class="o">*</span> <span class="n">radius</span><span class="o">**</span><span class="mi">2</span>
+    
+    <span class="k">return</span> <span class="n">outvar</span></div>
+
+<div class="viewcode-block" id="wrap2d"><a class="viewcode-back" href="../../source/exoplasim.html#exoplasim.gcmt.wrap2d">[docs]</a><span class="k">def</span> <span class="nf">wrap2d</span><span class="p">(</span><span class="n">var</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Add one element to the longitude axis to allow for wrapping&#39;&#39;&#39;</span>
+    <span class="n">newvar</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">var</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">+</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">)))</span>
+    <span class="n">newvar</span><span class="p">[:,:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">var</span><span class="p">[:,:]</span>
+    <span class="n">newvar</span><span class="p">[:,</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">var</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">newvar</span></div>
+
+    
+<div class="viewcode-block" id="streamfxn"><a class="viewcode-back" href="../../source/exoplasim.html#exoplasim.gcmt.streamfxn">[docs]</a><span class="k">def</span> <span class="nf">streamfxn</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="n">time</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Return the streamfunction</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file : str</span>
+<span class="sd">        Path to an ExoPlaSim NetCDF output file.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        The streamfunction for the given file.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">ln</span><span class="p">,</span><span class="n">lt</span><span class="p">,</span><span class="n">levs</span><span class="o">=</span><span class="n">parse</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="s2">&quot;lev&quot;</span><span class="p">)</span>
+    <span class="n">plevs</span> <span class="o">=</span> <span class="n">levs</span><span class="o">*</span><span class="n">spatialmath</span><span class="p">(</span><span class="s2">&quot;ps&quot;</span><span class="p">,</span><span class="n">file</span><span class="o">=</span><span class="n">file</span><span class="p">,</span><span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="p">)</span>
+    <span class="n">ln</span><span class="p">,</span><span class="n">lt</span><span class="p">,</span><span class="n">va</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="s2">&quot;va&quot;</span><span class="p">)</span>
+    <span class="n">va</span> <span class="o">=</span> <span class="n">make2d</span><span class="p">(</span><span class="n">va</span><span class="p">,</span><span class="n">lon</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span><span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="p">)</span>
+    <span class="n">strf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">va</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">pref</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="mf">6.371e6</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">lt</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mf">180.0</span><span class="p">)</span><span class="o">/</span><span class="mf">9.81</span>
+    <span class="n">ps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,]</span><span class="o">+</span><span class="nb">list</span><span class="p">(</span><span class="n">plevs</span><span class="p">))</span>
+    <span class="n">vas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">va</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">+</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">)))</span>
+    <span class="n">vas</span><span class="p">[</span><span class="mi">1</span><span class="p">:,:]</span> <span class="o">=</span> <span class="n">va</span><span class="p">[:,:]</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">plevs</span><span class="p">)):</span>
+        <span class="n">strf</span><span class="p">[</span><span class="n">k</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">pref</span><span class="p">[:]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">trapz</span><span class="p">(</span><span class="n">vas</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="p">,:],</span><span class="n">x</span><span class="o">=</span><span class="n">ps</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">strf</span></div>
+
+    
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Adiv Paradise
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

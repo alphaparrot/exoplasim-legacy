@@ -28,23 +28,23 @@ class DatafileError(Exception):
     pass
 
 def parse(file,variable,lat=None,lon=None):
-"""Retrieve a variable from a NetCDF file
+    """Retrieve a variable from a NetCDF file
 
-Parameters
-----------
-file : str
-    Path to a NetCDF file
-variable : str
-    Name of the variable to extract
-lat,lon : str, optional
-    If the latitude and longitude arrays have non-standard names, specify them here.
+    Parameters
+    ----------
+    file : str
+        Path to a NetCDF file
+    variable : str
+        Name of the variable to extract
+    lat,lon : str, optional
+        If the latitude and longitude arrays have non-standard names, specify them here.
 
-Returns
--------
-numpy.ndarray
-    Requested output field
+    Returns
+    -------
+    numpy.ndarray
+        Requested output field
 
-"""
+    """
     ncd=_Dataset(file)
     variable = ncd.variables[variable][:]
     
@@ -85,22 +85,22 @@ numpy.ndarray
 def make2d(variable,lat=None,lon=None,time=None,lev=None,ignoreNaNs=True):
     """Compress a variable in two dimensions by slicing or averaging.
 
-Parameters
-----------
-variable : numpy.ndarray
-    The variable to operate on
-lat,lon,lev : int, str, optional
-    Either an index on which to slice, or either of "sum" or "mean", indicating what
-    should be done along that axis.
-time : int, optional
-    The time index on which to slice. If unspecified, a time average will be returned.
-ignoreNaNs : bool, optional
-    If set, will use NaN-safe numpy operators.
-    
-Returns
--------
-numpy.ndarray
-    A 2-D array
+    Parameters
+    ----------
+    variable : numpy.ndarray
+        The variable to operate on
+    lat,lon,lev : int, str, optional
+        Either an index on which to slice, or either of "sum" or "mean", indicating what
+        should be done along that axis.
+    time : int, optional
+        The time index on which to slice. If unspecified, a time average will be returned.
+    ignoreNaNs : bool, optional
+        If set, will use NaN-safe numpy operators.
+        
+    Returns
+    -------
+    numpy.ndarray
+        A 2-D array
     """
     if ignoreNaNs:
         sumop = np.nansum
@@ -157,33 +157,33 @@ numpy.ndarray
 
 def spatialmath(variable,lat=None,lon=None,file=None,mean=True,time=None,
                ignoreNaNs=True,lev=None,radius=6.371e6):
-"""Compute spatial means or sums of data
+    """Compute spatial means or sums of data
 
-Parameters
-----------
-variable : str, numpy.ndarray
-    The variable to operate on. Can either be a data array, or the name of a variable. If the latter, file must be specified.
-lat,lon : numpy.ndarray, optional
-    Latitude and longitude arrays. If file is provided and lat and lon are not, they will be
-    extracted from the file.
-file : str, optional
-    Path to a NetCDF output file to open and extract data from.
-mean : bool, optional
-    If True, compute a global mean. If False, compute a global sum.
-time : int, optional
-    The time index on which to slice. If unspecified, a time average will be returned.
-ignoreNaNs : bool, optional
-    If True, use NaN-safe numpy operators.
-lev : int, optional
-    If set, slice a 3D spatial array at the specified level.
-radius : float, optional
-    Radius of the planet in meters. Only used if mean=False.
-    
-Returns
--------
-float
+    Parameters
+    ----------
+    variable : str, numpy.ndarray
+        The variable to operate on. Can either be a data array, or the name of a variable. If the latter, file must be specified.
+    lat,lon : numpy.ndarray, optional
+        Latitude and longitude arrays. If file is provided and lat and lon are not, they will be
+        extracted from the file.
+    file : str, optional
+        Path to a NetCDF output file to open and extract data from.
+    mean : bool, optional
+        If True, compute a global mean. If False, compute a global sum.
+    time : int, optional
+        The time index on which to slice. If unspecified, a time average will be returned.
+    ignoreNaNs : bool, optional
+        If True, use NaN-safe numpy operators.
+    lev : int, optional
+        If set, slice a 3D spatial array at the specified level.
+    radius : float, optional
+        Radius of the planet in meters. Only used if mean=False.
+        
+    Returns
+    -------
+    float
 
-"""
+    """
     
     if ignoreNaNs:
         sumop = np.nansum
@@ -234,39 +234,39 @@ float
 
 def cspatialmath(variable,lat=None,lon=None,file=None,mean=True,time=None,
                ignoreNaNs=True,lev=None,radius=6.371e6,poles=False):
-"""Compute spatial means or sums of data, but optionally don't go all the way to the poles.
+    """Compute spatial means or sums of data, but optionally don't go all the way to the poles.
 
-Sometimes, saying that the latitudes covered go all the way to :math:`\pm90^\circ` results in
-errors, and accurate accounting requires excluding the poles themselves. This function
-is identical to spatialmath, except that it provides that option.
+    Sometimes, saying that the latitudes covered go all the way to :math:`\pm90^\circ` results in
+    errors, and accurate accounting requires excluding the poles themselves. This function
+    is identical to spatialmath, except that it provides that option.
 
-Parameters
-----------
-variable : str, numpy.ndarray
-    The variable to operate on. Can either be a data array, or the name of a variable. If the latter, file must be specified.
-lat,lon : numpy.ndarray, optional
-    Latitude and longitude arrays. If file is provided and lat and lon are not, they will be
-    extracted from the file.
-file : str, optional
-    Path to a NetCDF output file to open and extract data from.
-mean : bool, optional
-    If True, compute a global mean. If False, compute a global sum.
-time : int, optional
-    The time index on which to slice. If unspecified, a time average will be returned.
-ignoreNaNs : bool, optional
-    If True, use NaN-safe numpy operators.
-lev : int, optional
-    If set, slice a 3D spatial array at the specified level.
-radius : float, optional
-    Radius of the planet in meters. Only used if mean=False.
-poles : bool, optional
-    If False (default), exclude the poles.
-    
-Returns
--------
-float
+    Parameters
+    ----------
+    variable : str, numpy.ndarray
+        The variable to operate on. Can either be a data array, or the name of a variable. If the latter, file must be specified.
+    lat,lon : numpy.ndarray, optional
+        Latitude and longitude arrays. If file is provided and lat and lon are not, they will be
+        extracted from the file.
+    file : str, optional
+        Path to a NetCDF output file to open and extract data from.
+    mean : bool, optional
+        If True, compute a global mean. If False, compute a global sum.
+    time : int, optional
+        The time index on which to slice. If unspecified, a time average will be returned.
+    ignoreNaNs : bool, optional
+        If True, use NaN-safe numpy operators.
+    lev : int, optional
+        If set, slice a 3D spatial array at the specified level.
+    radius : float, optional
+        Radius of the planet in meters. Only used if mean=False.
+    poles : bool, optional
+        If False (default), exclude the poles.
+        
+    Returns
+    -------
+    float
 
-"""
+    """
     
     if ignoreNaNs:
         sumop = np.nansum
@@ -331,16 +331,16 @@ def wrap2d(var):
 def streamfxn(file,time=None):
     '''Return the streamfunction
 
-Parameters
-----------
-file : str
-    Path to an ExoPlaSim NetCDF output file.
-    
-Returns
--------
-numpy.ndarray
-    The streamfunction for the given file.
-'''
+    Parameters
+    ----------
+    file : str
+        Path to an ExoPlaSim NetCDF output file.
+        
+    Returns
+    -------
+    numpy.ndarray
+        The streamfunction for the given file.
+    '''
     ln,lt,levs=parse(file,"lev")
     plevs = levs*spatialmath("ps",file=file,time=time)
     ln,lt,va = parse(file,"va")

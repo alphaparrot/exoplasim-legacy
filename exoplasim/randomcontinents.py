@@ -49,7 +49,20 @@ def writePGM(name,heightfield):
     with open(name+".pgm","w") as fw:
         fw.write(filetext)
     
-    
+'''
+Command-line tool to randomly generate continents up to specified land fraction. Topography optional.
+
+-z,--topo   Generate topographical geopotential map
+-c,--continents   Number of continental cratons
+-f,--landfraction   Land fraction
+-n,--name   Assign a name for the planet
+-m,--maxz   Maximum elevation in km assuming Earth gravity
+--nlats   Number of latitudes (evenly-spaced)--will also set longitudes (twice as many). If unset, PlaSim latitudes and longitudes will be used (T21 resolution)"
+-l,--hemispherelongitude   Confine land to a hemisphere centered on a given longitude
+-o,--orthographic   Plot orthographic projections centered on hemispherelongitude 
+
+
+'''
 
 parser = ag.ArgumentParser(description="Randomly generate continents up to a specified land-fraction. Topography optional.")
 parser.add_argument("-z","--topo",action="store_true",help="Generate topographical geopotential map",)
