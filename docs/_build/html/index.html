@@ -1,0 +1,896 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ExoPlaSim Python API README &#8212; ExoPlaSim 2.0.4 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="exoplasim-python-api-readme">
+<h1>ExoPlaSim Python API README<a class="headerlink" href="#exoplasim-python-api-readme" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="exoplasim-python-api-documentation">
+<h2>ExoPlaSim Python API Documentation<a class="headerlink" href="#exoplasim-python-api-documentation" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+<p>Created by Adiv Paradise</p>
+<p>Copyright 2020, Distributed under the General Public License</p>
+<p>This API was written with Python 3 in mind, but should work with
+Python 2 and outdated versions of NumPy.</p>
+<div class="section" id="requirements">
+<h3>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>netCDF4</p></li>
+<li><p>numpy</p></li>
+<li><p>a Fortran compiler</p></li>
+<li><p>a C compiler</p></li>
+<li><p>(optionally) MPI libraries for those compilers</p></li>
+</ul>
+</div>
+<div class="section" id="installation">
+<h3>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">exoplasim</span>
+</pre></div>
+</div>
+<p>OR:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span>
+</pre></div>
+</div>
+<p>The first time you import the module and try to create a model
+after either installing or updating, ExoPlaSim will run a
+configuration script, write the install directory into its
+source code, and compile the burn7 NetCDF postprocessor. You must
+have NetCDF libraries available in the path when this happens.
+The burn7 compilation process will build and compile a patched
+version of the NetCDF libraries necessary for burn7–burn7 makes
+use of features anachronistic to a particular version of NetCDF
+that no longer exists.</p>
+<p>You may also configure and compile the model manually if you wish
+to not use the Python API, by entering the exoplasim/ directory
+and running first configure.sh, then compile.sh (compilation flags
+are shown by running <code class="docutils literal notranslate"><span class="pre">./compile.sh</span> <span class="pre">-h</span></code>). The postprocessor and its
+libraries can be compiled by entering <code class="docutils literal notranslate"><span class="pre">exoplasim/postprocessor/</span></code> and
+running <code class="docutils literal notranslate"><span class="pre">./build_init.sh</span></code>.</p>
+</div>
+<div class="section" id="plasim-documentation">
+<h3>PlaSim Documentation<a class="headerlink" href="#plasim-documentation" title="Permalink to this headline">¶</a></h3>
+<p>Original PlaSim documentation is available in the exoplasim/docs/
+folder.</p>
+</div>
+<div class="section" id="usage">
+<h3>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h3>
+<p>To use the ExoPlaSim Python API, you must import the module, create
+a Model or one of its subclasses, call its configure method and/or
+modify method, and then run it.</p>
+<p>Basic example::</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">exoplasim</span> <span class="k">as</span> <span class="nn">exo</span>
+<span class="n">mymodel</span> <span class="o">=</span> <span class="n">exo</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">workdir</span><span class="o">=</span><span class="s2">&quot;mymodel_testrun&quot;</span><span class="p">,</span><span class="n">modelname</span><span class="o">=</span><span class="s2">&quot;mymodel&quot;</span><span class="p">,</span><span class="n">resolution</span><span class="o">=</span><span class="s2">&quot;T21&quot;</span><span class="p">,</span><span class="n">layers</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span><span class="n">ncpus</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">mymodel</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
+<span class="n">mymodel</span><span class="o">.</span><span class="n">exportcfg</span><span class="p">()</span>
+<span class="n">mymodel</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">years</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span><span class="n">crashifbroken</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">mymodel</span><span class="o">.</span><span class="n">finalize</span><span class="p">(</span><span class="s2">&quot;mymodel_output&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this example, we initialize a model that will run in the directory
+“mymodel_testrun”, and has the name “mymodel”, which will be used to
+label output and error logs. The model has T21 resolution, or 32x64,
+10 layers, and will run on 8 CPUs. By default, the compiler will use
+8-byte precision. 4-byte may run slightly faster, but possibly at the
+cost of reduced stability. If there are machine-specific optimization
+flags you would like to use when compiling, you may specify them as a
+string to the optimization argument, e.g. <code class="docutils literal notranslate"><span class="pre">optimization='mavx'</span></code>. ExoPlaSim
+will check to see if an appropriate executable has already been created,
+and if not (or if flags indicating special compiler behavior such as
+debug=True or an optimization flag are set) it will compile one. We then
+configure the model with all the default parameter choices, which means
+we will get a model of Earth. We then export the model configurations
+to a <code class="docutils literal notranslate"><span class="pre">.cfg</span></code> file (named automatically after the model), which will allow
+the model configuration to be recreated exactly by other users. We
+run the model for 100 years, with error-handling enabled. Finally, we
+tell the model to clean up after itself. It will take the most recent
+output files and rename them after the model name we chose, and delete
+all the intermediate output and configuration files.</p>
+</div>
+<div class="section" id="objects">
+<h3>Objects<a class="headerlink" href="#objects" title="Permalink to this headline">¶</a></h3>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">Model(resolution=&quot;T21&quot;,layers=10,ncpus=4,precision=8,debug=False,inityear=0,recompile=False,optimization=None,mars=False,workdir=&quot;most&quot;,source=None,modelname=&quot;MOST_EXP&quot;)</span></code></dt><dd><p>Initialize an ExoPlaSim model in a particular directory. If the necessary executable does not yet exist, compile it.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">resolution</dt>
+<dd class="field-odd"><p>The resolution of the model. Options are T21, T42, T63, T85,
+T106, T127, and T170, corresponding to 32, 64, 96, 128, 160,
+192, and 256 latitudes respectively, and twice as many
+longitudes. ExoPlaSim has been tested and validated most
+extensively at T21 and T42. Higher resolutions will take
+considerable time to run.</p>
+</dd>
+<dt class="field-even">layers</dt>
+<dd class="field-even"><p>The number of vertical layers in the model atmosphere. The default
+is 10, but PlaSim has been used with 5 layers in many studies.
+More layers are supported, but not recommended except at higher
+resolutions.</p>
+</dd>
+<dt class="field-odd">ncpus</dt>
+<dd class="field-odd"><p>The number of MPI processes to use, typically the number of cores
+available. If ncpus=1, MPI will not be used.</p>
+</dd>
+<dt class="field-even">precision</dt>
+<dd class="field-even"><p>Either 4 or 8–specifies the number of bytes for a Fortran real.</p>
+</dd>
+<dt class="field-odd">debug</dt>
+<dd class="field-odd"><p>Either True or False. If True, compiler optimizations are disabled
+and the code is compiled with debugging flags enabled that will
+allow line-by-line tracebacks if ExoPlaSim crashes. Only use for
+development purposes.</p>
+</dd>
+<dt class="field-even">inityear</dt>
+<dd class="field-even"><p>The number to use for the initial model year (default 0).</p>
+</dd>
+<dt class="field-odd">recompile</dt>
+<dd class="field-odd"><p>True/False flag used to force a recompile. Cannot force the
+model to skip compilation if the executable does not exist or
+compilation-inducing flags are set.</p>
+</dd>
+<dt class="field-even">optimization</dt>
+<dd class="field-even"><p>Fortran compiler arguments for optimization. ANY compiler
+flags can be passed here, but it’s intended for optimization
+flags. Setting this will trigger a recompile.</p>
+</dd>
+<dt class="field-odd">mars</dt>
+<dd class="field-odd"><p>True/False. If True, will use Mars-specific routines.</p>
+</dd>
+<dt class="field-even">workdir</dt>
+<dd class="field-even"><p>The directory in which to construct the model.</p>
+</dd>
+<dt class="field-odd">source</dt>
+<dd class="field-odd"><p>The directory in which to look for executables, namelists,
+boundary conditions, etc. If not set, will default to exoplasim/plasim/run/.</p>
+</dd>
+<dt class="field-even">modelname</dt>
+<dd class="field-even"><p>The name to use for the model and its output files when finished.</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">TLmodel(resolution=&quot;T21&quot;,layers=10,ncpus=4,precision=8,debug=False,inityear=0,recompile=False,optimization=None,mars=False,workdir=&quot;most&quot;,source=None,modelname=&quot;MOST_EXP&quot;)</span></code></dt><dd><p>Identical to Model, except configuration options suitable for
+tidally-locked models are the default when configure() is called.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">TLaquaplanet(resolution=&quot;T21&quot;,layers=10,ncpus=4,precision=8,debug=False,inityear=0,recompile=False,optimization=None,mars=False,workdir=&quot;most&quot;,source=None,modelname=&quot;MOST_EXP&quot;)</span></code></dt><dd><p>Identical to Model, except configuration options suitable for
+tidally-locked models are the default when configure() is called,
+and the surface is entirely ocean-covered. Specifically, a 30-minute
+timestep, snapshot outputs every 720 timesteps, eccentricity=0.0,
+0-degree obliquity, exponential physics filtering, fixed orbital
+parameters, and no ozone. All these defaults can be overridden.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">TLlandplanet(resolution=&quot;T21&quot;,layers=10,ncpus=4,precision=8,debug=False,inityear=0,recompile=False,optimization=None,mars=False,workdir=&quot;most&quot;,source=None,modelname=&quot;MOST_EXP&quot;)</span></code></dt><dd><p>Identical to Model, except configuration options suitable for
+tidally-locked models are the default when configure() is called,
+and the surface is entirely land-covered. Specifically, a 30-minute
+timestep, snapshot outputs every 720 timesteps, eccentricity=0.0,
+0-degree obliquity, exponential physics filtering, fixed orbital
+parameters, and no ozone. All these defaults can be overridden.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">Earthlike(resolution=&quot;T21&quot;,layers=10,ncpus=4,precision=8,debug=False,inityear=0,recompile=False,optimization=None,mars=False,workdir=&quot;most&quot;,source=None,modelname=&quot;MOST_EXP&quot;)</span></code></dt><dd><p>Identical to Model, except configuration options common for
+Earth-like models are the default when configure is called–
+specifically, 45-minute timestep, snapshot output reporting
+every 480 timesteps, and a model top pinned to 50 mbar. All
+these defaults can be overridden.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="methods">
+<h3>Methods<a class="headerlink" href="#methods" title="Permalink to this headline">¶</a></h3>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">.configure(noutput=True,flux=1367.0,startemp=None,starspec=None,pH2=None,pHe=None,pN2=None,pO2=None,pCO2=None,pAr=None,pNe=None,pKr=None,pH2O=None,gascon=None,pressure=None,pressurebroaden=True,vtype=0,rotationperiod=24.0,synchronous=False,substellarlon=180.0,year=None,glaciers={&quot;toggle&quot;:False,&quot;mindepth&quot;:2.0,&quot;initialh&quot;:-1.0},restartfile=None,gravity=9.80665,radius=1.0,eccentricity=None,obliquity=None,lonvernaleq=None,fixedorbit=False,orography=None,seaice=True,co2weathering=False,evolveco2=False,physicsfilter=None,filterkappa=8.0,filterpower=8,filterLHN0=15.0,diffusionwaven=None,qdiffusion=None,tdiffusion=None,zdiffusion=None,ddiffusion=None,diffusionpower=None,erosionsupplylimit=None,outgassing=50.0,snowicealbedo=None,twobandalbedo=False,maxsnow=None,soilalbedo=None,oceanalbedo=None,oceanzenith=&quot;ECHAM-3&quot;,wetsoil=False,soilwatercap=None,aquaplanet=False,desertplanet=False,soilsaturation=None,drycore=False,ozone=True,cpsoil=None,soildepth=1.0,mldepth=50.0,writefrequency=None,modeltop=None,stratosphere=False,tropopause=None,timestep=45.0,runscript=None,columnmode=None,highcadence={&quot;toggle&quot;:0,&quot;start&quot;:320,&quot;end&quot;:576,&quot;interval&quot;:4},snapshots=None,resources=[],landmap=None,stormclim=False,nstorms=4,stormcapture={&quot;VITHRESH&quot;:0.145,&quot;GPITHRESH&quot;:0.37,&quot;VMXTHRESH&quot;:33.0,&quot;LAVTHRESH&quot;:1.2e-5,&quot;VRMTHRESH&quot;:0.577,&quot;MINSURFTEMP&quot;:298.15,&quot;MAXSURFTEMP&quot;:373.15,&quot;WINDTHRESH&quot;:33.0,&quot;SWINDTHRESH&quot;:20.5,&quot;SIZETHRESH&quot;:30,&quot;ENDTHRESH&quot;:16,&quot;MINSTORMLEN&quot;:256,&quot;MAXSTORMLEN&quot;:1024,&quot;NKTRIGGER&quot;:0,&quot;toggle&quot;:0},topomap=None,threshold=5.0e-4,otherargs={})</span></code></dt><dd><p>Configure model boundary conditions and namelist files. Defaults are appropriate
+for an Earth model. The various options will be organized below by category.</p>
+</dd>
+</dl>
+<div class="section" id="model-operation">
+<h4>Model Operation<a class="headerlink" href="#model-operation" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">noutput</dt>
+<dd class="field-odd"><p>True/False. Whether or not model output should be written.
+restartfile: Path to a restart file to use for initial conditions. Can be None.</p>
+</dd>
+<dt class="field-even">writefrequency</dt>
+<dd class="field-even"><p>How many times per day ExoPlaSim should write output. Ignored by
+default–default is to write time-averaged output once every 5 days.</p>
+</dd>
+<dt class="field-odd">timestep</dt>
+<dd class="field-odd"><p>Model timestep. Defaults to 45 minutes.</p>
+</dd>
+<dt class="field-even">runscript</dt>
+<dd class="field-even"><p>A Python function that accepts a Model object as its first argument. This
+is the routine that will be run when you issue the Model.run() command.
+Any keyword arguments passed to run() will be forwarded to the specified
+function. If not set, the default internal routine will be used.</p>
+</dd>
+<dt class="field-odd">snapshots</dt>
+<dd class="field-odd"><p>How many timesteps should elapse between snapshot outputs. If not set,
+no snapshots will be written.</p>
+</dd>
+<dt class="field-even">highcadence</dt>
+<dd class="field-even"><dl class="simple">
+<dt>A dictionary containing the following arguments:</dt><dd><p><code class="docutils literal notranslate"><span class="pre">toggle</span></code>:    1/0. Whether or not high-cadence output should be written (1=yes).
+<code class="docutils literal notranslate"><span class="pre">start</span></code>:     Timestep at which high-cadence output should begin.
+<code class="docutils literal notranslate"><span class="pre">end</span></code>:       Timestep at which high-cadence output should end.
+<code class="docutils literal notranslate"><span class="pre">interval</span></code>:  How many timesteps should elapse between high-cadence outputs.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-odd">threshold</dt>
+<dd class="field-odd"><p>Energy balance threshold model should run to, if using runtobalance().
+Default is &lt;0.05 W/m^2/yr average drift in TOA and surface energy balance
+over 45-year timescales.</p>
+</dd>
+<dt class="field-even">resources</dt>
+<dd class="field-even"><p>A list of paths to any additional files that should be available in the
+run directory.</p>
+</dd>
+<dt class="field-odd">otherargs</dt>
+<dd class="field-odd"><p>Any namelist parameters not included by default in the configuration options.
+These should be passed as a dictionary, with “<a class="reference external" href="mailto:PARAMETER&#37;&#52;&#48;namelist">PARAMETER<span>&#64;</span>namelist</a>” as the
+form of the dictionary key, and the parameter value passed as a string.
+e.g. <code class="docutils literal notranslate"><span class="pre">otherargs={&quot;N_RUN_MONTHS&#64;plasim_namelist&quot;:'4',&quot;NGUI&#64;plasim_namelist:'1'}</span></code></p>
+</dd>
+</dl>
+</div></blockquote>
+</div>
+<div class="section" id="model-dynamics">
+<h4>Model Dynamics<a class="headerlink" href="#model-dynamics" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><dl class="field-list">
+<dt class="field-odd">columnmode</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>Can be “-“, “clear”, “static”, “static|clear”, or “clear|static”. The</dt><dd><p>inclusion of ‘static’ will disable horizontal advection, forcing ExoPlaSim
+into a column-only mode of operation. The inclusion of ‘clear’ will disable
+the radiative effects of clouds.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">drycore</dt>
+<dd class="field-even"><p>True/False. If True, evaporation is turned off, and a dry atmosphere will
+be used.</p>
+</dd>
+<dt class="field-odd">physicsfilter</dt>
+<dd class="field-odd"><p>If not an empty string, specifies the physics filter(s) to be used. Filters
+can be used during the transform from gridpoint to spectral (<code class="docutils literal notranslate"><span class="pre">&quot;gp&quot;</span></code>), and/or
+during the transform from spectral to gridpoint (<code class="docutils literal notranslate"><span class="pre">&quot;sp&quot;</span></code>). Filter types are:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">&quot;none&quot;</span></code>:   No filter
+<code class="docutils literal notranslate"><span class="pre">&quot;cesaro&quot;</span></code>: f(n) = 1 - n/(N+1)           (Cesaro filter)
+<code class="docutils literal notranslate"><span class="pre">&quot;exp&quot;</span></code>:    f(n) = exp(-k*(n/N)^y)          (Exponential filter)
+<code class="docutils literal notranslate"><span class="pre">&quot;lh&quot;</span></code>:     f(n) = exp(-[n(n+1)/(g(g+1))]^2)   (Lander-Hoskins filter)</p>
+</div></blockquote>
+<p>Where <code class="docutils literal notranslate"><span class="pre">n</span></code> is the wavenumber, <code class="docutils literal notranslate"><span class="pre">N</span></code> is the truncation wavenumber (e.g. 21 for
+T21), <code class="docutils literal notranslate"><span class="pre">k</span></code> is <code class="docutils literal notranslate"><span class="pre">filterkappa</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code> is <code class="docutils literal notranslate"><span class="pre">filterpower</span></code>, and <code class="docutils literal notranslate"><span class="pre">g</span></code> is <code class="docutils literal notranslate"><span class="pre">filterLHN0</span></code>.
+Combinations of filter types and times should be combined with a <code class="docutils literal notranslate"><span class="pre">|</span></code>,
+e.g. <code class="docutils literal notranslate"><span class="pre">physicsfilter=&quot;gp|exp|sp&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">physicsfilter=&quot;gp|cesaro&quot;</span></code>.</p>
+</dd>
+<dt class="field-even">filterkappa</dt>
+<dd class="field-even"><p>A constant to be used with the exponential filter. Default is 8.0.</p>
+</dd>
+<dt class="field-odd">filterpower</dt>
+<dd class="field-odd"><p>A constant integer to be used with the exponential filter. Default is 8.</p>
+</dd>
+<dt class="field-even">filterLHN0</dt>
+<dd class="field-even"><p>The constant used in the denominator of the Lander-Hoskins Filter. Default
+is 15; typically chosen so f(N)=0.1.</p>
+</dd>
+<dt class="field-odd">diffusionwaven</dt>
+<dd class="field-odd"><p>The critical wavenumber beyond which hyperdiffusion is applied. Default
+is 15 for T21.</p>
+</dd>
+<dt class="field-even">qdiffusion</dt>
+<dd class="field-even"><p>Timescale for humidity hyperdiffusion in days. Default for T21 is 0.1.</p>
+</dd>
+<dt class="field-odd">tdiffusion</dt>
+<dd class="field-odd"><p>Timescale for temperature hyperdiffusion in days. Default for T21 is 5.6.</p>
+</dd>
+<dt class="field-even">zdiffusion</dt>
+<dd class="field-even"><p>Timescale for vorticity hyperdiffusion in days. Default for T21 is 1.1.</p>
+</dd>
+<dt class="field-odd">ddiffusion</dt>
+<dd class="field-odd"><p>Timescale for divergence hyperdiffusion in days.. Default for T21 is 0.2.</p>
+</dd>
+<dt class="field-even">diffusionpower</dt>
+<dd class="field-even"><p>integer exponent used in hyperdiffusion. Default is 2 for T21.</p>
+</dd>
+</dl>
+</div></blockquote>
+</div>
+<div class="section" id="radiation">
+<h4>Radiation<a class="headerlink" href="#radiation" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">flux</dt>
+<dd class="field-odd"><p>Incident stellar flux in W/m^2. Default 1367 for Earth.</p>
+</dd>
+<dt class="field-even">startemp</dt>
+<dd class="field-even"><p>Effective blackbody temperature for the star. Not used if not set.</p>
+</dd>
+<dt class="field-odd">starspec</dt>
+<dd class="field-odd"><p>Spectral file for the stellar spectrum. Should have two columns and 965 rows,
+with wavelength in the first column and radiance or intensity in the second.
+A similarly-named file with the “_hr.dat” suffix must also exist and have
+2048 wavelengths.</p>
+</dd>
+<dt class="field-even">twobandalbedo</dt>
+<dd class="field-even"><p>True/False. If True, separate albedos will be calculated for each of the
+two shortwave bands. If False (default), a single broadband albedo will be
+computed and used for both.</p>
+</dd>
+<dt class="field-odd">synchronous</dt>
+<dd class="field-odd"><p>True/False. If True, the Sun is fixed to one longitude in the sky.</p>
+</dd>
+<dt class="field-even">substellarlon</dt>
+<dd class="field-even"><p>The longitude of the substellar point, if synchronous==True. Default 180°</p>
+</dd>
+<dt class="field-odd">pressurebroaden</dt>
+<dd class="field-odd"><p>True/False. If False, pressure-broadening of absorbers no longer depends
+on surface pressure. Default is True</p>
+</dd>
+<dt class="field-even">ozone</dt>
+<dd class="field-even"><p>True/False. Whether or not forcing from stratospheric ozone should be included.</p>
+</dd>
+<dt class="field-odd">snowicealbedo</dt>
+<dd class="field-odd"><p>A uniform albedo to use for all snow and ice.</p>
+</dd>
+<dt class="field-even">soilalbedo</dt>
+<dd class="field-even"><p>A uniform albedo to use for all land.</p>
+</dd>
+<dt class="field-odd">wetsoil</dt>
+<dd class="field-odd"><p>True/False. If True, land albedo depends on soil moisture (wet=darker).</p>
+</dd>
+<dt class="field-even">oceanalbedo</dt>
+<dd class="field-even"><p>A uniform albedo to use for the ocean.</p>
+</dd>
+<dt class="field-odd">oceanzenith</dt>
+<dd class="field-odd"><p>The zenith-angle dependence to use for blue-light reflectance from the ocean.
+Can be <code class="docutils literal notranslate"><span class="pre">'Lambertian'</span></code>/<code class="docutils literal notranslate"><span class="pre">'uniform'</span></code>, <code class="docutils literal notranslate"><span class="pre">'ECHAM-3'</span></code>/<code class="docutils literal notranslate"><span class="pre">'plasim'</span></code>/<code class="docutils literal notranslate"><span class="pre">'default'</span></code>, or <code class="docutils literal notranslate"><span class="pre">'ECHAM-6'</span></code>.
+The default is <code class="docutils literal notranslate"><span class="pre">'ECHAM-3'</span></code> (synonymous with <code class="docutils literal notranslate"><span class="pre">'plasim'</span></code> and <code class="docutils literal notranslate"><span class="pre">'default'</span></code>), which is
+the dependence used in the ECHAM-3 model.</p>
+</dd>
+</dl>
+</div></blockquote>
+</div>
+<div class="section" id="orbital-parameters">
+<h4>Orbital Parameters<a class="headerlink" href="#orbital-parameters" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">year</dt>
+<dd class="field-odd"><p>Number of 24-hour days in a sidereal year. Not necessary if eccentricity and
+obliquity are zero. Defaults if not set to ~365.25 days</p>
+</dd>
+<dt class="field-even">rotationperiod</dt>
+<dd class="field-even"><p>Planetary rotation period, in days. Default is 1.0.</p>
+</dd>
+<dt class="field-odd">eccentricity</dt>
+<dd class="field-odd"><p>Orbital eccentricity. If not set, defaults to Earth’s (0.016715)</p>
+</dd>
+<dt class="field-even">obliquity</dt>
+<dd class="field-even"><p>Axial tilt, in degrees. If not set, defaults to Earth’s obliquity (23.441°).</p>
+</dd>
+<dt class="field-odd">lonvernaleq</dt>
+<dd class="field-odd"><p>Longitude of periapse, measured from vernal equinox, in degrees. If
+not set, defaults to Earth’s (102.7°).</p>
+</dd>
+<dt class="field-even">fixedorbit</dt>
+<dd class="field-even"><p>True/False. If True, orbital parameters do not vary over time. If False,
+variations such as Milankovich cycles will be computed by PlaSim.</p>
+</dd>
+</dl>
+</div></blockquote>
+</div>
+<div class="section" id="planet-parameters">
+<h4>Planet Parameters<a class="headerlink" href="#planet-parameters" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">gravity</dt>
+<dd class="field-odd"><p>Surface gravity, in m/s^2. Defaults to 9.80665 m/s^2.</p>
+</dd>
+<dt class="field-even">radius</dt>
+<dd class="field-even"><p>Planet radius in Earth radii. Default is 1.0.</p>
+</dd>
+<dt class="field-odd">orography</dt>
+<dd class="field-odd"><p>If set, a scaling factor for topographic relief. If <code class="docutils literal notranslate"><span class="pre">orography=0.0</span></code>, topography
+will be zeroed-out.</p>
+</dd>
+<dt class="field-even">aquaplanet</dt>
+<dd class="field-even"><p>True/False. If True, the surface will be entirely ocean-covered.</p>
+</dd>
+<dt class="field-odd">desertplanet</dt>
+<dd class="field-odd"><p>True/False. If True, the surface will be entirely land-covered.</p>
+</dd>
+<dt class="field-even">seaice</dt>
+<dd class="field-even"><p>True/False. If False, disables radiative effects of sea ice (although sea ice
+itself is still computed).</p>
+</dd>
+<dt class="field-odd">landmap</dt>
+<dd class="field-odd"><p>Path to a <code class="docutils literal notranslate"><span class="pre">.sra</span></code> file containing a land mask for the chosen resolution.</p>
+</dd>
+<dt class="field-even">topomap</dt>
+<dd class="field-even"><p>Path to a <code class="docutils literal notranslate"><span class="pre">.sra</span></code> file containing geopotential height map. Must include landmap.</p>
+</dd>
+</dl>
+</div></blockquote>
+</div>
+<div class="section" id="atmosphere">
+<h4>Atmosphere<a class="headerlink" href="#atmosphere" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">gascon</dt>
+<dd class="field-odd"><p>Effective gas constant. Defaults to 287.0 (Earth), or the gas constant
+corresponding to the composition specified by partial pressures.</p>
+</dd>
+<dt class="field-even">vtype</dt>
+<dd class="field-even"><p>Type of vertical discretization. Can be:
+0   Pseudolinear scaling with pressure that maintains resolution near the ground.
+1   Linear scaling with pressure.
+2   Logarithmic scaling with pressure (resolves high altitudes)
+3   Pseudologarithmic scaling with pressure that preserves resolution near the ground.
+4   Pseudolinear scaling with pressure, pinned to a specified top pressure.
+5   If &gt;10 layers, bottom 10 as if <code class="docutils literal notranslate"><span class="pre">vtype=4</span></code>, and upper layers as if <code class="docutils literal notranslate"><span class="pre">vtype=2</span></code>.</p>
+</dd>
+<dt class="field-odd">modeltop</dt>
+<dd class="field-odd"><p>Pressure of the top layer</p>
+</dd>
+<dt class="field-even">tropopause</dt>
+<dd class="field-even"><p>If stratosphere is being included, pressure of the 10th layer (where scheme
+switches from linear to logarithmic).</p>
+</dd>
+<dt class="field-odd">stratosphere</dt>
+<dd class="field-odd"><p>True/False. If True, vtype=5 is used, and model is discretized to include
+a stratosphere.</p>
+</dd>
+<dt class="field-even">pressure</dt>
+<dd class="field-even"><p>Surface pressure in bars, if not specified through partial pressures.</p>
+</dd>
+</dl>
+</div></blockquote>
+<div class="section" id="gas-partial-pressures">
+<h5>Gas Partial Pressures<a class="headerlink" href="#gas-partial-pressures" title="Permalink to this headline">¶</a></h5>
+<blockquote>
+<div><p>Partial pressures of individual gases can be specified. If pressure and gascon
+are not explicitly set, these will determine surface pressure, mean molecular
+weight, and effective gas constant. Note however that Rayleigh scattering assumes
+an Earth-like composition, and the only absorbers explicitly included in the
+radiation scheme are CO2 and H2O.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">pH2</dt>
+<dd class="field-odd"><p>H2 partial pressure in bars.</p>
+</dd>
+<dt class="field-even">pHe</dt>
+<dd class="field-even"><p>He partial pressure in bars.</p>
+</dd>
+<dt class="field-odd">pN2</dt>
+<dd class="field-odd"><p>N2 partial pressure in bars.</p>
+</dd>
+<dt class="field-even">pO2</dt>
+<dd class="field-even"><p>O2 partial pressure in bars.</p>
+</dd>
+<dt class="field-odd">pH2</dt>
+<dd class="field-odd"><p>H2 partial pressure in bars.</p>
+</dd>
+<dt class="field-even">pAr</dt>
+<dd class="field-even"><p>Ar partial pressure in bars.</p>
+</dd>
+<dt class="field-odd">pNe</dt>
+<dd class="field-odd"><p>Ne partial pressure in bars.</p>
+</dd>
+<dt class="field-even">pKr</dt>
+<dd class="field-even"><p>Kr partial pressure in bars.</p>
+</dd>
+<dt class="field-odd">pCO2</dt>
+<dd class="field-odd"><p>CO2 partial pressure in bars. This gets translated into a ppmv concentration, so if you want to specify/vary CO2 but don’t need the other gases, specifying pCO2, pressure, and gascon will do the trick. In most use cases, however, just specifying pN2 and pCO2 will give good enough behavior.</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">pH2O</dt>
+<dd class="field-odd"><p>H2O partial pressure in bars. This is only useful in setting the gas constant and surface pressure; it will have no effect on actual moist processes.</p>
+</dd>
+</dl>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="surface-parameters">
+<h4>Surface Parameters<a class="headerlink" href="#surface-parameters" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">mldepth</dt>
+<dd class="field-odd"><p>Depth of the mixed-layer ocean. Default is 50 meters.</p>
+</dd>
+<dt class="field-even">soildepth</dt>
+<dd class="field-even"><p>Scaling factor for the depth of soil layers (default total of 12.4 meters)</p>
+</dd>
+<dt class="field-odd">cpsoil</dt>
+<dd class="field-odd"><p>Heat capacity of the soil, in J/m^3/K. Default is 2.4*10^6.</p>
+</dd>
+<dt class="field-even">soilwatercap</dt>
+<dd class="field-even"><p>Water capacity of the soil, in meters. Defaults to 0.5 meters</p>
+</dd>
+<dt class="field-odd">soilsaturation</dt>
+<dd class="field-odd"><p>Initial fractional saturation of the soil. Default is 0.0 (dry).</p>
+</dd>
+<dt class="field-even">maxsnow</dt>
+<dd class="field-even"><p>Maximum snow depth (Default is 5 meters; set to -1 to have no limit).</p>
+</dd>
+</dl>
+</div></blockquote>
+</div>
+<div class="section" id="additional-physics">
+<h4>Additional Physics<a class="headerlink" href="#additional-physics" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><dl class="field-list">
+<dt class="field-odd">co2weathering</dt>
+<dd class="field-odd"><p>True/False. Toggles whether or not carbon-silicate weathering should be
+computed. Default is False.</p>
+</dd>
+<dt class="field-even">evolveco2</dt>
+<dd class="field-even"><p>True/False. If co2weathering==True, toggles whether or not the CO2 partial
+pressure should be updated every year. Usually the change in pCO2 will be
+extremely small, so this is not necessary, and weathering experiments try
+to estimate the average weathering rate for a given climate in order to
+interpolate timescales between climates, rather than modelling changes in CO2
+over time directly.</p>
+</dd>
+<dt class="field-odd">outgassing</dt>
+<dd class="field-odd"><p>The assumed CO2 outgassing rate in units of Earth outgassing. Default is 1.0.</p>
+</dd>
+<dt class="field-even">erosionsupplylimit</dt>
+<dd class="field-even"><p>If set, the maximum CO2 weathering rate per year permitted by
+erosion, in ubars/year. This is not simply a hard cutoff, but follows
+Foley 2015 so high weathering below the cutoff is also reduced.</p>
+</dd>
+<dt class="field-odd">glaciers</dt>
+<dd class="field-odd"><p>A dictionary containing the following arguments:</p>
+<p>toggle:  True/False. Whether or not glaciers should be allowed to grow or shrink in thickness, or be formed from persistent snow on land.
+mindepth:  The minimum snow depth in meters of liquid water equivalent that must persist year-round before the grid cell is considered glaciated. Default is 2 meters.
+initialh:  If &gt;=0, covers the land surface with ice sheets of a height given in meterss. If -1, no initial ice sheets are assumed.</p>
+</dd>
+<dt class="field-even">stormclim</dt>
+<dd class="field-even"><p>True/False. Toggles whether or not storm climatology (convective available
+potential energy, maximum potential intensity, ventilation index, etc)
+should be computed. If True, output fields related to storm climatology
+will be added to standard output files. Enabling this mode currently roughly
+doubles the computational cost of the model. This may improve in future
+updates. Refer to Paradise, et al 2021 for implementation description.</p>
+</dd>
+<dt class="field-odd">stormcapture</dt>
+<dd class="field-odd"><p>A dictionary containing arguments controlling when high-cadence output
+is triggered by storm activity. This dictionary must contain ‘toggle’, which
+can be either 1 or 0 (yes or no). It may also contain any namelist
+parameters accepted by hurricanemod.f90, including the following:</p>
+<p>NKTRIGGER:  0/1 (no/yes). Whether or not to use the Komacek, et al 2020 conditions for hurricane cyclogenesis as the output trigger. Default is no.
+VITHRESH:   (nktrigger) Ventilation index threshold for nktrigger output. Default 0.145
+VMXTHRESH:  (nktrigger) Max potential intensity threshold for nktrigger output.Default 33 m/s
+LAVTHRESH:  (nktrigger) Lower-atmosphere vorticity threshold for nktrigger output. Default 1.2*10^-5 s^-1
+VRMTHRESH:  (unused) Ventilation-reduced maximum intensity threshold. Default 0.577
+GPITHRESH:  (default) Genesis Potential Index threshold. Default 0.37.
+MINSURFTEMP:  (default) Min. surface temperature for storm activity. Default 25C
+MAXSURFTEMP:  (default) Max. surface temperature for storm activity. Default 100C
+WINDTHRESH:   (default) Lower-atmosphere maximum wind threshold for storm activity.  Default 33 m/s
+SWINDTHRESH:  (default) Minimum surface windspeed for storm activity. Default 20.5 m/s
+SIZETHRESH:  (default) Minimum number of cells that must trigger to start outputDefault 30
+ENDTHRESH:  (default) Minimum number of cells at which point storm output ends.Default 16
+MINSTORMLEN:  (default) Minimum number of timesteps to write output. Default 256
+MAXSTORMLEN:  (default) Maximum number of timesteps to write output. Default 1024</p>
+</dd>
+</dl>
+<p>Note that actual number of writes will be stormlen/interval, as set in
+highcadence. This interval defaults to 4, so 64 writes minimum, 256 max</p>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="other-model-methods">
+<h3>Other Model Methods<a class="headerlink" href="#other-model-methods" title="Permalink to this headline">¶</a></h3>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">.modify(**kwargs)</span></code></dt><dd><p>Modify any already-configured parameters. All parameters accepted by configure() can
+be passed as arguments.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">.exportcfg(filename=None)</span></code></dt><dd><p>Write the current model configuration to a text file. This file can be shared and used by
+other users to recreate your model configuration.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">filename</dt>
+<dd class="field-odd"><p>Path to the file that should be written. If None (default), &lt;modelname&gt;.cfg
+will be created in the working directory.</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">.loadconfig(configfile)</span></code></dt><dd><p>Load a previously-exported configuration file and configure the model accordingly.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">configfile</dt>
+<dd class="field-odd"><p>Path to the configuration file to load</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">.save(filename=None)</span></code></dt><dd><p>Save the current Model object to a NumPy save file. The model object can then be
+reinstantiated using <code class="docutils literal notranslate"><span class="pre">numpy.load(savefile).item()</span></code>. Note that these are often not
+portable between versions of Python or machine architectures, so their use is only
+recommended internally. For sharing with other users, it is recommended that you use
+the <code class="docutils literal notranslate"><span class="pre">.exportcfg()</span></code> function.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">.run(\*\*kwargs)</span></code></dt><dd><p>Run the model’s run routine. This may have been passed as runscript when the model was
+created, or it could be the model’s internal ._run() routine. That method is described
+below:</p>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">.</span><span class="n">_run</span><span class="p">(</span><span class="n">years</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">postprocess</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">crashifbroken</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span><span class="n">clean</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="p">:</span><span class="n">years</span><span class="p">:</span>
+        <span class="n">Number</span> <span class="n">of</span> <span class="n">years</span> <span class="n">to</span> <span class="n">run</span>
+
+    <span class="p">:</span><span class="n">postprocess</span><span class="p">:</span>
+        <span class="bp">True</span><span class="o">/</span><span class="bp">False</span><span class="o">.</span> <span class="n">Whether</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">NetCDF</span> <span class="n">files</span> <span class="n">should</span> <span class="n">be</span> <span class="n">produced</span> <span class="n">on</span><span class="o">-</span><span class="n">the</span><span class="o">-</span><span class="n">fly</span>
+
+    <span class="p">:</span><span class="n">crashifbroken</span><span class="p">:</span>
+        <span class="bp">True</span><span class="o">/</span><span class="bp">False</span><span class="o">.</span> <span class="n">If</span> <span class="bp">True</span><span class="p">,</span> <span class="n">use</span> <span class="n">Pythonic</span> <span class="n">error</span> <span class="n">handling</span>
+
+    <span class="p">:</span><span class="n">clean</span><span class="p">:</span>
+        <span class="bp">True</span><span class="o">/</span><span class="bp">False</span><span class="o">.</span> <span class="n">If</span> <span class="bp">True</span><span class="p">,</span> <span class="n">delete</span> <span class="n">raw</span> <span class="n">output</span> <span class="n">files</span> <span class="n">once</span> <span class="n">NetCDF</span> <span class="n">files</span> <span class="n">are</span> <span class="n">made</span>
+</pre></div>
+</div>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">.runtobalance(threshold=None,baseline=50,maxyears=300,minyears=75,timelimit=None,crashifbroken=True,clean=True)</span></code></dt><dd><p>Run the model until energy balance equilibrium is reached at the top and surface.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">threshold</dt>
+<dd class="field-odd"><p>If specified, overrides the threshold set by <code class="docutils literal notranslate"><span class="pre">.config()</span></code>. The model will run
+until the energy balance at the top and surface drifts by less than this
+amount per year over a given baseline.</p>
+</dd>
+<dt class="field-even">baseline</dt>
+<dd class="field-even"><p>The number of years over which to evaluate energy balance drift. Default 50</p>
+</dd>
+<dt class="field-odd">maxyears</dt>
+<dd class="field-odd"><p>The maximum number of years to run before returning. Default 300. This is
+useful if you are running on a scratch disk with limited space.</p>
+</dd>
+<dt class="field-even">minyears</dt>
+<dd class="field-even"><p>The minimum number of years to run before determining that the model is in
+equilibrium.</p>
+</dd>
+<dt class="field-odd">timelimit</dt>
+<dd class="field-odd"><p>If set, maxyears will be revised each year based on the average minutes
+per year thus far, to try to avoid going over the time limit, which should
+be given in minutes.</p>
+</dd>
+<dt class="field-even">crashifbroken</dt>
+<dd class="field-even"><p>True/False. If True, Pythonic error handling is enabled. Default True.</p>
+</dd>
+<dt class="field-odd">clean</dt>
+<dd class="field-odd"><p>True/False. If True, raw output is deleted once postprocessed. Default True.</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">.postprocess(inputfile,namelist,log=&quot;postprocess.log&quot;,crashifbroken=False)</span></code></dt><dd><p>Produce NetCDF output from an input file, using a specified postprocessing namelist.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">inputfile</dt>
+<dd class="field-odd"><p>The raw output file to be processed</p>
+</dd>
+<dt class="field-even">namelist</dt>
+<dd class="field-even"><p>The burn7 namelist to use</p>
+</dd>
+<dt class="field-odd">log</dt>
+<dd class="field-odd"><p>The log file to which burn7 should output standard output and errors</p>
+</dd>
+<dt class="field-even">crashifbroken</dt>
+<dd class="field-even"><p>True/False. If True, exoplasim will run .integritycheck() on the file.</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">.integritycheck(ncfile)</span></code></dt><dd><p>Check an output file to see it contains the expected variables and isn’t full of NaNs.
+If the file does not exist, exoplasim will attempt to create it using the postprocessor.
+If the file does not have the expected variables or is full of trash, an exception will
+be raised. If the file is fine, this function returns a 1. If the file did not exist and
+cannot be created, this function will return a 0.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">ncfile</dt>
+<dd class="field-odd"><p>The output file to check.</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">.finalize(outputdir,allyears=False,keeprestarts=False,clean=True)</span></code></dt><dd><p>Move outputs and optionally restarts to a specified output directory. If more than the final
+year of output is being kept, a folder will be created in the output directory using the
+model name. Otherwise, finalized files will be renamed using the model name.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">outputdir</dt>
+<dd class="field-odd"><p>Directory in which to put output.</p>
+</dd>
+<dt class="field-even">allyears</dt>
+<dd class="field-even"><p>True/False. If True, output from all years will be kept, in a directory in
+outputdir named with the model name. Otherwise, the most recent year will be
+kept in outputdir, using the model name. Default False.</p>
+</dd>
+<dt class="field-odd">keeprestarts</dt>
+<dd class="field-odd"><p>True/False: If True, restart files will be kept as well as output files.
+Default False.</p>
+</dd>
+<dt class="field-even">clean</dt>
+<dd class="field-even"><p>True/False. If True, the original working directory will be deleted after files
+are moved. Default True.</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">.gethistory(key=&quot;ts&quot;,mean=True,layer=-1)</span></code></dt><dd><p>Return an array of the global annual average for the provided output key, for each year
+of output.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">key</dt>
+<dd class="field-odd"><p>One of the supported output variables.</p>
+</dd>
+<dt class="field-even">mean</dt>
+<dd class="field-even"><p>True/False. If False, compute the global sum instead of the global mean.</p>
+</dd>
+<dt class="field-odd">layer</dt>
+<dd class="field-odd"><p>If the output field specified has 3 spatial dimensions, this is the level
+that will be returned. Level indexing follows Python rules, so negative
+numbers are allowed. Item 0 is the top of the atmosphere; -1 is the bottom.</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">.get(year,snapshot=False,highcadence=False)</span></code></dt><dd><p>Return an open NetCDF data object for the given year. Defaults is to return time-averaged
+output.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">year</dt>
+<dd class="field-odd"><p>Integer year of output to return</p>
+</dd>
+<dt class="field-even">snapshot</dt>
+<dd class="field-even"><p>True/False. If True, return the snapshot version.</p>
+</dd>
+<dt class="field-odd">highcadence</dt>
+<dd class="field-odd"><p>True/False. If True, return the high-cadence version.</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">.inspect(variable,year=-1,ignoreNaNs=True,snapshot=False,highcadence=False,savg=False,tavg=False,layer=None)</span></code></dt><dd><p>Return a given output variable from a given year, with optional averaging parameters.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">variable</dt>
+<dd class="field-odd"><p>The name of the variable to return.</p>
+</dd>
+<dt class="field-even">year</dt>
+<dd class="field-even"><p>Which year of output to return. Year indexing follows Pythonic rules. If the model
+has been finalized, only the final year of output will be returned.</p>
+</dd>
+<dt class="field-odd">ignoreNaNs</dt>
+<dd class="field-odd"><p>True/False. If True, use NaN-tolerant numpy functions.</p>
+</dd>
+<dt class="field-even">snapshot</dt>
+<dd class="field-even"><p>True/False. If True, use snapshot output instead of time-averaged.</p>
+</dd>
+<dt class="field-odd">highcadence</dt>
+<dd class="field-odd"><p>True/False. If True, use high-cadednce output instead of time-averaged.</p>
+</dd>
+<dt class="field-even">savg</dt>
+<dd class="field-even"><p>True/False. If True, compute the spatial average. Default False</p>
+</dd>
+<dt class="field-odd">tavg</dt>
+<dd class="field-odd"><p>True/False. If True, compute the annual average. Default False</p>
+</dd>
+<dt class="field-even">layer</dt>
+<dd class="field-even"><p>If specified and data has 3 spatial dimensions, extract the specified layer. If
+unspecified and data has 3 spatial dimensions, the vertical dimension will be
+preserved (even if spatial averages are being computed).</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">ExoPlaSim</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Adiv Paradise.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
