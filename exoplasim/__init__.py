@@ -8,6 +8,8 @@ import numpy as np
 import glob
 import netCDF4 as nc
 import exoplasim.gcmt
+import exoplasim.randomcontinents
+import exoplasim.makestellarspec
 
 smws = {'mH2': 2.01588,
         'mHe': 4.002602,

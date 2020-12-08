@@ -17,8 +17,7 @@ Package Contents
    :maxdepth: 3
    
    source/exoplasim
-   source/modules
-   :caption: Contents:
+..    :caption: Contents:
 
 
 Created by Adiv Paradise
@@ -33,6 +32,8 @@ Requirements
     
 * netCDF4
 * numpy
+* scipy (only needed for additional utilities)
+* matplotlib (only needed for additional utilities)
 * a Fortran compiler
 * a C compiler
 * (optionally) MPI libraries for those compilers

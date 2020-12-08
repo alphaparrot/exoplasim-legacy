@@ -16,6 +16,7 @@ exoplasim.gcmt module
 exoplasim.randomcontinents module
 ---------------------------------
 
+.. program-output:: python3.7 ../exoplasim/randomcontinents.py --help
 .. automodule:: exoplasim.randomcontinents
    :members:
    :undoc-members:

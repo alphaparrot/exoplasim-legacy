@@ -12,18 +12,13 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../exoplasim'))
+sys.path.insert(0, os.path.abspath('..'))
 
-from mock import Mock as MagicMock
- 
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        return MagicMock()
- 
-MOCK_MODULES = ['numpy', 'scipy', 'matplotlib.colors','matplotlib.pyplot','exoplasim',
-                'exoplasim.gcmt','exoplasim.randomcontinents','exoplasim.makestellarspec']
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+#import mock, sys
+#MOCK_MODULES = ['numpy', 'scipy', 'matplotlib.colors','matplotlib.pyplot','exoplasim',
+                #'exoplasim.gcmt','exoplasim.randomcontinents','exoplasim.makestellarspec']
+#for mod_name in MOCK_MODULES:
+    #sys.modules[mod_name] = mock.Mock()
 
 # -- Project information -----------------------------------------------------
 
@@ -44,6 +39,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
+    'sphinxcontrib.programoutput',
     'sphinx.ext.coverage',
 ]
 

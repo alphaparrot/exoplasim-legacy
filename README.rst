@@ -18,6 +18,8 @@ Requirements
     
 * netCDF4
 * numpy
+* scipy (only needed for additional utilities)
+* matplotlib (only needed for additional utilities)
 * a Fortran compiler
 * a C compiler
 * (optionally) MPI libraries for those compilers
