@@ -229,7 +229,7 @@ while landarea<=landfraction-np.nanmin(darea):
     cratons[:,-1] = cratons[:,1]
 
 
-print args.orthographic
+print(args.orthographic)
 
 if not args.orthographic:
     tm = plt.pcolormesh(hlons,hlats,grid,cmap='gist_earth',vmin=-0.3,vmax=2.5)
@@ -354,8 +354,8 @@ if args.topo:
         kx=1
         ky=1
     
-    print lns.min(),lns.max(),lts.min(),lts.max()
-    print lnsz[0],lnsz[-1],ltsz[-1],ltsz[0]
+    print(lns.min(),lns.max(),lts.min(),lts.max())
+    print(lnsz[0],lnsz[-1],ltsz[-1],ltsz[0])
     geozspline = interpolate.RectBivariateSpline(lns,lts[::-1],np.transpose(geo[::-1,:]),bbox=[lnsz[0],lnsz[-1],ltsz[-1],ltsz[0]],kx=kx,ky=ky)
     geoz = np.transpose(geozspline(lnsz,ltsz[::-1]))
     geoz = geoz[::-1,:]
