@@ -22,7 +22,11 @@ Package Contents
 
 Created by Adiv Paradise
 
-Copyright 2020, Distributed under the General Public License
+Copyright 2020, Distributed under the `General Public License`__. 
+
+.. _GPL: LICENSE.html
+
+__ GPL_
 
 This API was written with Python 3 in mind, but should work with
 Python 2 and outdated versions of NumPy. 

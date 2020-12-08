@@ -41,6 +41,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinxcontrib.programoutput',
     'sphinx.ext.coverage',
+    'recommonmark',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
