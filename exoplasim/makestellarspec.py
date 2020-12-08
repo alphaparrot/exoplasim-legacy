@@ -2,6 +2,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
+"""
+Convert spectral files to exoplasim-compliant formats, including resampling
+to the necessary resolutions.
+
+Usage
+-----
+
+python makestellarspec.py spectrum.txt mystarsname
+
+"""
+
+
 cc = 299792458.0 #Speed of light
 
 def readspec(sfile,cgs=False):
@@ -29,7 +41,7 @@ def readspec(sfile,cgs=False):
              nhi+=1
           else:
              break
-       print "Cutting at %d: "%(nhl+nhi),lines[nhl+nhi]
+       print("Cutting at %d: "%(nhl+nhi),lines[nhl+nhi])
        lines = lines[nhl+nhi:]
        wvls = np.zeros(len(lines))
        fluxes = np.zeros(len(lines))
@@ -111,7 +123,7 @@ if __name__=="__main__":
     except:
         norm = False
     w,f,u = readspec(sfile)
-    print u,w.min(),w.max()
+    print(u,w.min(),w.max())
     plt.plot(w,f)
     plt.xscale('log')
     plt.yscale('log')
@@ -130,12 +142,12 @@ if __name__=="__main__":
     f2 = np.interp(w2,w,f)
     E0 = np.trapz(f,x=w)
     E1 = np.trapz(f2,x=w2)
-    print abs(E0-E1)/E0
+    print(abs(E0-E1)/E0)
     if norm:
         factor = 1366.941858/E1
         f2*=factor
-        print np.trapz(f2,x=w2)
-        print np.trapz(normalize(w,f),x=w)
+        print(np.trapz(f2,x=w2))
+        print(np.trapz(normalize(w,f),x=w))
     #print f2[np.argwhere(w2>40.0)],w[-10:]
     plt.plot(w2,f2)
     #plt.plot(wc,fc)
