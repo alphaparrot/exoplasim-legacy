@@ -14,7 +14,7 @@ exoplasim.gcmt module
    
 
 exoplasim.randomcontinents module
----------------------
+---------------------------------
 
 .. automodule:: exoplasim.randomcontinents
    :members:
