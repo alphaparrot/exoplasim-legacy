@@ -1,35 +1,11 @@
 EXOPLASIM
 ======
 
-General Circulation Models Planet Simulator (PlaSim) and PUMA
+The PlaSim 3D general climate model, extended for terrestrial planets. This model contains the PlaSim GCM, as well as all necessary modifications to run tidally-locked planets, planets with substantially different surface pressures than Earth, planets orbiting stars with different effective temperatures, super-Earths, and more. This model also includes the ability to compute carbon-silicate weathering, dynamic orography through the glacier module (though only accumulation and ablation/evaporation/melting are included; glacial flow and spreading are not), and storm climatology. Future features will include support for multiple celestial light sources (e.g. for a habitable moon orbiting a Jovian planet, or circumbinary planets), coupling with N-body integrators such as REBOUND, and CO2 condensation.
 
-This repository has all necessary components to run the models.
+This model ships with a Python API, described below. Full documentation of the API is available at <http://exoplasim.readthedocs.io>.
 
-These models are research models used in Meteorology and Earth Sciences.
-You need knowledge in Meteorology and skills in Linux, C and FORTRAN
-for running the models and interpreting the results.
-
-Please start reading the manuals located in:
-
-puma/doc for the PUMA model
-plasim/doc for the Planet Simulator
-
-Then have a look at the README file for configuration and setup.
-
-=======
-
-This version of PlaSim has been modified to include additional modules
-used for simulating climate on geological timescales (carbon-silicate 
-weathering on land), different rotation states (i.e. tidally-locked), 
-different atmosphere masses, and arbitrary input spectrum. 
-
-The model has also been adapted to permit a rudimentary glacial model,
-with an adaptive glacier mask and (mostly) unbounded land ice thickness
-(included in surface geopotential height), but no ice flow, denudation,
-or adaptive sea level.
-
-The framework for the glacial model may be adapted in the future to enable
-orogeny, such as might be expected from a coupled plate-tectonics model.
+Documentation of the original PlaSim model is found in exoplasim/plasim/doc.
 
 [![DOI](https://zenodo.org/badge/97154456.svg)](https://zenodo.org/badge/latestdoi/97154456)
 
@@ -42,8 +18,6 @@ Copyright 2020, Distributed under the General Public License
 
 This API was written with Python 3 in mind, but should work with Python
 2 and outdated versions of NumPy.
-
-Read the full documentation at <http://exoplasim.readthedocs.io>.
 
 Requirements
 ------------
