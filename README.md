@@ -7,7 +7,7 @@ This model ships with a Python API, described below. Full documentation of the A
 
 Documentation of the original PlaSim model is found in exoplasim/plasim/doc.
 
-[![DOI](https://zenodo.org/badge/97154456.svg)](https://zenodo.org/badge/latestdoi/97154456)
+[![DOI](https://zenodo.org/badge/97154456.svg)](https://zenodo.org/badge/latestdoi/97154456) [![Documentation Status](https://readthedocs.org/projects/exoplasim/badge/?version=stable)](https://exoplasim.readthedocs.io/en/stable/?badge=stable)
 
 ExoPlaSim Python API README
 ===========================
