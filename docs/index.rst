@@ -34,6 +34,7 @@ Python 2 and outdated versions of NumPy.
 Requirements
 ------------
     
+* netcdf C++
 * netCDF4
 * numpy
 * scipy (only needed for additional utilities)
@@ -69,6 +70,78 @@ and running first configure.sh, then compile.sh (compilation flags
 are shown by running ``./compile.sh -h``). The postprocessor and its
 libraries can be compiled by entering ``exoplasim/postprocessor/`` and
 running ``./build_init.sh``.
+
+Most Common Error Modes
+-----------------------
+
+There are 3 major ways in which ExoPlaSim can crash. One is related
+to installation, one is related to model compilation/configuration,
+and one is related to numerical stability. 
+
+If the most recent MOST_DIAG file appears to have run to completion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If in the run folder, diagnostic files are produced that appear to have
+made it all the way to the end of the year (there is a summary tag
+giving time elapsed and that sort of thing), then the problem is likely
+with the postprocessor. This can be one of **two** things: either the
+netcdf libraries are not properly installed (the first time you tried
+to create an ExoPlaSim model, this would have resulted in error output
+when the burn7 postprocessor and its custom-patched netcdf library were
+being built (the custom library depends on netcdf.h from a standard
+netcdf library)), or you have output codes in the postprocessor namelist
+that aren't supported. Check the codes first. If that's not it, you
+can test whether or not it's a netcdf issue, by going to the run folder:
+
+::
+
+    ./burn7.x -n<example.nl>burnout MOST.00000 MOST.00000.nc
+
+If the problem was with the netcdf libraries, you will get an error
+complaining about a missing linked object. If this is the case,
+install netcdf (or load the netcdf module if you're in a cluster environment),
+and then rebuild the postprocessor as follows:::
+
+    burndir=$(python -c "import exoplasim; print(exoplasim.__path__)")/postprocessor
+    cd $burndir
+    ./build_init.sh
+
+This should (if it runs without errors) produce a new, functional ``burn7.x``.
+You can test it by copying it to your run's working directory, and trying
+the ``./burn7.x`` command given above once again.
+
+If netcdf is *not* the problem, then it's likely you somehow passed
+incorrect output codes to the postprocessor. Check the postprocessor
+namelist for any errors. In particular, note that climatology outputs
+are not available if storm climatology was not enabled.
+
+If ExoPlaSim crashed almost immediately without producing output
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. py:module:: exoplasim.makestellarspec
+
+If things crashed and burned immediately, it's likely a configuration
+problem. Check to make sure you aren't using a restart file from a run
+that used a different resolution, or stellar spectrum files that aren't
+formatted correctly (use the :py:mod:`makestellarspec <exoplasim.makestellarspec>`
+utility to format Phoenix spectra for ExoPlaSim), or boundary condition
+``.sra`` files that aren't properly-formatted.
+
+If ExoPlaSim ran for a while and then crashed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If things were fine until they weren't, then it's likely ExoPlaSim encountered
+a numerical instability of some kind. Some of these are physical (e.g. you ran
+a model at a thousand times Earth's insolation, and the oceans boiled, or the model
+was too cold and the physics broke), while some are not (something happened to
+violate the CFL condition for the given timestep, or an unphysical oscillation
+wasn't damped properly by the dynamical core and it grew exponentially). If this
+happens, either try a model configuration that is more physically reasonable,
+or if the problem appears not to have been physical, try reducing the timestep
+or increasing hyperdiffusion. Sometimes it also works to slightly adjust a model
+parameter such as surface pressure by a fraction of a percent or less--just enough
+to nudge the model out of whatever chaotic local minimum it ran into, but not
+enough to qualitatively change the resulting climate. 
 
 PlaSim Documentation
 --------------------
