@@ -7,6 +7,12 @@
 ExoPlaSim Python API Documentation
 ==================================   
 
+.. figure:: ../mixplanets.png
+  :width: 100%
+  :alt: Two rows of planets, progressing from yellow to blue from top left to bottom right. The top row appears to represent tidally-locked planets, while the bottom row appears to represent Earth-like planets.
+  
+  A range of planets modeled by ExoPlaSim, and postprocessed with SBDART. The top row consists of tidally-locked aquaplanets at T21 orbiting stars ranging from 2500 K to 4000 K, with orbital periods increasing with stellar mass. The bottom row consists of aquaplanets with 24-hour rotation at T42, orbiting stars ranging from 4000 K to 8000 K. 
+
 * :ref:`genindex`
 * :ref:`search`
 
@@ -102,7 +108,7 @@ complaining about a missing linked object. If this is the case,
 install netcdf (or load the netcdf module if you're in a cluster environment),
 and then rebuild the postprocessor as follows:::
 
-    burndir=$(python -c "import exoplasim; print(exoplasim.__path__)")/postprocessor
+    burndir=$(python -c "import exoplasim; print(exoplasim.__path__)" | tail -c +3 | head -c -3)/postprocessor
     cd $burndir
     ./build_init.sh
 
