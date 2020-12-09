@@ -13,7 +13,12 @@ ExoPlaSim Python API Documentation
   
   A range of planets modeled by ExoPlaSim, and postprocessed with SBDART. The top row consists of tidally-locked aquaplanets at T21 orbiting stars ranging from 2500 K to 4000 K, with orbital periods increasing with stellar mass. The bottom row consists of aquaplanets with 24-hour rotation at T42, orbiting stars ranging from 4000 K to 8000 K. 
 
+.. _tut: tutorial.html
+
+__ tut_
+
 * :ref:`genindex`
+* `Tutorial`__
 * :ref:`search`
 
 Package Contents
@@ -22,6 +27,7 @@ Package Contents
 .. toctree::
    :maxdepth: 3
    
+   tutorial.rst
    source/exoplasim
 ..    :caption: Contents:
 
