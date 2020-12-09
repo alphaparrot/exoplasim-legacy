@@ -131,7 +131,9 @@ class Model(object):
     run the model for 100 years, with error-handling enabled. Finally, we 
     tell the model to clean up after itself. It will take the most recent 
     output files and rename them after the model name we chose, and delete 
-    all the intermediate output and configuration files. 
+    all the intermediate output and configuration files.
+    
+
     """
     def __init__(self,resolution="T21",layers=10,ncpus=4,precision=8,debug=False,inityear=0,
                 recompile=False,optimization=None,mars=False,workdir="most",source=None,
@@ -536,7 +538,7 @@ class Model(object):
         Parameters
         ----------
         threshold : float, optional
-            The maximum annual energetic drift allowed on the given baseline in W/m^2
+            The maximum annual energetic drift allowed on the given baseline in W/m\ :math:`^2`
         baseline : int, optional
             The number of years over which to assess energy balance
             
@@ -1010,8 +1012,8 @@ class Model(object):
                 ``'interval'`` : int
                     How many timesteps should elapse between high-cadence outputs.
             threshold : float, optional 
-               Energy balance threshold model should run to, if using runtobalance().
-               Default is <0.05 W/m^2/yr average drift in TOA and surface energy balance
+               Energy balance threshold model should run to, if using :py:func:`runtobalance() <exoplasim.Model.runtobalance>`.
+               Default is <0.05 W/m\ :math:`^2`\ /yr average drift in TOA and surface energy balance
                over 45-year timescales.
             resources : list, optional 
                A list of paths to any additional files that should be available in the
@@ -1062,14 +1064,14 @@ class Model(object):
     **Radiation**
     
             flux : float, optional
-               Incident stellar flux in W/m^2. Default 1367 for Earth.
+               Incident stellar flux in W/m\ :math:`^2`\ . Default 1367 for Earth.
             startemp : float, optional
                Effective blackbody temperature for the star. Not used if not set.
             starspec : str, optional
                Spectral file for the stellar spectrum. Should have two columns and 965 rows,
                with wavelength in the first column and radiance or intensity in the second.
                A similarly-named file with the "_hr.dat" suffix must also exist and have 
-               2048 wavelengths.
+               2048 wavelengths. Appropriately-formatted files can be created with :py:mod:`makestellarspec.py <exoplasim.makestellarspec>`.
             twobandalbedo : bool, optional
                True/False. If True, separate albedos will be calculated for each of the
                two shortwave bands. If False (default), a single broadband albedo will be
@@ -1118,7 +1120,7 @@ class Model(object):
     **Planet Parameters**
     
             gravity : float, optional 
-              Surface gravity, in m/s^2. Defaults to 9.80665 m/s^2.
+              Surface gravity, in m/s\ :math:`^2`\ . Defaults to 9.80665 m/s\ :math:`^2`\ .
             radius : float, optional 
               Planet radius in Earth radii. Default is 1.0.
             orography : float, optional 
@@ -1313,7 +1315,7 @@ Notes
         
 See Also
 --------
-    modify : Change model configuration after it has been initialized
+    :py:func:`modify <exoplasim.Model.modify>` : Change model configuration after it has been initialized
         
 References
 ----------
@@ -1693,7 +1695,8 @@ References
             
         See Also
         --------
-        exportcfg : Export model configuration to a text file.
+        :py:func:`exportcfg <exoplasim.Model.exportcfg>` : Export model configuration to a text file.
+    
         """
         with open(configfile,"r") as cfgf:
             cfg = cfgf.read().split("\n")
@@ -1833,12 +1836,12 @@ References
                     otherargs=otherargs,glaciers=glaciers,threshold=threshold)       
     
     def modify(self,**kwargs):
-        """Modify any already-configured parameters. All parameters accepted by configure() can be passed as arguments.
+        """Modify any already-configured parameters. All parameters accepted by :py:func:`configure() <exoplasim.Model.configure>` can be passed as arguments.
         
         See Also
         --------
-        configure : Set model parameters and boundary conditions
-        
+        :py:func:`configure <exoplasim.Model.configure>` : Set model parameters and boundary conditions
+              
         """
         setgas=False
         setgascon=False
@@ -2410,11 +2413,11 @@ References
         Notes
         -----
         Note that these files are often not portable between versions of Python or machine architectures, so their use is only recommended internally. For sharing with other
-        users, it is recommended that you use the ``.exportcfg()`` function.
+        users, it is recommended that you use the :py:func:`exportcfg <exoplasim.Model.exportcfg>` function.
 
         See Also
         --------
-        exportcfg : Export model configuration to a portable text file.
+        :py:func:`exportcfg <exoplasim.Model.exportcfg>` : Export model configuration to a portable text file.
 
 """
         if not filename:
@@ -2438,7 +2441,7 @@ References
             
         See Also
         --------
-        loadconfig : Load a saved configuration.
+        :py:func:`loadconfig <exoplasim.Model.loadconfig>` : Load a saved configuration.
 """
         if not filename:
             filename = self.workdir+"/"+self.modelname+".cfg"
@@ -2689,7 +2692,7 @@ References
 class TLaquaplanet(Model):
     """Create a tidally-locked planet with no land.
 
-    Identical to Model, except configuration options suitable for
+    Identical to :py:class:`Model <exoplasim.Model>`, except configuration options suitable for
     tidally-locked models are the default when configure() is called,
     and the surface is entirely ocean-covered. Specifically, a 30-minute
     timestep, snapshot outputs every 720 timesteps, eccentricity=0.0,
@@ -2706,7 +2709,7 @@ class TLaquaplanet(Model):
 class TLlandplanet(Model): #Default will be ZERO soil water; set soilsaturation if you want any
     """Create a tidally-locked model with no oceans.
 
-    Identical to Model, except configuration options suitable for
+    Identical to :py:class:`Model <exoplasim.Model>`, except configuration options suitable for
     tidally-locked models are the default when configure() is called,
     and the surface is entirely land-covered. Specifically, a 30-minute
     timestep, snapshot outputs every 720 timesteps, eccentricity=0.0,
@@ -2728,7 +2731,7 @@ class TLlandplanet(Model): #Default will be ZERO soil water; set soilsaturation 
 class Earthlike(Model):
     """Create an Earth-like model, but more flexible.
 
-    Identical to Model, except configuration options common for
+    Identical to :py:class:`Model <exoplasim.Model>`, except configuration options common for
     Earth-like models requiring slightly more flexibility are 
     the default when configure is called--specifically, 45-minute 
     timestep, snapshot output reporting every 480 timesteps, and 
@@ -2741,7 +2744,7 @@ class Earthlike(Model):
 class TLmodel(Model):
     """Create a tidally-locked model.    
 
-    Identical to exoplasim.Model, except configuration options suitable for
+    Identical to :py:class:`Model <exoplasim.Model>`, except configuration options suitable for
     tidally-locked models are the default when configure() is called.
 """
     def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
