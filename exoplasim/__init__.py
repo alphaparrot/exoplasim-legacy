@@ -158,7 +158,7 @@ class Model(object):
                 sourcecode = sourcef.read().split('\n')
             sourcecode[2] = 'sourcedir = "%s"'%sourcedir
             sourcecode = '\n'.join(sourcecode)
-            os.system("cp %s/__init__.py %s/preinit.py"%(sourcedir,sourcedir))
+            #os.system("cp %s/__init__.py %s/preinit.py"%(sourcedir,sourcedir))
             try:
                 with open("%s/__init__.py"%sourcedir,"w") as sourcef:
                     sourcef.write(sourcecode)
@@ -423,7 +423,7 @@ class Model(object):
             os.system("[ -e plasim_status ] && cp plasim_status plasim_restart")
             os.system("[ -e plasim_status ] && mv plasim_status "+restname)
             os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
-            os.system("[ -e hurricane_indicators] && mv hurricane_indicators "+stormname)
+            os.system("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
             
             #Do any additional work
             timeavg=0
@@ -771,8 +771,14 @@ class Model(object):
             are moved. Default True.
 
         """
-        if outputdir[0]!="/":
-            outputdir = os.getcwd()+"/"+outputdir
+        
+        if outputdir[0]!="/" and outputdir[0]!="~":
+            cwd = os.getcwd()
+            os.chdir(self.workdir)
+            os.chdir("..")
+            nwd = os.getcwd()
+            outputdir = nwd+"/"+outputdir
+            os.chdir(cwd)
         if not os.path.isdir(outputdir):
             os.system("mkdir %s"%outputdir)
         if allyears:
@@ -809,7 +815,7 @@ class Model(object):
             if clean:
                 newworkdir = os.getcwd()
                 self.cleaned=True
-        os.system("cp %s/*.cfg %s/"%(outputdir,outputdir))
+        os.system("cp %s/*.cfg %s/"%(self.workdir,outputdir))
         if clean:
             os.system("rm -rf %s"%self.workdir)
             self.workdir = newworkdir
@@ -2435,6 +2441,14 @@ References
 """
         if not filename:
             filename=self.workdir+"/model.npy"
+        else:
+            if filename[0]!="/" and filename[0]!="~":
+                cwd = os.getcwd()
+                os.chdir(self.workdir)
+                os.chdir("..")
+                nwd = os.getcwd()
+                filename = nwd+"/"+filename
+                os.chdir(cwd)
         try:
             np.save(filename,self,allow_pickle=True)
         except:
