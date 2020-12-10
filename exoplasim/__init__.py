@@ -165,8 +165,7 @@ class Model(object):
                 cwd = os.getcwd()
                 os.chdir(sourcedir)
                 os.system("./configure.sh")
-                os.system("cd postprocessor && ./build_init.sh && "+
-                        "cp burn7.x ../plasim/run/ && cp burn7.x %s/"%source)
+                os.system("cd postprocessor && ./build_init.sh")
                 os.chdir(cwd)
             except PermissionError:
                 raise PermissionError("\nHi! Welcome to ExoPlaSim. It looks like this is the first "+
@@ -184,6 +183,7 @@ class Model(object):
         self.pgases = {}
         self.modelname=modelname
         self.cleaned=False
+        self.recursecheck=False
         
         if debug or optimization: #There is no need to set these for precompiled binaries
             recompile=True
@@ -627,7 +627,7 @@ class Model(object):
             os.system("[ -e restart_dsnow ] && rm restart_dsnow")
             os.system("[ -e restart_xsnow ] && rm restart_xsnow")
             os.system("[ -e Abort_Message ] && exit 1")
-            #os.system("[ -e plasim_outpuft ] && mv plasim_output "+dataname)
+            os.system("[ -e plasim_output ] && mv plasim_output "+dataname)
             os.system("[ -e plasim_snapshot ] && mv plasim_snapshot "+snapname)
             if self.highcadence["toggle"]:
                 os.system("[ -e plasim_hcadence ] && mv plasim_hcadence "+hcname)
@@ -694,16 +694,22 @@ class Model(object):
         stat=os.system("./burn7.x -n<%s>%s %s %s.nc"%(namelist,log,inputfile,inputfile))
         if stat==0:
             print("NetCDF output written to %s.nc; log written to %s"%(inputfile,log))
+            self.recursecheck=False
             return 1
         else:
             if crashifbroken:
-                if integritycheck("%s.nc"%inputfile):
-                    print("burn7 threw some errors; may want to check %s"%log)
+                if not self.recursecheck:
+                    if self.integritycheck("%s.nc"%inputfile):
+                        self.recursecheck=True
+                        print("burn7 threw some errors; may want to check %s"%log)
+                    else:
+                        raise RuntimeError("Error writing output to %s.nc; "%inputfile +
+                                            "log written to %s"%log)
                 else:
-                    raise RuntimeError("Error writing output to %s.nc; "%inputfile +
-                                        "log written to %s"%log)
+                    raise RuntimeError("An error was encountered, likely with the postprocessor. ExoPlaSim was unable to investigate further due to a recursion trap.")
             else:
                 print("Error writing output to %s.nc; log written to %s"%(inputfile,log))
+                raise RuntimeError("Going to stop here just in case......")
             return 0
         
     def integritycheck(self,ncfile): #MUST pass a NetCDF file that contains surface temperature
@@ -728,7 +734,9 @@ class Model(object):
             os.chdir(self.workdir)
         ioe=1
         if not os.path.exists(ncfile): #If the specified output file does not exist, create it
-            ioe = self.postprocess(ncfile[:-3],"example.nl",crashifbroken=True)
+            if not self.recursecheck:
+                ioe = self.postprocess(ncfile[:-3],"example.nl",crashifbroken=False)
+                self.recursecheck=True
         if ioe:
             ncd = nc.Dataset(ncfile,"r")
             try:
@@ -737,6 +745,7 @@ class Model(object):
                 raise RuntimeError("Output is missing surface temperature; check logs for errors")
             if np.sum(np.isnan(ts))+np.sum(np.isinf(ts)) > 0.5:
                 raise RuntimeError("Non-finite values found in surface temperature")
+            self.recursecheck=False
             return 1
         else:
             return 0
@@ -901,8 +910,12 @@ class Model(object):
             lat = ncd.variables['lat'][:]
             lev = ncd.variables['lev'][:]
             if not savg and not tavg:
+                if type(layer)!=type(None) and len(var.shape)==4:
+                    return var[:,layer,:,:]
                 return var
             elif tavg and not savg:
+                if type(layer)!=type(None) and len(var.shape)==4:
+                    return meanop(var[:,layer,:,:],axis=0)
                 return meanop(var,axis=0)
             elif tavg and savg:
                 if type(layer)!=type(None) and len(var.shape)==4: #3D spatial array, plus time
@@ -2540,10 +2553,15 @@ References
             cfg.append(str(self.sidyear*86400.0))
         else:
             cfg.append(str(self.sidyear))
+            
         cfg.append("&".join([str(self.glaciers["toggle"]*1),
                             str(self.glaciers["mindepth"]),
                             str(self.glaciers["initialh"])]))
+        
         cfg.append(str(self.threshold))
+        
+        print("Writing configuration....\n"+"\n".join(cfg))
+        print("Writing to %s...."%filename)
         with open(filename,"w") as cfgf:
             cfgf.write("\n".join(cfg))
         
