@@ -252,3 +252,20 @@ This will move output files, diagnostic files, and restart files to the folder "
 >>> toi700d = np.load("TOI-700d/TOI-700d.npy",allow_pickle=True).item()
 
 Note that NumPy save files are generally not portable when they've been pickled. If you want to enable somebody else to run your model, give them ``TOI-700d.cfg`` instead.
+
+A Shortcut for TOI 700 d
+========================
+
+Setting up TOI 700 d involved setting several parameters that are probably always going to be set for tidally-locked models. That could get a little repetitive if you set up many models by hand. Fortunately, ExoPlaSim provides a sub-class that would have made configuration much shorter: the :py:class:`exoplasim.TLaquaplanet <exoplasim.TLaquaplanet>` class, along with :py:class:`exoplasim.TLlandplanet <exoplasim.TLlandplanet>` and :py:class:`exoplasim.TLmodel <exoplasim.TLmodel>`. Using ``TLaquaplanet``, we would have done the following:
+
+>>> import exoplasim as exo
+>>> toi700d = exo.TLaquaplanet(workdir="toi700d_run",modelname="TOI-700d",ncpus=4,resolution="T21")
+>>> toi700d.configure(startemp=3480.0, flux=1167.0,         # Stellar parameters
+>>>                   rotationperiod=37.426,                # Rotation
+>>>                   radius=1.19,gravity=11.9,             # Bulk properties
+>>>                   pN2=1.47*(1-360e-6),pCO2=1.47*360e-6) # Atmosphere
+>>> toi700d.exportcfg()
+
+All the other parameters we had specified, like the timestep, aquaplanet mode, physics filter, circular orbit, etc are the defaults for a tidally-locked model. Furthermore, there is only one configuration file format--so when you share the configuration file, it can be loaded by any :py:class:`Model <exoplasim.Model>` instance. A similar class exists for tidally-locked land planets, as well as a generic tidally-locked class that does not specify surface type.
+
+And of course, there is an :py:class:`exoplasim.Earthlike <exoplasim.Earthlike>` class, which sets the usual defaults for a planet with more Earth-like rotation, but which for example might have a slightly different surface pressure.
