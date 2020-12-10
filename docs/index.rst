@@ -19,15 +19,20 @@ __ tut_
 
 * :ref:`genindex`
 * `Tutorial`__
+* `Postprocessor`__
 * :ref:`search`
 
-Package Contents
-================
+.. _post: postprocessor.html
+__ post_
+
+Contents
+========
 
 .. toctree::
    :maxdepth: 3
    
    tutorial.rst
+   postprocessor.rst
    source/exoplasim
 ..    :caption: Contents:
 
