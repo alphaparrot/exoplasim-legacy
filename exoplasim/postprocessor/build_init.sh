@@ -7,6 +7,7 @@ tar -xvzf netcdf-cxx4-4.2.tar.gz
 cd ../
 resdir=$(pwd)
 cd src/netcdf-cxx4-4.2
+export CPPFLAGS="-I $(nc-config --includedir)"
 ./configure --prefix=$resdir
 make
 make install

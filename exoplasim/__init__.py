@@ -10,6 +10,7 @@ import netCDF4 as nc
 import exoplasim.gcmt
 import exoplasim.randomcontinents
 import exoplasim.makestellarspec
+import platform
 
 smws = {'mH2': 2.01588,
         'mHe': 4.002602,
@@ -165,7 +166,13 @@ class Model(object):
                 cwd = os.getcwd()
                 os.chdir(sourcedir)
                 os.system("./configure.sh")
-                os.system("cd postprocessor && ./build_init.sh")
+                os.system("nc-config --version > ncversion.tmp")
+                with open("ncversion.tmp","r") as ncftmpf:
+                    version = float(ncftmpf.read().split()[1])
+                if version>4.2:
+                    os.system("cd postprocessor && ./build_init.sh")
+                else:
+                    os.system("cd postprocessor && rm burn7.x && make")
                 os.chdir(cwd)
             except PermissionError:
                 raise PermissionError("\nHi! Welcome to ExoPlaSim. It looks like this is the first "+
