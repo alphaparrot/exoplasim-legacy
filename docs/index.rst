@@ -88,6 +88,22 @@ are shown by running ``./compile.sh -h``). The postprocessor and its
 libraries can be compiled by entering ``exoplasim/postprocessor/`` and
 running ``./build_init.sh``.
 
+A Note on NetCDF
+----------------
+
+The Burn7 postprocessor requires the ``netcdfcpp.h`` header file. 
+netcdf-cxx distributions later than version 4.2 no longer include
+this file. A patched version of netcdf-cxx4-4.2 is shipped with
+exoplasim, and will be built by default. However, doing so requires
+that ``netcdf.h`` be available, typically from a netcdf C library.
+If you encounter problems on first use, it is likely because the
+C++ compilers can't find ``netcdf.h``, and you may need to adjust
+the system path to include it. In a cluster environment, that may
+involve a command such as ``module load netcdf``. On a personal Linux
+computer, as long as netcdf is installed system-wide, this should
+not be a problem. The build process has not been fully-tested
+on Mac or Windows.
+
 Most Common Error Modes
 -----------------------
 
