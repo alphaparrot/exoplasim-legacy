@@ -51,7 +51,7 @@ Python 2 and outdated versions of NumPy.
 Requirements
 ------------
     
-* netcdf C++
+* netCDF C libraries
 * netCDF4
 * numpy
 * scipy (only needed for additional utilities)
