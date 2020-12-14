@@ -206,6 +206,8 @@ class Model(object):
         if workdir[0]!="/":
             workdir = self.odir+"/"+workdir
         self.workdir = workdir
+        if os.path.isfile(self.workdir): #Linux can't have file and directory of same name
+            self.workdir += "_dir"
         os.system("mkdir %s/"%self.workdir)
         self.currentyear=inityear
         
