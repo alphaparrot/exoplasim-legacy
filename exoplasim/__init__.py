@@ -206,7 +206,7 @@ class Model(object):
         if workdir[0]!="/":
             workdir = self.odir+"/"+workdir
         self.workdir = workdir
-        os.system("mkdir "+self.workdir)
+        os.system("mkdir %s/"%self.workdir)
         self.currentyear=inityear
         
         # Depending on how the user has entered the resolution, set the appropriate number
