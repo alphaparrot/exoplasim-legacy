@@ -168,7 +168,7 @@ class Model(object):
                 os.system("./configure.sh")
                 os.system("nc-config --version > ncversion.tmp")
                 with open("ncversion.tmp","r") as ncftmpf:
-                    version = float(ncftmpf.read().split()[1])
+                    version = float('.'.join(ncftmpf.read().split()[1].split('.')[:2]))
                 if version>4.2:
                     os.system("cd postprocessor && ./build_init.sh")
                 else:
