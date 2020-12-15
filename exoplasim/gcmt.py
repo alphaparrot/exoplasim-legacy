@@ -250,7 +250,7 @@ def latmean(variable,latitudes):
 
     .. math::
 
-        \\bar{x} = \\frac{\sum_{i=1}^N (\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2}))x_i}{\sum_{i=1}^N \\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})}
+        \\bar{x} = \\frac{\sum_{i=1}^N |\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})|x_i}{\sum_{i=1}^N |\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})|}
     
     Parameters
     ----------
@@ -291,11 +291,11 @@ def latmean(variable,latitudes):
 def latsum(variable,latitudes,dlon=360.0,radius=6.371e6):
     """Compute meriodional sum (i.e. the variable that changes is latitude).
     
-    Compute the area-weighted sum of a latitude array :math:`x` given a longitude span :math:`\\delta\\theta` and planet radius :math:`R`\ , such that:
+    Compute the area-weighted sum of a latitude array :math:`x` given a longitude span :math:`\\Delta\\theta` and planet radius :math:`R`\ , such that:
 
     .. math::
 
-        X = \sum_{i=1}^N (\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2}))\\delta\\theta R^2x_i
+        X = \sum_{i=1}^N |\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})|\\Delta\\theta R^2x_i
     
     Parameters
     ----------
@@ -346,7 +346,7 @@ def lonmean(variable,longitudes):
 
     .. math::
 
-        \\bar{x} = \\frac{\sum_{i=1}^N (\\theta_{i-1/2}-\\theta_{i+1/2})x_i}{\sum_{i=1}^N \\theta_{i-1/2}-\\theta_{i+1/2}}
+        \\bar{x} = \\frac{\sum_{i=1}^N |\\theta_{i-1/2}-\\theta_{i+1/2}|x_i}{\sum_{i=1}^N |\\theta_{i-1/2}-\\theta_{i+1/2}|}
     
     Parameters
     ----------
@@ -368,11 +368,11 @@ def lonmean(variable,longitudes):
 def lonsum(variable,longitudes,dsinlat=2.0,radius=6.371e6):
     """Compute zonal sum (i.e. the variable that changes is longitude).
     
-    Compute the area-weighted sum of a longitude array :math:`x` given a latitude span :math:`\\delta\\sin\\phi` and planet radius :math:`R`\ , such that:
+    Compute the area-weighted sum of a longitude array :math:`x` given a latitude span :math:`\\Delta\\sin\\phi` and planet radius :math:`R`\ , such that:
 
     .. math::
 
-        X = \sum_{i=1}^N ((\\theta_{i-1/2}-\\theta_{i+1/2})\\delta\\sin\\phi R^2x_i
+        X = \sum_{i=1}^N |\\theta_{i-1/2}-\\theta_{i+1/2}|\\Delta\\sin\\phi R^2x_i
     
     Parameters
     ----------
