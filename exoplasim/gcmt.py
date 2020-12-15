@@ -82,7 +82,8 @@ def parse(file,variable,lat=None,lon=None):
     
     return ln,lt,variable
 
-def make2d(variable,lat=None,lon=None,time=None,lev=None,ignoreNaNs=True):
+def make2d(variable,lat=None,lon=None,time=None,lev=None,ignoreNaNs=True,radius=6.371e6,
+           latitudes=None,longitudes=None):
     """Compress a variable in two dimensions by slicing or averaging.
 
     Parameters
@@ -96,6 +97,12 @@ def make2d(variable,lat=None,lon=None,time=None,lev=None,ignoreNaNs=True):
         The time index on which to slice. If unspecified, a time average will be returned.
     ignoreNaNs : bool, optional
         If set, will use NaN-safe numpy operators.
+    radius : float, optional
+        Planet radius in meters (only used for summation)
+    latitudes: numpy.ndarray, optional
+        Latitude array--required if lat is "mean", or if either lat or lon is "sum"
+    longitudes: numpy.ndarray, optional
+        Longitude array--required if lon is "mean" or if either lat or lon is "sum"
         
     Returns
     -------
@@ -135,18 +142,23 @@ def make2d(variable,lat=None,lon=None,time=None,lev=None,ignoreNaNs=True):
             if type(lat)==int:
                 variable=variable[:,lat,:]
             elif lat=="sum":
-                variable=sumop(variable,axis=1)
+                variable=latsum(variable,latitudes,dlon=longitudes[1]-longitudes[0],
+                                radius=radius)
             elif lat=="mean":
-                variable=meanop(variable,axis=1)
+                variable=latmean(variable,latitudes)
             else:
                 raise UnitError("Unknown latitude specification")
         elif lon!=None and lat==None:
             if type(lon)==int:
                 variable=variable[:,:,lon]
             elif lon=="sum":
-                variable=sumop(variable,axis=2)
+                newvar = np.zeros(variable.shape[:-1])
+                gradlat = np.gradient(np.sin(latitudes*np.pi/180.))
+                for lt in range(len(latitudes)):
+                    newvar[:,lt]=lonsum(variable,longitudes,dsinlat=gradlat[lt],radius=radius)
+                variable = newvar
             elif lon=="mean":
-                variable=meanop(variable,axis=2)
+                variable=lonmean(variable,longitudes)
             else:
                 raise UnitError("Unknown longitude specification")
         else:
@@ -221,7 +233,7 @@ def spatialmath(variable,lat=None,lon=None,file=None,mean=True,time=None,
     for jlat in range(0,len(lt)):
         for jlon in range(0,len(ln)):
             dln = ln1[jlon+1]-ln1[jlon]
-            darea[jlat,jlon] = (np.sin(lt1[jlat])-np.sin(lt1[jlat+1]))*dln
+            darea[jlat,jlon] = abs(np.sin(lt1[jlat])-np.sin(lt1[jlat+1]))*abs(dln)
     
     svar = variable*darea
     if mean:
@@ -231,7 +243,164 @@ def spatialmath(variable,lat=None,lon=None,file=None,mean=True,time=None,
     
     return outvar
 
+def latmean(variable,latitudes):
+    """Compute meriodional mean (i.e. the variable that changes is latitude).
+    
+    Compute the area-weighted mean of a latitude array :math:`x`\ , such that:
 
+    .. math::
+
+        \\bar{x} = \\frac{\sum_{i=1}^N (\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2}))x_i}{\sum_{i=1}^N \\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2})}
+    
+    Parameters
+    ----------
+    variable : numpy.ndarray
+        Array to be averaged. Assumption is that if 2D, lat is the first dimension, if 3D, the second dimension, and if 4D. the 3rd dimension.
+    latitudes : array-like
+        Array or list of latitudes
+        
+    Returns
+    -------
+    scalar or numpy.ndarray
+        Depending on the dimensionality of the input array, output may have 0, 1, or 2 dimensions.
+    """
+        
+    lt1 = np.zeros(len(latitudes)+1)
+    lt1[0] = 90
+    for n in range(0,len(latitudes)-1):
+        lt1[n+1] = 0.5*(latitudes[n]+latitudes[n+1])
+    lt1[-1] = -90
+    
+    lt1*=np.pi/180.0
+    
+    darea = np.zeros(latitudes.shape)
+    for jlat in range(0,len(latitudes)):
+        darea[jlat] = np.sin(lt1[jlat])-np.sin(lt1[jlat+1])
+    
+    if len(variable.shape)==1:
+        return np.nansum(variable*darea)/np.nansum(darea)
+    elif len(variable.shape)==2:
+        return np.nansum(variable*darea[:,np.newaxis],axis=0)/np.nansum(darea[:,np.newaxis]*np.ones(variable.shape),axis=0)
+    elif len(variable.shape)==3:
+        return np.nansum(variable*darea[np.newaxis,:,np.newaxis],axis=1)/np.nansum(darea[np.newaxis,:,np.newaxis]*np.ones(variable.shape),axis=1)
+    elif len(variable.shape)==4:
+        return np.nansum(variable*darea[np.newaxis,np.newaxis,:,np.newaxis],axis=2)/np.nansum(darea[np.newaxis,np.newaxis,:,np.newaxis]*np.ones(variable.shape),axis=2)
+    else:
+        raise DimensionError("Variable must have 4 or fewer dimensions. Latitude should be the second-from the right-most dimension if there are 2 or more dimensions.")
+        
+def latsum(variable,latitudes,dlon=360.0,radius=6.371e6):
+    """Compute meriodional sum (i.e. the variable that changes is latitude).
+    
+    Compute the area-weighted sum of a latitude array :math:`x` given a longitude span :math:`\\delta\\theta` and planet radius :math:`R`\ , such that:
+
+    .. math::
+
+        X = \sum_{i=1}^N (\\sin(\\phi_{i-1/2})-\\sin(\\phi_{i+1/2}))\\delta\\theta R^2x_i
+    
+    Parameters
+    ----------
+    variable : numpy.ndarray
+        Array to be summed. Assumption is that if 2D, lat is the first dimension, if 3D, the second dimension, and if 4D. the 3rd dimension.
+    latitudes : array-like
+        Array or list of latitudes
+    dlon : float, optional
+        Longitude span in degrees.
+    radius : float, optional
+        Planet radius in meters.
+        
+    Returns
+    -------
+    scalar or numpy.ndarray
+        Depending on the dimensionality of the input array, output may have 0, 1, or 2 dimensions.
+    """
+        
+    lt1 = np.zeros(len(latitudes)+1)
+    lt1[0] = 90
+    for n in range(0,len(latitudes)-1):
+        lt1[n+1] = 0.5*(latitudes[n]+latitudes[n+1])
+    lt1[-1] = -90
+    
+    lt1*=np.pi/180.0
+    dlon *= np.pi/180.0
+    
+    darea = np.zeros(latitudes.shape)
+    for jlat in range(0,len(latitudes)):
+        darea[jlat] = abs(np.sin(lt1[jlat])-np.sin(lt1[jlat+1]))*abs(dlon)*radius**2
+    
+    if len(variable.shape)==1:
+        return np.nansum(variable*darea)
+    elif len(variable.shape)==2:
+        return np.nansum(variable*darea[:,np.newaxis],axis=0)
+    elif len(variable.shape)==3:
+        return np.nansum(variable*darea[np.newaxis,:,np.newaxis],axis=1)
+    elif len(variable.shape)==4:
+        return np.nansum(variable*darea[np.newaxis,np.newaxis,:,np.newaxis],axis=2)
+    else:
+        raise DimensionError("Variable must have 4 or fewer dimensions. Latitude should be the second-from the right-most dimension if there are 2 or more dimensions.")
+
+
+def lonmean(variable,longitudes):
+    """Compute zonal mean (i.e. the variable that changes is longitude).
+    
+    Compute the area-weighted mean of a longitude array :math:`x`\ , such that:
+
+    .. math::
+
+        \\bar{x} = \\frac{\sum_{i=1}^N (\\theta_{i-1/2}-\\theta_{i+1/2})x_i}{\sum_{i=1}^N \\theta_{i-1/2}-\\theta_{i+1/2}}
+    
+    Parameters
+    ----------
+    variable : numpy.ndarray
+        Array to be summed. Assumption is that longitude is always the last dimension.
+        
+    Returns
+    -------
+    scalar or numpy.ndarray
+        Depending on the dimensionality of the input array, output may be a scalar or have N-1 dimensions.
+    """
+    
+    dlon = np.gradient(longitudes)
+    sumlon = np.nansum(dlon)
+    dlon = np.broadcast_to(dlon,variable.shape)
+    
+    return np.nansum(variable*dlon,axis=-1)/sumlon
+        
+def lonsum(variable,longitudes,dsinlat=2.0,radius=6.371e6):
+    """Compute zonal sum (i.e. the variable that changes is longitude).
+    
+    Compute the area-weighted sum of a longitude array :math:`x` given a latitude span :math:`\\delta\\sin\\phi` and planet radius :math:`R`\ , such that:
+
+    .. math::
+
+        X = \sum_{i=1}^N ((\\theta_{i-1/2}-\\theta_{i+1/2})\\delta\\sin\\phi R^2x_i
+    
+    Parameters
+    ----------
+    variable : numpy.ndarray
+        Array to be summed. Assumption is that longitude is always the last dimension.
+    longitudes : array-like
+        Array or list of longitudes
+    dsinlat : float, optional
+        The sine-latitude span for the longitude span considered. The default is 2, corresponding to -90 degrees to 90 degrees.
+    radius : float, optional
+        Planet radius in meters.
+        
+    Returns
+    -------
+    scalar or numpy.ndarray
+        Depending on the dimensionality of the input array, output may have 0, 1, or 2 dimensions.
+    """
+        
+    dlon = np.gradient(longitudes)*np.pi/180.0
+    
+    darea = np.zeros(longitudes.shape)
+    for jlon in range(0,len(longitudes)):
+        darea[jlon] = abs(dsinlat)*abs(dlon[jlon])*radius**2
+    
+    darea = np.broadcast_to(darea,variable.shape)
+    
+    return np.nansum(variable*darea,axis=-1)
+    
 def cspatialmath(variable,lat=None,lon=None,file=None,mean=True,time=None,
                ignoreNaNs=True,lev=None,radius=6.371e6,poles=False):
     """Compute spatial means or sums of data, but optionally don't go all the way to the poles.
@@ -310,7 +479,7 @@ def cspatialmath(variable,lat=None,lon=None,file=None,mean=True,time=None,
     for jlat in range(0,len(lt)):
         for jlon in range(0,len(ln)):
             dln = ln1[jlon+1]-ln1[jlon]
-            darea[jlat,jlon] = (np.sin(lt1[jlat])-np.sin(lt1[jlat+1]))*dln
+            darea[jlat,jlon] = abs(np.sin(lt1[jlat])-np.sin(lt1[jlat+1]))*abs(dln)
     
     svar = variable*darea
     if mean:
