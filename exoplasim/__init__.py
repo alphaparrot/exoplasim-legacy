@@ -481,7 +481,7 @@ class Model(object):
             self.currentyear += 1
             sb = self.getbalance("hfns")
             tb = self.getbalance("ntr")
-            os.system("echo %02.6f  %02.6f'>>%s/balance.log"%(sb,tb,self.workdir))
+            os.system("echo '%02.6f  %02.6f'>>%s/balance.log"%(sb,tb,self.workdir))
             
             if timelimit:
                 avgyear = self._checktimes()
@@ -569,6 +569,8 @@ class Model(object):
             Whether or not the model is in energy balance equilibrium
         """
         nfiles = len((glob.glob("%s/MOST*.nc"%self.workdir)))
+        if nfiles==0: #For when the run restarts and there are no netcdf files yet
+            return False
         prior=False
         if len(glob.glob(self.workdir+"/toahistory.ps*"))>0:
             try:
@@ -588,9 +590,9 @@ class Model(object):
         if self.currentyear < baseline: #Run for minimum of baseline years
             return False
         else:
-            for n in range(0,self.currentyear):
-                topt = self.getbalance("ntr",year=n)
-                bott = self.getbalance("hfns",year=n)
+            for n in range(nstart,self.currentyear):
+                topt = self.getbalance("ntr",year=n-nstart)
+                bott = self.getbalance("hfns",year=n-nstart)
                 sbalance[n+nstart] = bott
                 toabalance[n+nstart] = topt
             savgs = []
