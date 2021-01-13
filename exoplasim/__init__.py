@@ -591,10 +591,10 @@ class Model(object):
             return False
         else:
             for n in range(nstart,self.currentyear):
-                topt = self.getbalance("ntr",year=n-nstart)
-                bott = self.getbalance("hfns",year=n-nstart)
-                sbalance[n+nstart] = bott
-                toabalance[n+nstart] = topt
+                topt = self.getbalance("ntr",year=n)
+                bott = self.getbalance("hfns",year=n)
+                sbalance[n] = bott
+                toabalance[n] = topt
             savgs = []
             tavgs = []
             for n in range(9,len(sbalance)):
