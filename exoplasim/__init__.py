@@ -475,7 +475,10 @@ class Model(object):
                     os.system("rm %s"%snapname)
                 if highcdn:
                     os.system("rm %s"%hcname)
-                    
+                   
+            if os.path.exists("Abort_Message"): #We need to stop RIGHT NOW
+                self._crash() 
+                
             if crashifbroken: #Check to see that we aren't throwing NaNs
                 try:
                     check=self.integritycheck(dataname+".nc")
