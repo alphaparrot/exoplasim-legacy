@@ -278,6 +278,7 @@ class Model(object):
         os.chdir(self.workdir)
         os.chdir("..")
         self.crashdir = os.getcwd()+"/"+self.modelname
+        self.secondarydir = None
         os.chdir(self.odir)
     
         
@@ -694,6 +695,9 @@ class Model(object):
                 if highcdn:
                     os.system("rm %s"%hcname)
                     
+            if os.path.exists("Abort_Message"): #We need to stop RIGHT NOW
+                self._crash()
+                
             if crashifbroken: #Check to see that we aren't throwing NaNs
                 try:
                     check=self.integritycheck(dataname+".nc")
@@ -1001,9 +1005,16 @@ class Model(object):
         """Crash and burn. But gracefully."""
         os.chdir(self.workdir)
         os.chdir("..")
-        os.system("mv %s %s_crashed"%(self.workdir,self.crashdir))
+        os.system("mkdir %s_crashed"%self.crashdir)
+        if self.secondarydir:
+            os.system("mv %s/* %s_crashed/"%(self.secondarydir,self.crashdir))
+        os.system("mv %s/* %s_crashed/"%(self.workdir,self.crashdir))
         raise RuntimeError("ExoPlaSim has crashed or begun producing garbage. All working files have been moved to %s_crashed/"%(os.getcwd()+"/"+self.modelname))
         
+    def emergencyabort(self):
+        """A problem has been encountered by an external script, and the model needs to crash gracefully"""
+        self._crash()
+    
     def configure(self,noutput=True,flux=1367.0,startemp=None,starspec=None,pH2=None,
             pHe=None,pN2=None,pO2=None,pCO2=None,pAr=None,pNe=None,
             pKr=None,pH2O=None,gascon=None,pressure=None,pressurebroaden=True,
