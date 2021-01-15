@@ -407,8 +407,13 @@ class Model(object):
         os.system("mkdir snapshots")
         if self.highcadence["toggle"]:
             os.system("mkdir highcadence")
-        while not self._isbalanced(threshold=self.threshold,baseline=baseline) \
-                and self.currentyear<minyears and self.currentyear<runlimit:
+        #Not balanced, but have run more than minyears: (True+False)*True= True
+        #Not balanced, have run less than minyears:     (True+True)*True = True
+        #Not balanced, but ran more than runlimit:      (True+False)*False=False
+        #Balanced, but run fewer than minyears:         (False+True)*True= True
+        #Balanced, and ran more than minyears:          (False+False)*True=False
+        while (not self._isbalanced(threshold=self.threshold,baseline=baseline) \
+                or self.currentyear<minyears) and self.currentyear<runlimit:
             dataname="MOST.%05d"%self.currentyear
             snapname="MOST_SNAP.%05d"%self.currentyear
             hcname  ="MOST_HC.%05d"%self.currentyear
@@ -484,8 +489,11 @@ class Model(object):
             os.system("echo '%02.6f  %02.6f'>>%s/balance.log"%(sb,tb,self.workdir))
             
             if timelimit:
-                avgyear = self._checktimes()
+                avgyear = self._checktimes() #get how long it takes to run an average year
+                os.system("echo '%1.3f minutes'>>%s/runtimes.log"%(np.nanmean(avgyear),self.workdir))
                 runlimit = min(runstart + int(timelimit//np.nanmean(avgyear)),ogrunlimit)
+                            #options for the runlimit are N0+T/tau, where tau is avg year
+                os.system("echo 'limit to %d years'>>%s/limits.log"%(runlimit,self.workdir))
                 minyears = min(ogminyears,runlimit)
             
         bott = self.gethistory(key="hfns")
@@ -541,7 +549,7 @@ class Model(object):
         files = sorted(glob.glob("%s/MOST*.nc"%self.workdir))
         dd=np.zeros(len(files))
         for n in range(0,len(files)):
-            ncd = self.get(n)
+            ncd = nc.Dataset(files[n])
             variable = ncd.variables[key][:]
             lon = ncd.variables['lon'][:]
             lat = ncd.variables['lat'][:]
@@ -609,7 +617,7 @@ class Model(object):
             tavgslope = abs(np.mean(tslopes[-30:]))
             os.system("echo '%02.8f  %02.8f'>>%s/slopes.log"%(savgslope,tavgslope,self.workdir))
             if savgslope<threshold and tavgslope<threshold: #Both TOA and Surface are changing at average 
-                return True                                  # of <0.1 mW/m^2/yr on 45-year baselines
+                return True                                  # of <0.5 mW/m^2/yr on 45-year baselines
             else:
                 return False
         
@@ -927,8 +935,9 @@ class Model(object):
             meanop = np.mean
         
         if year<0:
-            nfiles = len(glob.glob(self.workdir+"/"+pattern+"*.nc"))
-            year = nfiles+year
+            #nfiles = len(glob.glob(self.workdir+"/"+pattern+"*.nc"))
+            #year = nfiles+year
+            year += self.currentyear #year=-1 should give the most recent year
     
         ncd = self.get(year,snapshot=snapshot,highcadence=highcadence)
         
