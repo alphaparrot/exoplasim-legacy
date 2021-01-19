@@ -236,6 +236,7 @@
                                ! (actual top pressure is ~0.5 this value)
       real :: ptop2 =     1.0  ! TOA pressure (Pa) for hybrid scheme with stratosphere                         
       real :: pfac  =       1  ! pN2 / 1.0e5
+      real :: fixedlon = 0.0   ! Longitude of fixed solar zenith
       real :: time0 =     0.0  ! start time (for performance estimates)
       real :: co2   =   360.0  ! atm. co2 concentration (ppmv)
       real :: umax  =     0.0  ! diagnostic U max
@@ -421,7 +422,8 @@
 !
       real dshdt(NHOR),dlhdt(NHOR)
       
-      real :: tdipole(NHOR) = 0.  ! Tidally-locked temperature dipole [K]
+      real :: tdipolep(NHOR) = 0.  ! Tidally-locked temp dipole (partial) [K]
+      real :: tdipole(NUGP) = 0.  ! Tidally-locked temperature dipole [K]
       
 
 !     *********

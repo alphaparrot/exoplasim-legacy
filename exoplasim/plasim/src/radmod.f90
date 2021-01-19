@@ -68,7 +68,6 @@
                                   
       integer :: npbroaden = 1    ! Should pressure broadening depend on surface pressure (1/0)
       integer :: nfixed  = 0      ! Switch for fixed zenith angle (0/1=no/yes)
-      real    :: fixedlon = 0.0   ! Longitude of fixed solar zenith
       real    :: slowdown = 1.0   ! Factor by which to change diurnal insolation cycle
       
       real    :: minwavel = 316.036116751 ! Minimum wavelength to use when computing spectra [nm]
@@ -541,7 +540,7 @@
 !**   0) define namelist
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
-     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon,slowdown,nradice,npbroaden    &
+     &               ,iyrbp,nswr,nlwr,nfixed,slowdown,nradice,npbroaden    &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
