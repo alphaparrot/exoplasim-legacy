@@ -227,6 +227,7 @@
       real :: delt2           ! 2 * delt
       real :: dtep  =     0.0
       real :: dtns  =     0.0
+      real :: dttl  =     0.0  ! Tidally-locked substellar-antistellar temperature diff. [K]
       real :: dtrop = 12000.0
       real :: dttrp =     2.0
       real :: tgr   =   288.0  ! Temperature ground in mean profile
@@ -265,6 +266,9 @@
       real ::  sp(NESP)      = 0.0 ! Spectral Pressure (ln Ps)
       real ::  so(NESP)      = 0.0 ! Spectral Orography
       real ::  sr(NESP,NLEV) = 0.0 ! Spectral Restoration Temperature
+      
+      real :: sdipolep(NSPP) = 0.0 ! Spectral tidally-locked temperature dipole
+      real :: sdipole(NESP) = 0.0 ! Spectral tidally-locked temperature dipole
 
       real :: sdp(NSPP,NLEV) = 0.0 ! Spectral Divergence  Partial
       real :: stp(NSPP,NLEV) = 0.0 ! Spectral Temperature Partial
@@ -416,6 +420,9 @@
       real :: dmld(NHOR)  = 0.  ! mixed-layer depth (output from ocean)
 !
       real dshdt(NHOR),dlhdt(NHOR)
+      
+      real :: tdipole(NHOR) = 0.  ! Tidally-locked temperature dipole [K]
+      
 
 !     *********
 !     * WATER *

@@ -1066,13 +1066,29 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     constant log(sp) by subroutine noise, called from setzt(ex).
 !     ============================================================
 !
+
+      if (abs(dttl)>0.0) then
+        jhor = 1
+        do jlat=1,NLPP
+          do jlon=1,NLON
+            jhor = jhor+1
+            rlon = jlon/NLON*TWOPI - fixedlon*PI/180.0
+            tdipole(jhor) = tgr+dttl*0.5 - 1.0/PI*acos(cola(jlat)*cos(rlon))*dttl
+          enddo
+        enddo
+        call gp2fc(tdipole,NLON,NLPP)
+        call fc2sp(tdipole,sdipolep)
+        call mpgallsp(sdipole,sdipolep,1)
+      endif 
+       
       if (mypid == NROOT) then
+      
        call setzt
       endif
       call mpscsp(sp,spm,1)
       if (mypid == NROOT) then
-          st(1,:) = sr(1,:)
-         stm(1,:) = sr(1,:)
+          st(:,:) = sr(:,:)
+         stm(:,:) = sr(:,:)
           sz(3,:) = plavor
          szm(3,:) = plavor
       endif
@@ -1882,6 +1898,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
       zdttrp=dttrp*ct
 !
+      if (abs(dttl)>0.0) then
+          ! We need to use most of the below, except we want to define sr(:,:) directly,
+          ! using tdipole(:) instead of tgr(:), using the same vertical structure approach
+          ! everywhere, and then using gp2fc and fc2sp to generate sr(:,:)
+      else
+
       zsigprev=1.
       ztprev=tgr
       zzprev=0.
@@ -1943,6 +1965,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
         sr(5,jlev)=-2./3.*zsqrt04*dtep*zfac(jlev)
  2100 continue
 !
+      endif
       call initrandom
       call printseed
       call noise
