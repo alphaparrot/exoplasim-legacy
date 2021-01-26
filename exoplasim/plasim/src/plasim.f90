@@ -1039,12 +1039,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
              gt(1,1) > 1000.0 .or. gt(1,1) < -1000.0) then
             open(44,file='Abort_Message')
             write(44,*) 'Planet Simulator aborted'
+            write(44,*) 'timestep = ',nhcstp
             write(44,*) 'gd(1,1) = ',gd(1,1)
             write(44,*) 'gz(1,1) = ',gz(1,1)
             write(44,*) 'gt(1,1) = ',gt(1,1)
             close(44)
    
             write(nud,*) 'Planet Simulator aborted'
+            write(nud,*) 'timestep = ',nhcstp
             write(nud,*) 'gd(1,1) = ',gd(1,1)
             write(nud,*) 'gz(1,1) = ',gz(1,1)
             write(nud,*) 'gt(1,1) = ',gt(1,1)
@@ -1070,35 +1072,21 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     constant log(sp) by subroutine noise, called from setzt(ex).
 !     ============================================================
 !
-
-      if (abs(dttl)>0.0) then
-        jhor = 0
-        do jlat=1,NLPP
-          do jlon=1,NLON
-            jhor = jhor+1
-            rlon = jlon/NLON*TWOPI - fixedlon*PI/180.0
-            tdipolep(jhor) = tgr+dttl*0.5 - 1.0/PI*acos(cola(jlat)*cos(rlon))*dttl
-          enddo
-        enddo
-        call mpgagp(tdipole,tdipolep,1)
-!         call gp2fc(tdipolep,NLON,NLPP)
-!         call fc2sp(tdipole,sdipolep)
-!         call mpgallsp(sdipole,sdipolep,1)
-      endif 
        
       if (mypid == NROOT) then
       
        call setzt
       endif
       call mpscsp(sp,spm,1)
-      if (abs(dttl)>0.0) then
+      if (abs(dttl)>0.0) then    !setzt created a stellar-antistellar dipole
+        call mpscsp(sr,srm,NLEV)
         if (mypid == NROOT) then
            st(:,:) = sr(:,:)
-!           stm(:,:) = sr(:,:)
+          stm(:,:) =srm(:,:)
            sz(3,:) = plavor
           szm(3,:) = plavor
         endif
-        call mpscsp(sr,stm,NLEV)
+!         call mpscsp(sr,stm,NLEV)
       else
         if (mypid == NROOT) then
            st(1,:) = sr(1,:)
@@ -1106,6 +1094,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            sz(3,:) = plavor
           szm(3,:) = plavor
         endif
+      endif
       return
       end
 
@@ -1694,7 +1683,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
  9001 format(/,1x,33('*'))
  9002 format(1x,33('*'))
  9003 format(' * Lv *    Sigma Basic-T  Height *')
- 9004 format(' *',i3,' * ',3f8.3,' *')
+ 9004 format(' *',i3,' * ',3f16.8,' *')
  9012 format(1x,69('*'))
  9013 format(' * Lv * C',i11,4i12,' *')
  9014 format(' *',i3,' * ',5f12.8,' *')
@@ -1915,101 +1904,42 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
       zdttrp=dttrp*ct
 !
-      if (abs(dttl)>0.0) then
-          ! We need to use most of the below, except we want to define sr(:,:) directly,
-          ! using tdipole(:) instead of tgr(:), using the same vertical structure approach
-          ! everywhere, and then using gp2fc and fc2sp to generate sr(:,:)
-
-        do jhor=1,NUGP
-           zsigprev=1.
-           ztprev=tdipole(jhor)
-           zzprev=0.
-           do jlev=NLEV,1,-1
-             zzp=zzprev+(gascon*ztprev/ga)*log(zsigprev/sigma(jlev))
-             ztp=tdipole(jhor)-dtrop*ALR
-             ztp=ztp+sqrt((.5*ALR*(zzp-dtrop))**2+zdttrp**2)
-             ztp=ztp-.5*ALR*(zzp-dtrop)
-             ztpm=.5*(ztprev+ztp)
-             zzpp=zzprev+(gascon*ztpm/ga)*log(zsigprev/sigma(jlev))
-             ztpp=tdipole(jhor)-dtrop*ALR
-             ztpp=ztpp+sqrt((.5*ALR*(zzpp-dtrop))**2+zdttrp**2)
-             ztpp=ztpp-.5*ALR*(zzpp-dtrop)
-!              ztrs(jlev)=ztpp
-             ztdprs(jhor,jlev)=ztpp
-             zzprev=zzprev                                                   &
-     &             +(.5*(ztpp+ztprev)*gascon/ga)*log(zsigprev/sigma(jlev))
-             ztprev=ztpp
-             zsigprev=sigma(jlev)
-           enddo
-        enddo
+      zsigprev=1.
+      ztprev=tgr
+      zzprev=0.
+      do 1100 jlev=NLEV,1,-1
+        zzp=zzprev+(gascon*ztprev/ga)*log(zsigprev/sigma(jlev))
+        ztp=tgr-dtrop*ALR
+        ztp=ztp+sqrt((.5*ALR*(zzp-dtrop))**2+zdttrp**2)
+        ztp=ztp-.5*ALR*(zzp-dtrop)
+        ztpm=.5*(ztprev+ztp)
+        zzpp=zzprev+(gascon*ztpm/ga)*log(zsigprev/sigma(jlev))
+        ztpp=tgr-dtrop*ALR
+        ztpp=ztpp+sqrt((.5*ALR*(zzpp-dtrop))**2+zdttrp**2)
+        ztpp=ztpp-.5*ALR*(zzpp-dtrop)
+        ztrs(jlev)=ztpp
+        zzprev=zzprev                                                   &
+     &        +(.5*(ztpp+ztprev)*gascon/ga)*log(zsigprev/sigma(jlev))
+        ztprev=ztpp
+        zsigprev=sigma(jlev)
+1100  continue
 !
 !     **********************************
 !     * write out vertical information *
 !     **********************************
 !
-        if (nprint > 0) then
-        write(nud,9001)
-        write(nud,9003)
-        write(nud,9002)
-        endif
-!       
-        jhor = NLAT/2*NLON
-        do jlev = 1 , NLEV
-           if (nprint > 0) write(nud,9004) jlev,sigma(jlev),ztdprs(jhor,jlev)
-        enddo
-        
-        do jlev=1,NLEV
-           ztdprs(:,jlev)=ztdprs(:,jlev)/ct
-        enddo
-!       
-        if (nprint > 0) write(nud,9002)
-
-        do jlev = 1 , NLEV
-          zdpfac(:) = ztdprs(:,jlev)-t0(jlev)
-          call gp2fc(ztdfac,NLON,NLAT)
-          call fc2sp(ztdpfac,srlev)
-          sr(:,jlev) = srlev(:)
-        enddo          
-          
-          
-      else
-
-        zsigprev=1.
-        ztprev=tgr
-        zzprev=0.
-        do 1100 jlev=NLEV,1,-1
-          zzp=zzprev+(gascon*ztprev/ga)*log(zsigprev/sigma(jlev))
-          ztp=tgr-dtrop*ALR
-          ztp=ztp+sqrt((.5*ALR*(zzp-dtrop))**2+zdttrp**2)
-          ztp=ztp-.5*ALR*(zzp-dtrop)
-          ztpm=.5*(ztprev+ztp)
-          zzpp=zzprev+(gascon*ztpm/ga)*log(zsigprev/sigma(jlev))
-          ztpp=tgr-dtrop*ALR
-          ztpp=ztpp+sqrt((.5*ALR*(zzpp-dtrop))**2+zdttrp**2)
-          ztpp=ztpp-.5*ALR*(zzpp-dtrop)
-          ztrs(jlev)=ztpp
-          zzprev=zzprev                                                   &
-     &          +(.5*(ztpp+ztprev)*gascon/ga)*log(zsigprev/sigma(jlev))
-          ztprev=ztpp
-          zsigprev=sigma(jlev)
-1100    continue
-!
-!     **********************************
-!     * write out vertical information *
-!     **********************************
-!
-        if (nprint > 0) then
-        write(nud,9001)
-        write(nud,9003)
-        write(nud,9002)
-        endif
-!       
-        do 1200 jlev = 1 , NLEV
-           if (nprint > 0) write(nud,9004) jlev,sigma(jlev),ztrs(jlev)
-           ztrs(jlev)=ztrs(jlev)/ct
- 1200   continue
-!       
-        if (nprint > 0) write(nud,9002)
+      if (nprint > 0) then
+      write(nud,9001)
+      write(nud,9003)
+      write(nud,9002)
+      endif
+!     
+      do 1200 jlev = 1 , NLEV
+         if (nprint > 0) write(nud,9004) jlev,sigma(jlev),ztrs(jlev)
+         ztrs(jlev)=ztrs(jlev)/ct
+ 1200 continue
+!     
+      if (nprint > 0) write(nud,9002)
 !
 !******************************************************************
 ! loop to set array zfac - this controls temperature gradients as a
@@ -2018,24 +1948,33 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !******************************************************************
 ! first find sigma at dtrop
 !
-        zttrop=tgr-dtrop*ALR
-        ztps=(zttrop/tgr)**(ga/(ALR*gascon))
+      zttrop=tgr-dtrop*ALR
+      ztps=(zttrop/tgr)**(ga/(ALR*gascon))
 !
 ! now the latitudinal variation in tres is set up ( this being in terms
 ! of a deviation from t0 which is usually constant with height)
 !
-        zsqrt2=sqrt(2.)
-        zsqrt04=sqrt(0.4)
-        zsqrt6=sqrt(6.)
-        do 2100 jlev = 1 , NLEV
-          zfac(jlev)=sin(0.5*PI*(sigma(jlev)-ztps)/(1.-ztps))
-          if (zfac(jlev).lt.0.0) zfac(jlev)=0.0
-          sr(1,jlev)=zsqrt2*(ztrs(jlev)-t0(jlev))
-          sr(3,jlev)=(1./zsqrt6)*dtns*zfac(jlev)
-          sr(5,jlev)=-2./3.*zsqrt04*dtep*zfac(jlev)
- 2100   continue
+      zsqrt2=sqrt(2.)
+      zsqrt04=sqrt(0.4)
+      zsqrt6=sqrt(6.)
+      
+      zsubst1 = - 3.242884958934173 * dttl * cos(fixedlon*PI/180.0)
+      zsubst2 =   3.242884958934173 * dttl * sin(fixedlon*PI/180.0)
+      ksas = NTP1+1
+      ksas1 = 2*ksas-1
+      ksas2 = 2*ksas
+      
+      
+      do 2100 jlev = 1 , NLEV
+        zfac(jlev)=sin(0.5*PI*(sigma(jlev)-ztps)/(1.-ztps))
+        if (zfac(jlev).lt.0.0) zfac(jlev)=0.0
+        sr(1,jlev)=zsqrt2*(ztrs(jlev)-t0(jlev))
+        sr(3,jlev)=(1./zsqrt6)*dtns*zfac(jlev)
+        sr(5,jlev)=-2./3.*zsqrt04*dtep*zfac(jlev)
+        sr(ksas1,jlev) = zsubst1*zfac(jlev)
+        sr(ksas2,jlev) = zsubst2*zfac(jlev)
+ 2100 continue
 !
-      endif
       call initrandom
       call printseed
       call noise

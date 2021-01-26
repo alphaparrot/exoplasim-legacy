@@ -290,6 +290,7 @@
       real :: szm(NSPP,NLEV) = 0.0 ! Spectral Vorticity   Minus
       real :: sqm(NSPP,NLEV) = 0.0 ! Spectral S.Humidity  Minus
       real :: spm(NSPP)      = 0.0 ! Spectral Pressure    Minus
+      real :: srm(NSPP,NLEV) = 0.0 ! Spectral Restoration Minus
 
       real :: sak(NESP,NLEV)   = 0.0 ! horizontal diffusion
       real :: sakpp(NSPP,NLEV) = 0.0 ! horizontal diffusion partial

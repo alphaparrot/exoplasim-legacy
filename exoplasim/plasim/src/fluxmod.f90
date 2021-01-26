@@ -202,13 +202,17 @@
 !
 
       znl(:)=-gascon*0.5*(dt(:,NLEV)+dtsa(:))*zlnsig/ga
-
+      
+      
 !
 !     z/z0
 !
 
       zbz0(:)=znl(:)/dz0(:)
-
+      
+      do jhor=1,NHOR
+         if (zbz0(jhor) .le. -1.0) write(nud,*) dt(jhor,NLEV),dtsa(jhor),zlnsig,dz0(jhor)
+      enddo
 !
 !     bulk richardson number
 !
@@ -221,7 +225,11 @@
       endif
 
       do jhor=1,NHOR
-
+       if (zbz0(jhor)+1. .le. -1.0) then
+          write(nud,*) "negative z/z0"
+          write(nud,*) zbz0(jhor)
+       endif
+       if (ALOG(zbz0(jhor)+1.) == 0.0) write(nud,*) zbz0(jhor)
        zkblnz2=(vonkarman/ALOG(zbz0(jhor)+1.))**2
 
 !

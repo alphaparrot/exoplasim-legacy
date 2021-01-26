@@ -408,6 +408,9 @@ class Model(object):
         os.system("mkdir snapshots")
         if self.highcadence["toggle"]:
             os.system("mkdir highcadence")
+        os.system("rm %s/runtimes.log"%self.workdir) #We only want runtimes for this run
+            
+            
         #Not balanced, but have run more than minyears: (True+False)*True= True
         #Not balanced, have run less than minyears:     (True+True)*True = True
         #Not balanced, but ran more than runlimit:      (True+False)*False=False
@@ -493,12 +496,17 @@ class Model(object):
             os.system("echo '%02.6f  %02.6f'>>%s/balance.log"%(sb,tb,self.workdir))
             
             if timelimit:
-                avgyear = self._checktimes() #get how long it takes to run an average year
-                os.system("echo '%1.3f minutes'>>%s/runtimes.log"%(np.nanmean(avgyear),self.workdir))
-                runlimit = min(runstart + int(timelimit//np.nanmean(avgyear)),ogrunlimit)
+                avgyear = self._checktimes() #get how long it took to run each year
+                os.system("echo '%1.3f minutes'>>%s/runtimes.log"%(avgyear[-1],self.workdir))
+                currentyears = np.loadtxt("%s/runtimes.log"%self.workdir) 
+                     #^Get how long it took to run each year of the current run
+                currentavgyear = np.nanmean(currentyears) 
+                     #^Average walltime per year for this run
+                runlimit = min(runstart + int(timelimit//currentavgyear),ogrunlimit)
                             #options for the runlimit are N0+T/tau, where tau is avg year
                 os.system("echo 'limit to %d years'>>%s/limits.log"%(runlimit,self.workdir))
                 minyears = min(ogminyears,runlimit)
+            
             
         bott = self.gethistory(key="hfns")
         topt = self.gethistory(key="ntr")
@@ -1032,8 +1040,8 @@ class Model(object):
             twobandalbedo=False,maxsnow=None,soilalbedo=None,oceanalbedo=None,
             oceanzenith="ECHAM-3",wetsoil=False,soilwatercap=None,aquaplanet=False,
             desertplanet=False,soilsaturation=None,drycore=False,ozone=True,
-            cpsoil=None,soildepth=1.0,mldepth=50.0,
-            writefrequency=None,modeltop=None,stratosphere=False,
+            cpsoil=None,soildepth=1.0,mldepth=50.0,tlcontrast=0.0,
+            writefrequency=None,modeltop=None,stratosphere=False,top_restoretime=None,
             tropopause=None,timestep=45.0,runscript=None,columnmode=None,
             highcadence={"toggle":0,"start":320,"end":576,"interval":4},
             snapshots=None,resources=[],landmap=None,stormclim=False,nstorms=4,
@@ -1195,6 +1203,8 @@ class Model(object):
               True/False. If True, the surface will be entirely ocean-covered.
             desertplanet : bool, optional 
               True/False. If True, the surface will be entirely land-covered.
+            tlcontrast : float, optional
+              The initial surface temperature contrast between fixedlon and the anterior point. Default is 0.0 K.
             seaice : bool, optional 
               True/False. If False, disables radiative effects of sea ice (although sea ice 
               itself is still computed).
@@ -1484,12 +1494,21 @@ References
             self._edit_namelist("planet_namelist","ROTSPD",str(1.0/float(rotationperiod)))
             self._edit_namelist("plasim_namelist","N_DAYS_PER_YEAR",
                                 str(max(int(360.0/float(rotationperiod)/12+0.5),1)*12))
+            if rotationperiod>80.0 and type(top_restoretime)==type(None):
+                top_restoretime = 1.0 #If we have a long rotation period, apply top-layer forcing
         self.rotationperiod=rotationperiod
         if synchronous:
             self._edit_namelist("radmod_namelist","NFIXED","1")
-            self._edit_namelist("radmod_namelist","FIXEDLON",str(substellarlon))
+            self._edit_namelist("plasim_namelist","FIXEDLON",str(substellarlon))
         self.synchronous=synchronous
         self.substellarlon=substellarlon
+        self._edit_namelist("plasim_namelist","DTTL",str(tlcontrast))
+        self.tlcontrast=tlcontrast
+        if top_restoretime:
+            #self._edit_namelist("plasim_namelist","RESTIM","%f,%d*0.0"%(top_restoretime,self.layers-1))
+            self._edit_namelist("plasim_namelist","NSPONGE","1")
+            self._edit_namelist("plasim_namelist","DAMPSP","%f"%top_restoretime)
+        self.top_restoretime = top_restoretime
         
         if restartfile:
             os.system("cp %s %s/plasim_restart"%(restartfile,self.workdir))
@@ -1748,7 +1767,7 @@ References
                 field=destination[0]
                 namelist=destination[1]
                 self._edit_namelist(namelist,field,value)
-                self.otherargs.append(key)
+                self.otherargs[key]=value
     
     def loadconfig(self,configfile):
         """    Load a previously-exported configuration file and configure the model accordingly.
@@ -1874,11 +1893,20 @@ References
         glaciers["initialh"] = float(glacdict[2])
         threshold = float(cfg[69])
         #PAST THIS POINT ALL ADDITIONAL LOADS SHOULD BE IN TRY-EXCEPT FOR BACKWARDS COMPAT.
+        try:
+            tlcontrast = float(cfg[70])
+        except:
+            tlcontrast = 0.0
             
+        try:
+            restim = float(cfg[71])
+        except:
+            restim = None
+        
         self.configure(noutput=noutput,flux=flux,startemp=startemp,starspec=starspec,
                     gascon=gascon,pressure=pressure,pressurebroaden=pressurebroaden,
                     vtype=vtype,rotationperiod=rotationperiod,synchronous=synchronous,
-                    year=year,
+                    year=year,top_restoretime=restim,
                     substellarlon=substellarlon,restartfile=restartfile,gravity=gravity,
                     radius=radius,eccentricity=eccentricity,obliquity=obliquity,
                     lonvernaleq=lonvernaleq,fixedorbit=fixedorbit,orography=orography,
@@ -1897,7 +1925,7 @@ References
                     stratosphere=stratosphere,tropopause=tropopause,timestep=timestep,
                     runscript=runscript,columnmode=columnmode,highcadence=highcadence,
                     snapshots=snapshots,resources=resources,landmap=landmap,stormclim=stormclim,
-                    nstorms=nstorms,stormcapture=stormcapture,topomap=topomap,
+                    nstorms=nstorms,stormcapture=stormcapture,topomap=topomap,tlcontrast=tlcontrast,
                     otherargs=otherargs,glaciers=glaciers,threshold=threshold)       
     
     def modify(self,**kwargs):
@@ -1913,6 +1941,8 @@ References
         setpressure=False
         changeatmo=False
         changeland=False
+        slowrotator=False
+        restim=False
         oldpressure = 0.0
         for gas in self.pgases:
             oldpressure += self.pgases[gas]
@@ -2020,16 +2050,24 @@ References
                                         str(1.0/float(self.rotationperiod)))
                     self._edit_namelist("plasim_namelist","N_DAYS_PER_YEAR",
                                         str(max(int(360.0/float(self.rotationperiod)/12+0.5),1)*12))
+                    if value>80.0:
+                        slowrotator=True
+            if key=="top_restoretime":
+                restim=True
+                self.top_restoretime=value
             if key=="synchronous":
                 self.synchronous=value
                 self._edit_namelist("radmod_namelist","NFIXED",str(self.synchronous*1))
             if key=="substellarlon":
                 self.substellarlon=value
-                self._edit_namelist("radmod_namelist","FIXEDLON",str(self.substellarlon))
+                self._edit_namelist("plasim_namelist","FIXEDLON",str(self.substellarlon))
+            if key=="tlcontrast":
+                self.tlcontrast=value
+                self._edit_namelist("plasim_namelist","DTTL",str(self.tlcontrast))
             if key=="restartfile":
                 self.restartfile=value
                 if self.restartfile:
-                    os.system("cp %s %s/plasim_restart"%(restartfile,self.workdir))
+                    os.system("cp %s %s/plasim_restart"%(self.restartfile,self.workdir))
                 else:
                     os.system("rm %s/plasim_restart"%self.workdir)
             if key=="gravity":
@@ -2443,6 +2481,17 @@ References
                 self.pressure=pressure
                 self._edit_namelist("plasim_namelist","PSURF",str(self.pressure))
             
+        if restim:
+            #self._edit_namelist("plasim_namelist","RESTIM","%f,%d*0.0"%(self.top_restoretime,self.layers-1))
+            self._edit_namelist("plasim_namelist","NSPONGE","1")
+            self._edit_namelist("plasim_namelist","DAMPSP","%"%self._top_restoretime)
+        elif not restim and slowrotator:
+            #self._edit_namelist("plasim_namelist","RESTIM","%f,%d*0.0"%(1.0,self.layers-1))
+            self._edit_namelist("plasim_namelist","NSPONGE","1")
+            self._edit_namelist("plasim_namelist","DAMPSP","1.0")
+            self.top_restoretime=1.0
+            
+        
         if changeatmo:
             
             if self.stratosphere:
@@ -2619,6 +2668,8 @@ References
                             str(self.glaciers["initialh"])]))
         
         cfg.append(str(self.threshold))
+        cfg.append(str(self.tlcontrast))
+        cfg.append(str(self.top_restoretime))
         
         print("Writing configuration....\n"+"\n".join(cfg))
         print("Writing to %s...."%filename)
@@ -2778,7 +2829,7 @@ class TLaquaplanet(Model):
     parameters, and no ozone. All these defaults can be overridden.
 """
     def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
-                obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
+                obliquity=0.0,physicsfilter="gp|exp|sp",tlcontrast=100.0,**kwargs):
         super(TLaquaplanet,self).configure(synchronous=True,fixedorbit=True,aquaplanet=True,
                         eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
                         snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
@@ -2800,7 +2851,7 @@ class TLlandplanet(Model): #Default will be ZERO soil water; set soilsaturation 
     model. Set soilsaturation to something nonzero if you want groundwater.
 """
     def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
-                obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
+                obliquity=0.0,physicsfilter="gp|exp|sp",tlcontrast=100.0,**kwargs):
         super(TLlandplanet,self).configure(synchronous=True,fixedorbit=True,desertplanet=True,
                         eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
                         snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
@@ -2826,7 +2877,7 @@ class TLmodel(Model):
     tidally-locked models are the default when configure() is called.
 """
     def configure(self,timestep=30.0,snapshots=720,eccentricity=0.0,ozone=False,
-                obliquity=0.0,physicsfilter="gp|exp|sp",**kwargs):
+                obliquity=0.0,physicsfilter="gp|exp|sp",tlcontrast=100.0,**kwargs):
         super(TLmodel,self).configure(synchronous=True,fixedorbit=True,
                         eccentricity=eccentricity,obliquity=obliquity,timestep=timestep,
                         snapshots=snapshots,physicsfilter=physicsfilter,ozone=ozone,
