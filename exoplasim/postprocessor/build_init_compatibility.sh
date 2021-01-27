@@ -8,11 +8,17 @@ cd ../
 resdir=$(pwd)
 cd src/netcdf-cxx4-4.2
 export CPPFLAGS=$(nc-config --cflags)
+export LDFLAGS=$(nc-config --libs)
+arr=($LDFLAGS)
+export LD_LIBRARY_PATH=${arr[0]}
 ./configure --prefix=$resdir
 make
 make install
 cd ../legacy-netcdf-cxx-4.2
 export CPPFLAGS=$(nc-config --cflags)
+export LDFLAGS=$(nc-config --libs)
+arr=($LDFLAGS)
+export LD_LIBRARY_PATH=${arr[0]}
 ./configure --prefix=$resdir
 make
 make install

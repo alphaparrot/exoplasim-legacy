@@ -170,7 +170,7 @@ class Model(object):
                 with open("ncversion.tmp","r") as ncftmpf:
                     version = float('.'.join(ncftmpf.read().split()[1].split('.')[:2]))
                 if version>4.2:
-                    os.system("cd postprocessor && ./build_init.sh")
+                    os.system("cd postprocessor && ./build_init.sh || ./build_init_compatibility.sh")
                 else:
                     os.system("cd postprocessor && rm burn7.x && make")
                 os.chdir(cwd)
