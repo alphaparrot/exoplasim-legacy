@@ -1494,8 +1494,8 @@ References
             self._edit_namelist("planet_namelist","ROTSPD",str(1.0/float(rotationperiod)))
             self._edit_namelist("plasim_namelist","N_DAYS_PER_YEAR",
                                 str(max(int(360.0/float(rotationperiod)/12+0.5),1)*12))
-            if rotationperiod>80.0 and type(top_restoretime)==type(None):
-                top_restoretime = 1.0 #If we have a long rotation period, apply top-layer forcing
+            #if rotationperiod>80.0 and type(top_restoretime)==type(None):
+                #top_restoretime = 1.0 #If we have a long rotation period, apply top-layer forcing
         self.rotationperiod=rotationperiod
         if synchronous:
             self._edit_namelist("radmod_namelist","NFIXED","1")
@@ -2050,8 +2050,8 @@ References
                                         str(1.0/float(self.rotationperiod)))
                     self._edit_namelist("plasim_namelist","N_DAYS_PER_YEAR",
                                         str(max(int(360.0/float(self.rotationperiod)/12+0.5),1)*12))
-                    if value>80.0:
-                        slowrotator=True
+                    #if value>80.0:
+                        #slowrotator=True
             if key=="top_restoretime":
                 restim=True
                 self.top_restoretime=value

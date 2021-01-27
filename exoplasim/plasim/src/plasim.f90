@@ -1036,7 +1036,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (mypid == NROOT) then
          if (gd(1,1) > 1000.0 .or. gd(1,1) < -1000.0 .or. &
              gz(1,1) > 1000.0 .or. gz(1,1) < -1000.0 .or. &
-             gt(1,1) > 1000.0 .or. gt(1,1) < -1000.0) then
+             (gt(1,1)*ct) > 1000.0 .or. gt(1,1) < -t0(1)) then
             open(44,file='Abort_Message')
             write(44,*) 'Planet Simulator aborted'
             write(44,*) 'timestep = ',nhcstp
@@ -1958,8 +1958,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       zsqrt04=sqrt(0.4)
       zsqrt6=sqrt(6.)
       
-      zsubst1 = - 3.242884958934173 * dttl * cos(fixedlon*PI/180.0)
-      zsubst2 =   3.242884958934173 * dttl * sin(fixedlon*PI/180.0)
+      zsubst1 = - 1.0/3.463843223261725/ct * dttl * cos(fixedlon*PI/180.0)
+      zsubst2 =   1.0/3.463843223261725/ct * dttl * sin(fixedlon*PI/180.0)
       ksas = NTP1+1
       ksas1 = 2*ksas-1
       ksas2 = 2*ksas
