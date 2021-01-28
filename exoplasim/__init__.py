@@ -498,7 +498,7 @@ class Model(object):
             if timelimit:
                 avgyear = self._checktimes() #get how long it took to run each year
                 os.system("echo '%1.3f minutes'>>%s/runtimes.log"%(avgyear[-1],self.workdir))
-                currentyears = np.loadtxt("%s/runtimes.log"%self.workdir) 
+                currentyears = np.loadtxt("%s/runtimes.log"%self.workdir,usecols=[0,]) 
                      #^Get how long it took to run each year of the current run
                 currentavgyear = np.nanmean(currentyears) 
                      #^Average walltime per year for this run
