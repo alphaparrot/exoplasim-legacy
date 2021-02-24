@@ -2311,8 +2311,13 @@ References
                 self.desertplanet=value
                 if self.desertplanet:
                     self._edit_namelist("plasim_namelist","NDESERT","1")
-                    self._edit_namelist("landmod_namelist","NWATCINI","1")
-                    self._edit_namelist("landmod_namelist","DWATCINI","0.0")
+                    if "soilsaturation" in kwargs.keys():
+                        if kwargs["soilsaturation"] is None:
+                            self._edit_namelist("landmod_namelist","NWATCINI","1")
+                            self._edit_namelist("landmod_namelist","DWATCINI","0.0")
+                    else:
+                        self._edit_namelist("landmod_namelist","NWATCINI","1")
+                        self._edit_namelist("landmod_namelist","DWATCINI","0.0")
                     os.system("rm %s/*.sra"%self.workdir)
                 else:
                     self._edit_namelist("landmod_namelist","NDESERT","0")
