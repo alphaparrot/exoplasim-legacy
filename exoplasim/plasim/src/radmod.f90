@@ -69,6 +69,8 @@
       integer :: npbroaden = 1    ! Should pressure broadening depend on surface pressure (1/0)
       integer :: nfixed  = 0      ! Switch for fixed zenith angle (0/1=no/yes)
       real    :: slowdown = 1.0   ! Factor by which to change diurnal insolation cycle
+      real    :: desync = 0.0     ! Degrees per minute by which substellar point drifts (+/-)
+      
       
       real    :: minwavel = 316.036116751 ! Minimum wavelength to use when computing spectra [nm]
       
@@ -540,7 +542,7 @@
 !**   0) define namelist
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
-     &               ,iyrbp,nswr,nlwr,nfixed,slowdown,nradice,npbroaden    &
+     &               ,iyrbp,nswr,nlwr,nfixed,slowdown,nradice,npbroaden,desync    &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
@@ -668,6 +670,8 @@
          
          minwavel = minwavel*1.0e-9
          
+         if (nrestart > 0.) call get_restart_real('fixedlon',fixedlon)
+         
          if ((necham.eq.1).and.(necham6.eq.1)) necham=0 !necham6 overrides necham
       endif ! (mypid==NROOT)
 !
@@ -678,6 +682,7 @@
       call mpbci(no3)
       call mpbci(nfixed)
       call mpbcr(fixedlon)
+      call mpbcr(desync)
       call mpbcr(slowdown)
       call mpbcr(a0o3)
       call mpbcr(a1o3)
@@ -1210,7 +1215,9 @@
 !
 !     no PUMA variables are used
 !
+      if (mypid==NROOT) call put_restart_real('fixedlon',fixedlon)
       call mpputgp('zsolars',zsolars,2,1)
+      
 
       if(mypid == NROOT .and. ntime == 1) then
        write(nud,*)'******************************************'
@@ -1281,7 +1288,9 @@
       zrtim = rotspd * TWOPI / 1440.0         ! scale time   to radians
       zmins = ihou * 60 + imin
       
-      if (nfixed==1) then 
+      if (nfixed==1) then
+        if (mypid==NROOT) fixedlon = fixedlon + desync*mpstep
+        call mpbcr(fixedlon)
         zrtim = TWOPI
         zmins = 1.0 - (fixedlon/360.)  !Think about how to fix this: there's a dep
         zdecl = obliqr                 !on rotspd. Maybe zrtim = TWOPI/1440.0?

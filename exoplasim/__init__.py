@@ -1041,7 +1041,7 @@ class Model(object):
             twobandalbedo=False,maxsnow=None,soilalbedo=None,oceanalbedo=None,
             oceanzenith="ECHAM-3",wetsoil=False,soilwatercap=None,aquaplanet=False,
             desertplanet=False,soilsaturation=None,drycore=False,ozone=True,
-            cpsoil=None,soildepth=1.0,mldepth=50.0,tlcontrast=0.0,
+            cpsoil=None,soildepth=1.0,mldepth=50.0,tlcontrast=0.0,desync=0.0,
             writefrequency=None,modeltop=None,stratosphere=False,top_restoretime=None,
             tropopause=None,timestep=45.0,runscript=None,columnmode=None,runsteps=None,
             highcadence={"toggle":0,"start":320,"end":576,"interval":4},
@@ -1154,6 +1154,8 @@ class Model(object):
                computed and used for both.
             synchronous : bool, optional
                True/False. If True, the Sun is fixed to one longitude in the sky.
+            desync : float, optional
+               The rate of drift of the substellar point in degrees per minute. May be positive or negative.
             substellarlon : float, optional
                The longitude of the substellar point, if synchronous==True. Default 180°
             pressurebroaden : bool, optional 
@@ -1515,6 +1517,8 @@ References
             self._edit_namelist("plasim_namelist","FIXEDLON",str(substellarlon))
         self.synchronous=synchronous
         self.substellarlon=substellarlon
+        self._edit_namelist("radmod_namelist","DESYNC",str(desync))
+        self.desync=desync
         self._edit_namelist("plasim_namelist","DTTL",str(tlcontrast))
         self.tlcontrast=tlcontrast
         if top_restoretime:
@@ -1916,6 +1920,11 @@ References
             runsteps = _noneparse(cfg[72],int)
         except:
             runsteps = None
+            
+        try:
+            desync = float(cfg[73])
+        except:
+            desync = 0.0
         
         self.configure(noutput=noutput,flux=flux,startemp=startemp,starspec=starspec,
                     gascon=gascon,pressure=pressure,pressurebroaden=pressurebroaden,
@@ -1928,7 +1937,7 @@ References
                     physicsfilter=physicsfilter,filterkappa=filterkappa,
                     filterpower=filterpower,filterLHN0=filterLHN0,diffusionwaven=diffusionwaven,
                     qdiffusion=qdiffusion,tdiffusion=tdiffusion,zdiffusion=zdiffusion,
-                    ddiffusion=ddiffusion,diffusionpower=diffusionpower,
+                    ddiffusion=ddiffusion,diffusionpower=diffusionpower,desync=desync,
                     erosionsupplylimit=erosionsupplylimit,outgassing=outgassing,
                     snowicealbedo=snowicealbedo,twobandalbedo=twobandalbedo,maxsnow=maxsnow,
                     soilalbedo=soilalbedo,oceanalbedo=oceanalbedo,oceanzenith=oceanzenith,
@@ -2074,8 +2083,13 @@ References
                                         str(max(int(360.0/float(self.rotationperiod)/12+0.5),1)*12))
                     #if value>80.0:
                         #slowrotator=True
-                    nsteps = max(1,int(round(360.0*1440.0/self.timestep+0.49999)))
-                    self._edit_namelist("plasim_namelist","N_RUN_STEPS",str(nsteps))
+                    if "runsteps" in kwargs.keys():
+                        if kwargs["runsteps"] is None:
+                            nsteps = max(1,int(round(360.0*1440.0/self.timestep+0.49999)))
+                            self._edit_namelist("plasim_namelist","N_RUN_STEPS",str(nsteps))
+                    else:
+                        nsteps = max(1,int(round(360.0*1440.0/self.timestep+0.49999)))
+                        self._edit_namelist("plasim_namelist","N_RUN_STEPS",str(nsteps))
             if key=="runsteps":
                 self.runsteps=value
                 if self.runsteps is not None:
@@ -2089,6 +2103,9 @@ References
             if key=="substellarlon":
                 self.substellarlon=value
                 self._edit_namelist("plasim_namelist","FIXEDLON",str(self.substellarlon))
+            if key=="desync":
+                self.desync=value 
+                self._edit_namelist("radmod_namelist","DESYNC",str(self.desync))
             if key=="tlcontrast":
                 self.tlcontrast=value
                 self._edit_namelist("plasim_namelist","DTTL",str(self.tlcontrast))
@@ -2450,7 +2467,7 @@ References
                             self._edit_namelist("hurricane_namelist",param,
                                                 str(self.stormcapture[param]))
                 else:
-                    self._edit_namelsit("hurricane_namelist","HC_CAPTURE","0")
+                    self._edit_namelist("hurricane_namelist","HC_CAPTURE","0")
             
             if key=="threshold":
                 self.threshold = value
@@ -2698,6 +2715,7 @@ References
         cfg.append(str(self.tlcontrast))
         cfg.append(str(self.top_restoretime))
         cfg.append(str(self.runsteps))
+        cfg.append(str(self.desync))
         
         print("Writing configuration....\n"+"\n".join(cfg))
         print("Writing to %s...."%filename)
