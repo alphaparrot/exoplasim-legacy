@@ -1043,7 +1043,7 @@ class Model(object):
             desertplanet=False,soilsaturation=None,drycore=False,ozone=True,
             cpsoil=None,soildepth=1.0,mldepth=50.0,tlcontrast=0.0,
             writefrequency=None,modeltop=None,stratosphere=False,top_restoretime=None,
-            tropopause=None,timestep=45.0,runscript=None,columnmode=None,runsteps=None
+            tropopause=None,timestep=45.0,runscript=None,columnmode=None,runsteps=None,
             highcadence={"toggle":0,"start":320,"end":576,"interval":4},
             snapshots=None,resources=[],landmap=None,stormclim=False,nstorms=4,
             stormcapture={"VITHRESH":0.145,"GPITHRESH":0.37,"VMXTHRESH":33.0,
@@ -1920,7 +1920,7 @@ References
         self.configure(noutput=noutput,flux=flux,startemp=startemp,starspec=starspec,
                     gascon=gascon,pressure=pressure,pressurebroaden=pressurebroaden,
                     vtype=vtype,rotationperiod=rotationperiod,synchronous=synchronous,
-                    year=year,top_restoretime=restim,runsteps=runsteps
+                    year=year,top_restoretime=restim,runsteps=runsteps,
                     substellarlon=substellarlon,restartfile=restartfile,gravity=gravity,
                     radius=radius,eccentricity=eccentricity,obliquity=obliquity,
                     lonvernaleq=lonvernaleq,fixedorbit=fixedorbit,orography=orography,
