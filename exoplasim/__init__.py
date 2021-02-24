@@ -312,7 +312,7 @@ class Model(object):
     
     def _checktimes(self):
         """Get list of durations for each year computed so far."""
-        diagfiles = glob.glob(self.workdir+"/*DIAG*")
+        diagfiles = sorted(glob.glob(self.workdir+"/*DIAG*"))
         times = []
         for df in diagfiles:
             with open(df,"r") as diagf:
@@ -503,8 +503,9 @@ class Model(object):
                 currentavgyear = np.nanmean(currentyears) 
                      #^Average walltime per year for this run
                 runlimit = min(runstart + int(timelimit//currentavgyear),ogrunlimit)
+                crunlimit = min(int(timelimit//currentavgyear),ogrunlimit-runstart)
                             #options for the runlimit are N0+T/tau, where tau is avg year
-                os.system("echo 'limit to %d years'>>%s/limits.log"%(runlimit,self.workdir))
+                os.system("echo 'limit to %d years total; %d years this run'>>%s/limits.log"%(runlimit,crunlimit,self.workdir))
                 minyears = min(ogminyears,runlimit)
             
             
@@ -1029,7 +1030,7 @@ class Model(object):
     def configure(self,noutput=True,flux=1367.0,startemp=None,starspec=None,pH2=None,
             pHe=None,pN2=None,pO2=None,pCO2=None,pAr=None,pNe=None,
             pKr=None,pH2O=None,gascon=None,pressure=None,pressurebroaden=True,
-            vtype=0,rotationperiod=24.0,synchronous=False,substellarlon=180.0,
+            vtype=0,rotationperiod=1.0,synchronous=False,substellarlon=180.0,
             year=None,glaciers={"toggle":False,"mindepth":2.0,"initialh":-1.0},
             restartfile=None,gravity=9.80665,radius=1.0,eccentricity=None,
             obliquity=None,lonvernaleq=None,fixedorbit=False,orography=None,
@@ -1042,7 +1043,7 @@ class Model(object):
             desertplanet=False,soilsaturation=None,drycore=False,ozone=True,
             cpsoil=None,soildepth=1.0,mldepth=50.0,tlcontrast=0.0,
             writefrequency=None,modeltop=None,stratosphere=False,top_restoretime=None,
-            tropopause=None,timestep=45.0,runscript=None,columnmode=None,
+            tropopause=None,timestep=45.0,runscript=None,columnmode=None,runsteps=None
             highcadence={"toggle":0,"start":320,"end":576,"interval":4},
             snapshots=None,resources=[],landmap=None,stormclim=False,nstorms=4,
             stormcapture={"VITHRESH":0.145,"GPITHRESH":0.37,"VMXTHRESH":33.0,
@@ -1091,6 +1092,8 @@ class Model(object):
             resources : list, optional 
                A list of paths to any additional files that should be available in the
                run directory.
+            runsteps : integer, optional
+               The number of timesteps to run each 'year'. By default, this is tuned to 360 Earth days. If set, this will override other controls setting the length of each modelled year.
             otherargs : dict, optional 
                Any namelist parameters not included by default in the configuration options.
                These should be passed as a dictionary, with "PARAMETER@namelist" as the
@@ -1486,6 +1489,11 @@ References
         self.pressurebroaden=pressurebroaden
         self._edit_namelist("plasim_namelist","NEQSIG",str(vtype))
         self.vtype=vtype
+        
+        self._edit_namelist("plasim_namelist","MPSTEP",str(timestep))
+        self._edit_namelist("plasim_namelist","NSTPW",str(int(7200//int(timestep))))
+        self.timestep=timestep
+        
         if year:
             self._edit_namelist("planet_namelist","N_DAYS_PER_YEAR",str(int(year)))
             self._edit_namelist("planet_namelist","SIDEREAL_YEAR",str(year*86400.0))
@@ -1496,6 +1504,11 @@ References
                                 str(max(int(360.0/float(rotationperiod)/12+0.5),1)*12))
             #if rotationperiod>80.0 and type(top_restoretime)==type(None):
                 #top_restoretime = 1.0 #If we have a long rotation period, apply top-layer forcing
+            nsteps = max(1,int(round(360.0*1440.0/self.timestep+0.49999)))
+            self._edit_namelist("plasim_namelist","N_RUN_STEPS",str(nsteps))
+        if runsteps is not None:
+            self._edit_namelist("plasim_namelist","N_RUN_STEPS",str(runsteps))
+        self.runsteps = runsteps
         self.rotationperiod=rotationperiod
         if synchronous:
             self._edit_namelist("radmod_namelist","NFIXED","1")
@@ -1715,10 +1728,6 @@ References
         self.modeltop=modeltop
         self.tropopause=tropopause
         
-        self._edit_namelist("plasim_namelist","MPSTEP",str(timestep))
-        self._edit_namelist("plasim_namelist","NSTPW",str(int(7200//int(timestep))))
-        self.timestep=timestep
-        
         self.runscript=runscript
         
         self._edit_namelist("plasim_namelist","NHCADENCE",str(highcadence["toggle"]))
@@ -1902,11 +1911,16 @@ References
             restim = float(cfg[71])
         except:
             restim = None
+            
+        try:
+            runsteps = _noneparse(cfg[72],int)
+        except:
+            runsteps = None
         
         self.configure(noutput=noutput,flux=flux,startemp=startemp,starspec=starspec,
                     gascon=gascon,pressure=pressure,pressurebroaden=pressurebroaden,
                     vtype=vtype,rotationperiod=rotationperiod,synchronous=synchronous,
-                    year=year,top_restoretime=restim,
+                    year=year,top_restoretime=restim,runsteps=runsteps
                     substellarlon=substellarlon,restartfile=restartfile,gravity=gravity,
                     radius=radius,eccentricity=eccentricity,obliquity=obliquity,
                     lonvernaleq=lonvernaleq,fixedorbit=fixedorbit,orography=orography,
@@ -1948,6 +1962,14 @@ References
             oldpressure += self.pgases[gas]
         if oldpressure==0.0:
             oldpressure = self.pressure
+            
+        
+        if "timestep" in kwargs.keys():
+            self.timestep=kwargs["timestep"]
+            self._edit_namelist("plasim_namelist","MPSTEP",str(self.timestep))
+            self._edit_namelist("plasim_namelist","NSTPW",
+                                str(int(7200//int(self.timestep))))
+            
         for key,value in kwargs.items():
             if key=="noutput":
                 self._edit_namelist("plasim_namelist","NOUTPUT",str(value*1))
@@ -2052,6 +2074,12 @@ References
                                         str(max(int(360.0/float(self.rotationperiod)/12+0.5),1)*12))
                     #if value>80.0:
                         #slowrotator=True
+                    nsteps = max(1,int(round(360.0*1440.0/self.timestep+0.49999)))
+                    self._edit_namelist("plasim_namelist","N_RUN_STEPS",str(nsteps))
+            if key=="runsteps":
+                self.runsteps=value
+                if self.runsteps is not None:
+                    self._edit_namelist("plasim_namelist","N_RUN_STEPS",str(self.runsteps))
             if key=="top_restoretime":
                 restim=True
                 self.top_restoretime=value
@@ -2359,12 +2387,6 @@ References
                 changeatmo=True
                 self.tropopause=value
             
-            if key=="timestep":
-                self.timestep=value
-                self._edit_namelist("plasim_namelist","MPSTEP",str(self.timestep))
-                self._edit_namelist("plasim_namelist","NSTPW",
-                                    str(int(7200//int(self.timestep))))
-            
             if key=="runscript":
                 self.runscript=value
                 
@@ -2670,6 +2692,7 @@ References
         cfg.append(str(self.threshold))
         cfg.append(str(self.tlcontrast))
         cfg.append(str(self.top_restoretime))
+        cfg.append(str(self.runsteps))
         
         print("Writing configuration....\n"+"\n".join(cfg))
         print("Writing to %s...."%filename)

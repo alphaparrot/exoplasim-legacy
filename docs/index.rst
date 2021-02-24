@@ -101,8 +101,9 @@ C++ compilers can't find ``netcdf.h``, and you may need to adjust
 the system path to include it. In a cluster environment, that may
 involve a command such as ``module load netcdf``. On a personal Linux
 computer, as long as netcdf is installed system-wide, this should
-not be a problem. The build process has not been fully-tested
-on Mac or Windows.
+not be a problem. We have noted some issues building the patched 
+netcdf library on newer versions of Mac OS X. The build process has
+not been fully-tested on other verions of Mac or on Windows.
 
 Most Common Error Modes
 -----------------------
