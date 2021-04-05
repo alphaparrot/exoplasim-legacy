@@ -290,7 +290,55 @@
         ! effective optical depth is the spectral average of the cross-section, normalized to 
         ! 5772 K input blackbody. There's already a spectral dependence due to z1/z2 partitioning,
         ! so we compute the true weighting and normalize to the partitioning and solar result
-        
+!         
+!         We want tau = <sigma>/<sigma_g>*tau_g, where 
+!         
+!                        int_0^inf[F(w) w^-4 dw] 
+!             <sigma> = -------------------------
+!                          int_0^inf[F(w) dw]    
+!                          
+!         so:
+!         
+!                int_0^inf[F(w) w^-4 dw]        int_0^inf[F_g(w) dw]
+!         tau = ------------------------- x --------------------------- x tau_g
+!                  int_0^inf[F(w) dw]        int_0^inf[F_g(w) w^-4 dw]
+!         
+!         We need to somehow account for the fact that we have two bands, especially because that
+!         will impart a Z1/Z1_g scaling all on its own. We can do this by multiplying by 1:
+!         
+!                int_0^w2[F(w) dw]     int_0^inf[F(w) w^-4 dw]        int_0^inf[F_g(w) dw]
+!         tau = ------------------- x ------------------------- x -------------------------- x tau_g
+!                int_0^w2[F(w) dw]       int_0^inf[F(w) dw]        int_0^inf[F_g(w) w^-4 dw]
+!                
+!         when we rearrange:
+!          
+!                int_0^w2[F(w) dw]      int_0^inf[F(w) w^-4 dw]        int_0^inf[F_g(w) dw]
+!         tau = -------------------- x ------------------------ x -------------------------- x tau_g
+!                int_0^inf[F(w) dw]        int_0^w2[F(w) dw]        int_0^inf[F_g(w) w^-4 dw]       
+!         
+!         This new first term out front is equal to Z1, the partitioning fraction. So 
+!          
+!                      int_0^inf[F(w) w^-4 dw]        int_0^inf[F_g(w) dw]
+!         tau =  Z1 x ------------------------- x --------------------------- x tau_g
+!                         int_0^w2[F(w) dw]        int_0^inf[F_g(w) w^-4 dw]       
+!                
+!         We also know that PlaSim's energy partitioning scheme will impart a factor of Z1/Z1_g, so
+!         if we know what we really have is
+!         
+!                    Z1
+!         tau = R x ---- x tau_g
+!                   Z1_g
+!         
+!         then we can solve for R:
+!         
+!                      int_0^inf[F(w) w^-4 dw]        int_0^inf[F_g(w) dw]
+!         R =  Z1_g x ------------------------- x --------------------------- 
+!                         int_0^w2[F(w) dw]        int_0^inf[F_g(w) w^-4 dw]  
+!
+!                        zcross1 + zcross2          zg1 + zg2
+!           = zsolar1 x ------------------- x ---------------------
+!                               z1             zgcross1 + zgcross2
+!                       
         zdenom1 = 0.01/z1
         zdenom2 = 0.01/z2
         

@@ -3,7 +3,7 @@ import os
  
 setup(
     name='exoplasim',
-    version='2.1.5',
+    version='2.2.0',
     packages=['exoplasim',],
     zip_safe=False,
     install_requires=["numpy","netCDF4","matplotlib","scipy"],
