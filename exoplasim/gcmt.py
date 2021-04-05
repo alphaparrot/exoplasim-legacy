@@ -946,15 +946,14 @@ def tlstream(dataset,plarad=6371.0e3,grav=9.80665,substellar=0.0):
         tidally-locked latitude, layer interface pressures, and TL streamfunction
     '''
     from scipy.integrate import cumtrapz
-    import TLtransform2 as TL
     
     if type(dataset)==str:
         dataset = nc.Dataset(dataset,"r")
     lon = dataset.variables['lon'][:]
     lat = dataset.variables['lat'][:]
-    lon_TL,lat_TL,ua_TL,va_TL = TL.eq2tl_uv(dataset.variables['ua'][:],
-                                            dataset.variables['va'][:],
-                                            lon,lat,substellar=substellar)
+    lon_TL,lat_TL,ua_TL,va_TL = eq2tl_uv(dataset.variables['ua'][:],
+                                         dataset.variables['va'][:],
+                                         lon,lat,substellar=substellar)
     mva = np.nanmean(va_TL,axis=3) #tidally-locked meridional wind
     ps = gcmt.spatialmath(dataset.variables['ps'][:],lon=lon,lat=lat)
     lev = dataset.variables['lev'][:]
