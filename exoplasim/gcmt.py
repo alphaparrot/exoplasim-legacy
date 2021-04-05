@@ -955,7 +955,7 @@ def tlstream(dataset,plarad=6371.0e3,grav=9.80665,substellar=0.0):
                                          dataset.variables['va'][:],
                                          lon,lat,substellar=substellar)
     mva = np.nanmean(va_TL,axis=3) #tidally-locked meridional wind
-    ps = gcmt.spatialmath(dataset.variables['ps'][:],lon=lon,lat=lat)
+    ps = spatialmath(dataset.variables['ps'][:],lon=lon,lat=lat)
     lev = dataset.variables['lev'][:]
     mvadp = cumtrapz(mva,x=lev[:]*ps*100.0,axis=1) #integrate in Pa not hPa
     prefactor = 2*np.pi*plarad/grav #2piR/g
