@@ -1497,7 +1497,7 @@ References
         self.timestep=timestep
         
         if year:
-            self._edit_namelist("planet_namelist","N_DAYS_PER_YEAR",str(int(year)))
+            self._edit_namelist("plasim_namelist","N_DAYS_PER_YEAR",str(int(year)))
             self._edit_namelist("planet_namelist","SIDEREAL_YEAR",str(year*86400.0))
         self.sidyear=year
         if rotationperiod!=1.0:

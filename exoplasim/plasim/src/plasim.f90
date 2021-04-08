@@ -623,10 +623,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !          call outaccu
 !          naccuout = naccuout + 1
          if (mypid == NROOT) then
-            if (mod(nstep,nafter) == 0 .and. noutput > 0 ) then
+            if (mod(nhcstp,nafter) == 0 .and. noutput > 0 ) then
                call outsp
             endif
-            if (mod(nstep,nstps) == 0 .and. nsnapshot > 0) call snapshotsp
+            if (mod(nhcstp,nstps) == 0 .and. nsnapshot > 0) call snapshotsp
             if (nhcadence>0 .and. hcstartstep>0 .and. hcendstep>0) then
             !We use this triple condition to be really sure that this doesn't get
             !turned on by accident--this has the potential to not only create huge
@@ -648,7 +648,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call spectrald
          call outaccu
 
-         if (mod(nstep,nstps) == 0 .and. nsnapshot > 0) then
+         if (mod(nhcstp,nstps) == 0 .and. nsnapshot > 0) then
            call snapshotgp
            koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
      &             +nentropy+nenergy
@@ -672,7 +672,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             write(nud,*) "HC STORM CAPTURE step",nhcstp
             call hcadencegp(142)
          endif
-         if (mod(nstep,nafter) == 0) then
+         if (mod(nhcstp,nafter) == 0) then
           if(noutput > 0) then
 !            write(nud,*) "High-cadence step",nhcstp
            call outgp
