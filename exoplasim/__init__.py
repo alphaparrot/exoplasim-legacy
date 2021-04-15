@@ -2068,7 +2068,7 @@ References
                 self.vtype=value
                 self._edit_namelist("plasim_namelist","NEQSIG",str(self.vtype))
             if key=="year":
-                self.sidyear=year
+                self.sidyear=value
                 if self.sidyear:
                     self._edit_namelist("plasim_namelist","N_DAYS_PER_YEAR",
                                         str(int(self.sidyear)))

@@ -71,7 +71,7 @@
          write(nud,1030) n_start_step
          write(nud,1040) ntspd
          write(nud,1045) mtspd
-         write(nud,1046) tcalday
+         write(nud,1046) nint(tcalday)
          write(nud,1050)
          endif
       return
@@ -81,7 +81,7 @@
  1030 format(" * Start step:",i21," *")
  1040 format(" * Timesteps per day:",i14," *")
  1045 format(" * Timesteps per calendar day:",i5," *")
- 1046 format(" * Seconds per calendar day:",i5," *")
+ 1046 format(" * Sec per calendar day:",i8," *")
  1050 format(" *************************************")
  
       kcal_days_per_year = m_days_per_year
