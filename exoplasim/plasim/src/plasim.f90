@@ -239,6 +239,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(n_days_per_year)
       call mpbci(m_days_per_month)
       call mpbci(m_days_per_year)
+      call mpbci(mcal_days_per_year)
+      call mpbci(n_steps_per_year)
       call mpbci(n_run_steps)
       call mpbci(n_run_days)
       call mpbci(n_run_months)
@@ -350,8 +352,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Copy some calendar variables to calmod
 
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                  ,solar_day,-1)
+                  ,solar_day,-1,mcal_days_per_year)
 !                  ,day_24hr,-1)
+
+      call mpbci(mcal_days_per_year)
       if (nrestart == 0) nstep = n_start_step ! timestep since 01-01-0001
       call updatim(nstep)  ! set date & time array ndatim
 !
@@ -1198,11 +1202,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            solar_day = sidereal_day !In this case the solar day is infinite, so we set it to 1 year
          endif
 !          day_24hr = 86400.0 ! WHY DOESN'T THIS WORK???
-!        If there's one day per year, then solar_day is zero. But reall, it's infinite
+!        If there's one day per year, then solar_day is zero. But really, it's infinite
       endif
       
-      m_days_per_year = nint(n_days_per_year * sidereal_day / day_24hr)
-      n_days_per_month = m_days_per_year / 12
+      m_days_per_year = nint(n_days_per_year * sidereal_day / day_24hr) !24-hour days per year
+      n_days_per_month = m_days_per_year / 12 !24-hour days per month
+      
       
 !       It would appear that day_24hr and sidereal_day cannot be inconsistent with rotspd.
 !       For some reason, keeping day_24hr to 24 hours produces NaNs. Why is this?? As near
@@ -1246,6 +1251,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          nafter = mtspd / nwpd
       endif
       
+      n_steps_per_year = m_days_per_year * mtspd
+      
       if (nlowio > 0 .and. nstpw > 0) nafter = nstpw
       
       if (ndiag < 1) ndiag = 10 * mtspd
@@ -1274,8 +1281,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Convert start date to timesteps since 1-Jan-0000
 
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                   ,solar_day,0)
+                   ,solar_day,0,mcal_days_per_year)
 !                  ,day_24hr,0)
+      
       call cal2step(n_start_step,mtspd,n_start_year,n_start_month,1,0,0)
 
 !     Compute simulation time in [months]

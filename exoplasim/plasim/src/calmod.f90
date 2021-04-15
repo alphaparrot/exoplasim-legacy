@@ -24,6 +24,8 @@
       integer :: n_start_step     =   0
       integer :: ntspd            =   0
       real    :: solar_day        = 86400.0 ! [sec]
+      real    :: mpstep           =  45.0 ! Minutes per timestep
+      real    :: tcalday          = 86400.0 ! seconds per 'calendar' (1/360th year) day
 
       end module calmod
 
@@ -33,20 +35,31 @@
 !     =================
 
       subroutine calini(k_days_per_month,k_days_per_year,k_start_step &
-                       ,ktspd,psolday,kpid)
+                       ,ktspd,psolday,kpid,kmpstep,kcal_days_per_year)
       use calmod
 
+      integer kcal_days_per_year
+      
       n_days_per_month = k_days_per_month
       n_days_per_year  = k_days_per_year
       n_start_step     = k_start_step
       ntspd            = ktspd
       solar_day        = psolday
       
-      mtspd = n_days_per_year * ntspd / m_days_per_year 
+      mtspd = n_days_per_year * ntspd / m_days_per_year !sidereal days per year * timesteps per sidereal day / 360 days per year
+      
+      !  200 sd   N dt    1 year
+      !  ------ * ----- * --------
+      !  1 year   1 sd    360 days
+      
+      !mtspd in calmod.f90 is timesteps per 1/360th of the year
       
       !If there are e.g. 5 days worth of timesteps per "day", there will conversely be 5x fewer days
       !per year, and therefore this will rescale mtspd to that necessary for 360 days per year.
       
+      mpstep = kmpstep
+      
+      tcalday = mtspd * mpstep * 60.0 ! Timesteps/calendary day * minutes/timestep * 60 s/min
       
 
       if (kpid == 0) then
@@ -58,6 +71,7 @@
          write(nud,1030) n_start_step
          write(nud,1040) ntspd
          write(nud,1045) mtspd
+         write(nud,1046) tcalday
          write(nud,1050)
          endif
       return
@@ -67,7 +81,11 @@
  1030 format(" * Start step:",i21," *")
  1040 format(" * Timesteps per day:",i14," *")
  1045 format(" * Timesteps per calendar day:",i5," *")
+ 1046 format(" * Seconds per calendar day:",i5," *")
  1050 format(" *************************************")
+ 
+      kcal_days_per_year = m_days_per_year
+ 
       end subroutine calini
 
 !     ====================
@@ -112,7 +130,7 @@
          ndayofyear = idatim(3) + monaccu(idatim(2)-1)
       else
          call step2cal30(kstep,idatim)
-         ndayofyear = idatim(3) + m_days_per_month * (idatim(2)-1)
+         ndayofyear = idatim(3) + m_days_per_month * (idatim(2)-1) !Day of month + (month-1)*30
       endif
 
       return
@@ -311,16 +329,27 @@
 !       imin  = mod(imin,60)
       
       
-      idall = kstep / mtspd
-      iyea  = idall / m_days_per_year + 1
-      idall = mod(idall,m_days_per_year)
-      imon  = idall / m_days_per_month + 1
+      idall = kstep / mtspd                      !Which day is it (number)--steps/steps-per-1/360th
+      iyea  = idall / m_days_per_year + 1        !Which year (number)--starting with 1: day/360+1
+      idall = mod(idall,m_days_per_year)         !Which day of the year
+      imon  = idall / m_days_per_month + 1       !Which month is it (day/30 + 1)
 !       imon = mod(kstep/(n_days_per_year*ntspd / 12) + 1,12)
-      iday  = mod(idall,m_days_per_month) + 1
-      istp  = mod(kstep,mtspd)
-      imin  = (istp * day_24hr) / (mtspd * 60)
-      ihou  = imin / 60
-      imin  = mod(imin,60)
+      iday  = mod(idall,m_days_per_month) + 1    !Which day of the month
+      istp  = mod(kstep,mtspd)                   !Which step of the 1/360th day
+      imin  = (istp * tcalday) / (mtspd * 60)   !Which minute of the day -- this might be wrong
+              ! mtspd * 60 = seconds per 1/360th day
+              ! istp * day_24hr = N steps * seconds per 24-hour day
+              
+              !  N dt   86400s    1/360th day   1 minute                  1/360th day
+              ! ----- * ------ * ------------ * --------  =  M minutes * ------------
+              !   1      24hr      mtspd dt       60 s                    24 hr day
+              
+              ! N dt   1/360th day      X s        1 minute
+              ! ---- * ----------- * ----------- * -------- = M minutes  
+              !  1      mtspd dt     1/360th day     60 s
+              
+      ihou  = imin / 60                          !Which hour of the day
+      imin  = mod(imin,60)                       !Which minute of the hour
 
       kdatim(1) = iyea
       kdatim(2) = imon

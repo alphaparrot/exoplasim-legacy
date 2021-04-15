@@ -1310,9 +1310,10 @@
       end interface
 
       if (nperpetual > 0) then
-         zcday = nperpetual
+         zcday = nperpetual / real(m_days_per_year)
       else
-         zcday = ndayofyear(nstep) ! from calmod
+!          zcday = ndayofyear(nstep) ! from calmod
+         zcday = mod(nstep,n_steps_per_year) / real(n_steps_per_year) !Actual fractional progression
       endif
 
       call ntomin(nstep,imin,ihou,iday,imon,iyea)
@@ -1432,14 +1433,13 @@
       real :: zo3(NHOR)
 
       if (no3 == 1) then ! compute synthetic ozone distribution
-         zcday = ndayofyear(nstep) ! see calmod
-
+!          zcday = ndayofyear(nstep) ! see calmod
+         zcday = mod(nstep,n_steps_per_year) / real(n_steps_per_year)
          do jlat = 1 , NLPP
             jh2 = jlat * NLON     ! horizonatl index for end   of latitude
             jh1 = jh2  - NLON + 1 ! horizontal index for start of latitude
             za(jh1:jh2)=a0o3+a1o3*ABS(sid(jlat))                        &
-               +aco3*sid(jlat)*cos(TWOPI*(zcday-toffo3)                 &
-               /(m_days_per_year+ndatim(7))) ! ndatim(7) = leap year
+               +aco3*sid(jlat)*cos(TWOPI*(zcday-toffo3/365.25)) 
          enddo ! jlat
 
          zconst  = exp(-bo3/co3)
@@ -2837,7 +2837,7 @@
 !     ===================
 
       subroutine orb_decl(calday,eccen,mvelpp,lambm0,obliqr,delta,eccf)
-      use pumamod, only: m_days_per_year,ndatim
+      use pumamod, only: mcal_days_per_year,ndatim
 !
 !     Compute earth/orbit parameters using formula suggested by
 !     Duane Thresher.
@@ -2894,8 +2894,8 @@
 ! the days in a model year times the 2*pi radians in a complete orbit.
 !
 
-      lambm  = lambm0 + (calday - ve)*2.*pie                            &
-             / (m_days_per_year + ndatim(7)) ! ndatim(7) = leap year
+      lambm  = lambm0 + (calday - ve/365.)*2.*pie                            !& Moving to more robust system
+            ! / (mcal_days_per_year + ndatim(7)) ! ndatim(7) = leap year
       lmm    = lambm  - mvelpp
 !
 ! The earth's true longitude, in radians, is then found from

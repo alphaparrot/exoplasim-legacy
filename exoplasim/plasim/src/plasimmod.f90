@@ -136,6 +136,8 @@
       integer :: m_days_per_month=      30 ! standard days
       integer :: n_days_per_year =     360 ! set to 365 for real calendar
       integer :: m_days_per_year =     360 ! standard days
+      integer :: mcal_days_per_year=   360 ! Days in a year in calmod (set by calini)
+      integer :: n_steps_per_year=    11520! Number of timesteps per year
       integer :: n_run_years     =       0 ! years to run
       integer :: n_run_months    =       0 ! months to run
       integer :: n_run_days      =       0 ! days  to run (debugging)
