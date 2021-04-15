@@ -1251,7 +1251,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          nafter = mtspd / nwpd
       endif
       
-      n_steps_per_year = m_days_per_year * mtspd
+      n_steps_per_year = nint(sidereal_year / (mpstep*60.0))
       
       if (nlowio > 0 .and. nstpw > 0) nafter = nstpw
       
