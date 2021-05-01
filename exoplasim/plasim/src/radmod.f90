@@ -824,6 +824,8 @@
 !         endif
         lstarfile = .true.
         call solarini
+        nstartemp = 1
+        call mpbci(nstartemp)
       else if (nstartemp > 0) then
         call solarini
       else

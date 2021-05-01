@@ -1998,8 +1998,8 @@ References
                     starspec=starspec[:-4]
                 if starspec:
                     self._edit_namelist("radmod_namelist","NSTARFILE","1")
-                    self._edit_namelist("radmod_namelist","STARFILE","'%s'"%starspec)
-                    self._edit_namelist("radmod_namelist","STARFILEHR","'%s_hr.dat'"%(starspec)[:-4])
+                    self._edit_namelist("radmod_namelist","STARFILE","'%s.dat'"%starspec)
+                    self._edit_namelist("radmod_namelist","STARFILEHR","'%s_hr.dat'"%(starspec))
                 self.starspec = starspec
             if key=="pH2":
                 setgas=True
