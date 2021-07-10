@@ -137,7 +137,7 @@ class Model(object):
 
     """
     def __init__(self,resolution="T21",layers=10,ncpus=4,precision=8,debug=False,inityear=0,
-                recompile=False,optimization=None,mars=False,workdir="most",source=None,
+                recompile=False,optimization=None,mars=False,workdir="most",source=None,force991=False,
                 modelname="MOST_EXP"):
         
         global sourcedir
@@ -259,6 +259,8 @@ class Model(object):
                 extraflags+= "-O %s"%optimization
             if mars:
                 extraflags+= "-m "
+            if force991:
+                extraflags+= "-f "
             os.system("cwd=$(pwd) && "+
                     "cd %s && ./compile.sh -n %d -p %d -r T%d -v %d "%(sourcedir,self.ncpus,
                                                                         precision,self.nsp,

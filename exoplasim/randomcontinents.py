@@ -35,7 +35,7 @@ def writeSRA(name,kcode,field,NLAT,NLON):
     """
     label=name+'_surf_%04d.sra'%kcode
     header=[kcode,0,20170927,0,NLON,NLAT,0,0]
-    fmap = field.reshape((NLAT*NLON/8,8))
+    fmap = field.reshape((int(NLAT*NLON//8),8))
     sheader = ''
     for h in header:
         sheader+=" %11d"%h

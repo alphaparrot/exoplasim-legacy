@@ -43,6 +43,8 @@ helptext=$(cat <<-END
       -n:   Number of processing cores (MPI threads) to use. Default: 4
 
       -t:   Number of years to use in most_plasim_run script. Default: 10
+      
+      -f:   Force FFT991mod.f90
 
       -O:   Specify additional compiler optimization flags, like -mavx (leave out prepended
             hyphen).
@@ -169,6 +171,9 @@ while getopts "p:r:v:n:O:t:dhm" opt; do
                     echo "INVALID RESOLUTION PASSED! Reverting to T21."
                     ;;
             esac ;;
+        f)    
+            fftopt="fft991mod"
+            ;;
         v)
             levels=$OPTARG
             ;;
