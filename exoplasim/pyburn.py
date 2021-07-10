@@ -91,7 +91,7 @@ def _getwordlength(fbuffer,n,en,fmt='i'):
         fmt='d'
     return wordlength,fmt
 
-def _getknownwordlength(fbuffer,n,en,ml):
+def _getknownwordlength(fbuffer,n,en,ml,mf):
     '''Determine word length of a data variable in cases where we know that the header is 8 words and is 32-bit.
     
     Parameters
@@ -105,6 +105,8 @@ def _getknownwordlength(fbuffer,n,en,ml):
         Endianness, denoted by ">" or "<"
     ml : int
         Length of a record marker
+    mf : str
+        Format of the record marker ('i' or 'l')
     
     Returns
     -------
@@ -113,11 +115,11 @@ def _getknownwordlength(fbuffer,n,en,ml):
        'f' for a 4-byte float, and 'd' for an 8-byte float.
     '''
     
-    htag = struct.unpack(en+'i',fbuffer[n:n+ml])
+    htag = struct.unpack(en+mf,fbuffer[n:n+ml])
     n+=ml
     header = struct.unpack(en+8*'i',fbuffer[n:n+32])
     n+=32+ml #Add one word for restatement of header length
-    dtag = struct.unpack(en+'i',fbuffer[n:n+ml])[0]
+    dtag = struct.unpack(en+mf,fbuffer[n:n+ml])[0]
     
     dim1 = header[4]
     dim2 = header[5]
@@ -156,7 +158,7 @@ def readrecord(fbuffer,n,en,ml,mf):
         position in the buffer in bytes.
     '''
     if n<len(fbuffer):
-        wl,fmt = _getknownwordlength(fbuffer,n,en,ml)
+        wl,fmt = _getknownwordlength(fbuffer,n,en,ml,mf)
                 
         headerlength = int(struct.unpack(en+mf,fbuffer[n:n+ml])[0]//4)
         n+=ml
