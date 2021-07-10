@@ -41,6 +41,14 @@ def _getEndian(fbuffer):
             endian=">"
     return endian
 
+def _getmarkerlength(fbuffer,en):
+    '''Determine how many bytes were used for record markers'''
+    tag = struct.unpack(en+'i',fbuffer[:4])[0]
+    markerlength=4
+    if tag==0:
+        markerlength=8
+    return markerlength
+
 def _getwordlength(fbuffer,n,en,fmt='i'):
     '''Determine if we're dealing with 32-bit output or 64-bit.
     
@@ -76,7 +84,7 @@ def _getwordlength(fbuffer,n,en,fmt='i'):
         fmt='d'
     return wordlength,fmt
 
-def _getknownwordlength(fbuffer,n,en):
+def _getknownwordlength(fbuffer,n,en,ml):
     '''Determine word length of a data variable in cases where we know that the header is 8 words and is 32-bit.
     
     Parameters
@@ -88,7 +96,9 @@ def _getknownwordlength(fbuffer,n,en):
         position in words would be 4*n assuming 4-byte words, or 8*n if 64 bits and 8-byte words.
     en : str
         Endianness, denoted by ">" or "<"
-        
+    ml : int
+        Length of a record marker
+    
     Returns
     -------
     int, str
@@ -96,11 +106,11 @@ def _getknownwordlength(fbuffer,n,en):
        'f' for a 4-byte float, and 'd' for an 8-byte float.
     '''
     
-    htag = struct.unpack(en+'i',fbuffer[n:n+4])
-    n+=4
+    htag = struct.unpack(en+'i',fbuffer[n:n+ml])
+    n+=ml
     header = struct.unpack(en+8*'i',fbuffer[n:n+32])
-    n+=32+4 #Add one word for restatement of header length
-    dtag = struct.unpack(en+'i',fbuffer[n:n+4])[0]
+    n+=32+ml #Add one word for restatement of header length
+    dtag = struct.unpack(en+'i',fbuffer[n:n+ml])[0]
     
     dim1 = header[4]
     dim2 = header[5]
@@ -115,7 +125,7 @@ def _getknownwordlength(fbuffer,n,en):
         fmt='d'
     return wordlength,fmt
 
-def readrecord(fbuffer,n,en):
+def readrecord(fbuffer,n,en,ml):
     '''Read a Fortran record from the buffer, starting at index n, and return the header, data, and updated n.
     
     Parameters
@@ -127,6 +137,8 @@ def readrecord(fbuffer,n,en):
         position in words would be 4*n assuming 4-byte words, or 8*n if 64 bits and 8-byte words.
     en : str
         Endianness, denoted by ">" or "<"
+    ml : int
+        Length of a record marker
         
     Returns
     -------
@@ -135,21 +147,21 @@ def readrecord(fbuffer,n,en):
         position in the buffer in bytes.
     '''
     if n<len(fbuffer):
-        wl,fmt = _getknownwordlength(fbuffer,n,en)
+        wl,fmt = _getknownwordlength(fbuffer,n,en,ml)
                 
-        headerlength = int(struct.unpack(en+'i',fbuffer[n:n+4])[0]//4)
-        n+=4
+        headerlength = int(struct.unpack(en+'i',fbuffer[n:n+ml])[0]//4)
+        n+=ml
         header = struct.unpack(en+headerlength*'i',fbuffer[n:n+headerlength*4)])
-        n+=headerlength*4+4 #Add one word for restatement of header length (for backwards seeking)
-        datalength = int(struct.unpack(en+'i',fbuffer[n:n+4])[0]//wl)
-        n+=4
+        n+=headerlength*4+ml #Add one word for restatement of header length (for backwards seeking)
+        datalength = int(struct.unpack(en+'i',fbuffer[n:n+ml])[0]//wl)
+        n+=ml
         data = struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl])
-        n+=datalength*wl+4 #additional 4 for restatement of datalength
+        n+=datalength*wl+ml #additional 4 for restatement of datalength
         return header,data,n
     else:
         raise Exception("Reached end of buffer!!!")
     
-def readvariablecode(fbuffer,kcode,en):
+def readvariablecode(fbuffer,kcode,en,ml):
     '''Seek through a binary output buffer and extract all records associated with a variable code.
     
     Note, assembling a variable list piece by piece in this way may be slower than reading **all** variables
@@ -165,7 +177,8 @@ def readvariablecode(fbuffer,kcode,en):
         `Postprocessor Variable Codes. <postprocessor.html#postprocessor-variable-codes>`_
     en : str
         Endianness, denoted by ">" or "<"
-    n=0
+    ml : int
+        Length of a record marker
     
     Returns
     -------
@@ -173,7 +186,7 @@ def readvariablecode(fbuffer,kcode,en):
         A tuple containing first the header, then the variable data, as one concatenated 1D variable.
     '''
     n = 0
-    mainheader,zsig,n = readrecord(fbuffer,n,en)
+    mainheader,zsig,n = readrecord(fbuffer,n,en,ml)
     
     variable = None
     
@@ -181,23 +194,23 @@ def readvariablecode(fbuffer,kcode,en):
         
         recordn0 = n
         
-        headerlength = int(struct.unpack(en+'i',fbuffer[n:n+4])[0]//4)
-        n+=4
+        headerlength = int(struct.unpack(en+'i',fbuffer[n:n+ml])[0]//4)
+        n+=ml
         header = struct.unpack(en+headerlength*'i',fbuffer[n:n+headerlength*4)])
-        n+=headerlength*4+4
-        datalength = struct.unpack(en+'i',fbuffer[n:n+4])[0]
-        n+=4
+        n+=headerlength*4+ml
+        datalength = struct.unpack(en+'i',fbuffer[n:n+ml])[0]
+        n+=ml
         if header[0]==kcode:
             dataheader = header
-            wl, fmt = _getknownwordlength(fbuffer,recordn0,en)
+            wl, fmt = _getknownwordlength(fbuffer,recordn0,en,ml)
             datalength = int(datalength//wl)
             if not variable:
                 variable = np.array(struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl]))
             else:
                 variable = np.append(variable,struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl]))
-            n+=datalength*wl+4
+            n+=datalength*wl+ml
         else: #Fast-forward past this variable without reading it.
-            n+=datalength+4
+            n+=datalength+ml
     
     return dataheader, variable
     
@@ -220,9 +233,10 @@ def readallvariables(fbuffer):
     '''
     
     en = _getEndian(fbuffer)
+    ml = _getmarkerlength(fbuffer,en)
     
     n=0
-    mainheader,zsig,n = readrecord(fbuffer,n,en)
+    mainheader,zsig,n = readrecord(fbuffer,n,en,ml)
     
     headers= {'main':mainheader}
     variables = {'main':zsig}
@@ -230,7 +244,7 @@ def readallvariables(fbuffer):
     variables["sigmah"] = zsig[:nlev]
     
     while n<len(fbuffer):
-        header,field,n = readrecord(fbuffer,n,en)
+        header,field,n = readrecord(fbuffer,n,en,ml)
         kcode = str(header[0])
         if kcode not in variables:
             variables[kcode] = np.array(field)
