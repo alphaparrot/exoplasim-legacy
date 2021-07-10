@@ -7,6 +7,7 @@ import sys
 import numpy as np
 import glob
 import netCDF4 as nc
+import pyburn
 import exoplasim.gcmt
 import exoplasim.randomcontinents
 import exoplasim.makestellarspec
