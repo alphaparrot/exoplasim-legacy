@@ -11,6 +11,7 @@ import pyburn
 import exoplasim.gcmt
 import exoplasim.randomcontinents
 import exoplasim.makestellarspec
+import exoplasim.pyfft
 import platform
 
 smws = {'mH2': 2.01588,
@@ -1077,6 +1078,8 @@ class Model(object):
             snapshots : int, optional 
                How many timesteps should elapse between snapshot outputs. If not set,
                no snapshots will be written.
+            restartfile : string, optional
+               Path to a restart file to use.
             highcadence : dict, optional 
                A dictionary containing the following arguments:
                
