@@ -2430,6 +2430,14 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
                    newshape[0] = times
                    newshape = tuple(newshape)
                    data[var][0] = np.add.reduceat(odata,indices[:-1],axis=0) / np.resize(counts,newshape)
+                   if stdev:  #Compute standard deviation
+                       stdvar = np.zeros(data[var][0].shape)
+                       for nt in range(stdvar.shape[0]):
+                           stdvar[nt,...] = np.std(odata[indices[nt]:indices[nt+1]],axis=0)
+                       stdmeta = list(data[var][1][:])
+                       stdmeta[0]+="_std"
+                       stdmeta[1]+="_standard_deviation"
+                       data[var+"_std"] = (stdvar,stdmeta)
                data["time"][0] = newtimes
             else:
                if interpolatetimes:
@@ -2470,6 +2478,14 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
                     newshape[0] = times
                     newshape = tuple(newshape)
                     data[var][0] = np.add.reduceat(odata,indices[:-1],axis=0) / np.resize(counts,newshape)
+                    if stdev:  #Compute standard deviation
+                        stdvar = np.zeros(data[var][0].shape)
+                        for nt in range(stdvar.shape[0]):
+                            stdvar[nt,...] = np.std(odata[indices[nt]:indices[nt+1]],axis=0)
+                        stdmeta = list(data[var][1][:])
+                        stdmeta[0]+="_std"
+                        stdmeta[1]+="_standard_deviation"
+                        data[var+"_std"] = (stdvar,stdmeta)
                 data["time"][0] = newtimes
             else: #First we'll interpolate to high time resolution, then compute average via binning
                 ttimes = np.linspace(dtimes[0],dtimes[-1],num=10*ntimes)
@@ -2488,6 +2504,14 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
                     newshape[0] = len(times)
                     newshape = tuple(newshape)
                     data[var][0] = np.add.reduceat(tempdata,indices[:-1],axis=0) / np.resize(counts,newshape)
+                    if stdev:  #Compute standard deviation
+                        stdvar = np.zeros(data[var][0].shape)
+                        for nt in range(stdvar.shape[0]):
+                            stdvar[nt,...] = np.std(tempdata[indices[nt]:indices[nt+1]],axis=0)
+                        stdmeta = list(data[var][1][:])
+                        stdmeta[0]+="_std"
+                        stdmeta[1]+="_standard_deviation"
+                        data[var+"_std"] = (stdvar,stdmeta)
                 newtimes = np.array(times)
                 newtimes = 0.5*(newtimes[:-1]+newtimes[1:])*dtimes[-1]
                 data["time"][0] = newtimes
@@ -2513,9 +2537,14 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
             else:
                 data["time"][0] = newtimes
         
-    #### Need to add standard deviation calculation; should go in the timeaverage parts of the computation
-    #### above, or for when timeaverage is False, it can go here (then we compute the std dev of the whole
-    #### timeseries)
+    #Standard deviation if timeaverage is False
+    if not timeaverage and stdev:
+        for var in varkeys:
+            stdvar = np.std(data[var],axis=0)
+            stdmeta = list(data[var][1][:])
+            stdmeta[0]+="_std"
+            stdmeta[1]+="_standard_deviation"
+            data[var+"_std"] = (stdvar,stdmeta)
     
         
     # Write to output
