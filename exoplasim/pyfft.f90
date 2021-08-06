@@ -451,7 +451,7 @@
       ! SUBROUTINE DV2UV        !SP->GP
       ! ================
       
-      subroutine dv2uv(sd,sz,pu,pv,NLAT,NLON,NTRU,NLEV,nfs,plavor)
+      subroutine dv2uv(sd,sz,pu,pv,NLAT,NLON,NTRU,NLEV,nfs)
       implicit none
       
       integer, intent(in) :: NLEV
@@ -470,10 +470,6 @@
 !f2py intent(out) :: pu
       real(kind=8), intent(out) :: pv(2,NLON/2,NLAT,NLEV)
 !f2py intent(out) :: pv
-      real(kind=8), intent(in) :: plavor
-!f2py intent(in) :: plavor
-      real(kind=8) :: zsave
-      
       integer :: l ! Loop index for latitude
       integer :: m ! Loop index for zonal wavenumber m
       integer :: n ! Loop index for total wavenumber n
@@ -533,8 +529,8 @@
       pv(:,:,:,:) = 0.0
       
       do v = 1 , NLEV
-        zsave = pz(1,2,v)
-        pz(1,2,v) = zsave - plavor
+!         zsave = pz(1,2,v)
+!         pz(1,2,v) = zsave - plavor
         do l = 1 , NLPP
           w = 1
           do m = 1 , NTP1
@@ -551,7 +547,7 @@
             enddo ! n
           enddo ! m
         enddo ! l
-        pz(1,2,v) = zsave
+!         pz(1,2,v) = zsave
       enddo ! jv
       return
       end
@@ -1007,6 +1003,114 @@
       
       return
       end subroutine
+      
+      
+!     ================
+!     SUBROUTINE SPVGP
+!     ================
+      
+      subroutine spvgp(sd,sz,gu,gv,NLAT,NLON,NTRU,NLEV,nfs)
+      implicit none
+      integer :: v, k, l ! Loop index for level
+      integer, intent(in ) :: NLEV
+      integer, intent(in ) :: NLON
+      integer, intent(in ) :: NTRU
+      integer, intent(in ) :: NLAT
+      integer, intent(in ) :: nfs
+      
+      real (kind=8), intent(in ) :: sd((NTRU+1)*(NTRU+2),NLEV)
+!f2py intent(in ) :: sd
+      real (kind=8), intent(in ) :: sz((NTRU+1)*(NTRU+2),NLEV)
+!f2py intent(in ) :: sz
+      real (kind=8), intent(out) :: gu(NLON, NLAT, NLEV)
+!f2py intent(out) :: gu
+      real (kind=8), intent(out) :: gv(NLON, NLAT, NLEV)
+!f2py intent(out) :: gv
+
+      real (kind=8) sdd(2, (NTRU+1)*(NTRU+2)/2, NLEV)
+      real (kind=8) szz(2, (NTRU+1)*(NTRU+2)/2, NLEV)
+      real (kind=8) guu(2, NLON/2, NLAT, NLEV)
+      real (kind=8) gvv(2, NLON/2, NLAT, nLEV)
+      
+      do v = 1, NLEV
+        do k = 1, (NTRU+1)*(NTRU+2)/2
+          sdd(1,k,v) = sd(2*k-1,v)
+          sdd(2,k,v) = sd(2*k  ,v)
+          szz(1,k,v) = sz(2*k-1,v)
+          szz(2,k,v) = sz(2*k  ,v)
+        enddo
+      enddo
+      
+      call dv2uv(sdd,szz,guu,gvv,NLAT,NLON,NTRU,NLEV,nfs)
+      
+      do v = 1, NLEV
+        do l = 1, NLAT
+          do k = 1, NLON/2
+            gu(2*k-1,l,v) = guu(1,k,l,v)*1.4142135623730951
+            gu(2*k  ,l,v) = guu(2,k,l,v)*1.4142135623730951
+            gv(2*k-1,l,v) = gvv(1,k,l,v)*1.4142135623730951
+            gv(2*k  ,l,v) = gvv(2,k,l,v)*1.4142135623730951
+          enddo
+        enddo
+      enddo
+      
+      return
+      end subroutine
+      
+      
+!     ================
+!     SUBROUTINE GPVSP
+!     ================
+      
+      subroutine gpvsp(gu,gv,sd,sz,NLAT,NLON,NTRU,NLEV,nfs)
+      implicit none
+      integer :: v, k, l ! Loop index for level
+      integer, intent(in ) :: NLEV
+      integer, intent(in ) :: NLON
+      integer, intent(in ) :: NTRU
+      integer, intent(in ) :: NLAT
+      integer, intent(in ) :: nfs
+      
+      real (kind=8), intent(out) :: sd((NTRU+1)*(NTRU+2),NLEV)
+!f2py intent(out) :: sd
+      real (kind=8), intent(out) :: sz((NTRU+1)*(NTRU+2),NLEV)
+!f2py intent(out) :: sz
+      real (kind=8), intent(in ) :: gu(NLON, NLAT, NLEV)
+!f2py intent(in ) :: gu
+      real (kind=8), intent(in ) :: gv(NLON, NLAT, NLEV)
+!f2py intent(in ) :: gv
+
+      real (kind=8) sdd(2, (NTRU+1)*(NTRU+2)/2, NLEV)
+      real (kind=8) szz(2, (NTRU+1)*(NTRU+2)/2, NLEV)
+      real (kind=8) guu(2, NLON/2, NLAT, NLEV)
+      real (kind=8) gvv(2, NLON/2, NLAT, nLEV)
+      
+      do v = 1, NLEV
+        do l = 1, NLAT
+          do k = 1, NLON/2
+            guu(1,k,l,v) = gu(2*k-1,l,v)/1.4142135623730951
+            guu(2,k,l,v) = gu(2*k  ,l,v)/1.4142135623730951
+            gvv(1,k,l,v) = gv(2*k-1,l,v)/1.4142135623730951
+            gvv(2,k,l,v) = gv(2*k  ,l,v)/1.4142135623730951
+          enddo
+        enddo
+      enddo
+      
+      call uv2dv(guu,gvv,sdd,szz,NLAT,NLON,NTRU,NLEV,nfs)
+      
+      do v = 1, NLEV
+        do k = 1, (NTRU+1)*(NTRU+2)/2
+          sd(2*k-1,v) = sdd(1,k,v)
+          sd(2*k  ,v) = sdd(2,k,v)
+          sz(2*k-1,v) = szz(1,k,v)
+          sz(2*k  ,v) = szz(2,k,v)
+        enddo
+      enddo
+      
+      return
+      end subroutine
+            
+
       
 !     ================
 !     SUBROUTINE GP2SP

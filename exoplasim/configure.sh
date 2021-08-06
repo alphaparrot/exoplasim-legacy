@@ -315,6 +315,12 @@ cat most_info.txt
 make
 
 echo
+echo "Beginning pyburn postprocessor compilation....."
+echo
+
+f2py3 -c -m --f90exec=$MOST_F90 --f90flags="-O3" pyfft pyfft.f90 && mv pyfft.cpython*.so pyfft.so
+
+echo
 echo "configuration complete - run <most.x>"
 echo
 #

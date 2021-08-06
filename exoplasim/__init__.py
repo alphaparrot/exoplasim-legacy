@@ -11,7 +11,6 @@ import pyburn
 import exoplasim.gcmt
 import exoplasim.randomcontinents
 import exoplasim.makestellarspec
-import exoplasim.pyfft
 import platform
 
 smws = {'mH2': 2.01588,
@@ -140,9 +139,11 @@ class Model(object):
     """
     def __init__(self,resolution="T21",layers=10,ncpus=4,precision=8,debug=False,inityear=0,
                 recompile=False,optimization=None,mars=False,workdir="most",source=None,force991=False,
-                modelname="MOST_EXP"):
+                modelname="MOST_EXP",burn7=True):
         
         global sourcedir
+        
+        self.burn7 = burn7
         
         if not sourcedir: #This means we haven't run yet, and have some post-install work to do
             os.system('spth=$(python%s -c "import exoplasim as exo; print(exo.__path__)") && echo $spth>sourcepath'%sys.version[0])
@@ -168,14 +169,15 @@ class Model(object):
                 cwd = os.getcwd()
                 os.chdir(sourcedir)
                 os.system("./configure.sh")
-                os.system("nc-config --version > ncversion.tmp")
-                with open("ncversion.tmp","r") as ncftmpf:
-                    version = float('.'.join(ncftmpf.read().split()[1].split('.')[:2]))
-                if version>4.2:
-                    os.system("cd postprocessor && ./build_init.sh || ./build_init_compatibility.sh")
-                else:
-                    os.system("cd postprocessor && rm burn7.x && make")
-                os.chdir(cwd)
+                if self.burn7:
+                    os.system("nc-config --version > ncversion.tmp")
+                    with open("ncversion.tmp","r") as ncftmpf:
+                        version = float('.'.join(ncftmpf.read().split()[1].split('.')[:2]))
+                    if version>4.2:
+                        os.system("cd postprocessor && ./build_init.sh || ./build_init_compatibility.sh")
+                    else:
+                        os.system("cd postprocessor && rm burn7.x && make")
+                    os.chdir(cwd)
             except PermissionError:
                 raise PermissionError("\nHi! Welcome to ExoPlaSim. It looks like this is the first "+
                                     "time you're using this program since installing, and you "+

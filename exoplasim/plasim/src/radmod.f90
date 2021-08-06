@@ -1890,23 +1890,23 @@
        
 !
 !      set albedo for the direct beam (for ocean use ECHAM3 param unless necham=0)
-       dsalb(1,:)=dls(:)*dsalb(1,:)+(1.-dls(:))*dicec(:)*dsalb(1,:)              &
-     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
-     &           +(1.-dls(:))*(1.-dicec(:))*(1-necham)*necham6 &
+       dsalb(1,:)=dls(:)*dsalb(1,:)   +   (1.-dls(:)) * dicec(:)*dsalb(1,:)              &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * (1-necham)*necham6 &
      &  *(0.026/(zmu0(:)**1.7+0.065)+0.15*(zmu0(:)-1)*(zmu0(:)-0.5)*(zmu0(:)-0.1)+0.0082) &
-     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*(1-necham6)*dsalb(1,:)
-       dsalb(2,:)=dls(:)*dsalb(2,:)+(1.-dls(:))*dicec(:)*dsalb(2,:)              &
-     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
-     &           +(1.-dls(:))*(1.-dicec(:))*(1-necham)*necham6 &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * (1.-necham)*(1-necham6)*dsalb(1,:)
+       dsalb(2,:)=dls(:)*dsalb(2,:)   +   (1.-dls(:)) * dicec(:)*dsalb(2,:)              &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * (1-necham)*necham6 &
      &  *(0.026/(zmu0(:)**1.7+0.065)+0.15*(zmu0(:)-1)*(zmu0(:)-0.5)*(zmu0(:)-0.1)+0.0082) &
-     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*(1-necham6)*dsalb(2,:)
+     &           + (1.-dls(:)) * (1.-dicec(:)) * (1.-necham)*(1-necham6)*dsalb(2,:)
        
-       dalb(:) = (zsolars(1)*dsalb(1,:) + zsolars(2)*dsalb(2,:))*nstartemp + &
-     &           (dls(:)*dalb(:)+(1.-dls(:))*dicec(:)*dalb(:)              &
-     &           +(1.-dls(:))*(1.-dicec(:))*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
-     &           +(1.-dls(:))*(1.-dicec(:))*(1-necham)*necham6 &
+       dalb(:) = (zsolars(1)*dsalb(1,:) + zsolars(2)*dsalb(2,:))*nstartemp  &
+     &           + (dls(:)*dalb(:)      + (1.-dls(:)) * dicec(:)*dalb(:)              &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * (1-necham)*necham6 &
      &  *(0.026/(zmu0(:)**1.7+0.065)+0.15*(zmu0(:)-1)*(zmu0(:)-0.5)*(zmu0(:)-0.1)+0.0082) &
-     &           +(1.-dls(:))*(1.-dicec(:))*(1.-necham)*(1-necham6)*dalb(:))*(1-nstartemp)
+     &           + (1.-dls(:)) * (1.-dicec(:)) * (1.-necham)*(1-necham6)*dalb(:))*(1-nstartemp)
        
      
        zra1(:)=dsalb(1,:)*nstartemp + dalb(:)*(1-nstartemp)
