@@ -3487,42 +3487,43 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibra
             fnamelist = fname.read().split('\n')
         for line in fnamelist:
             parts = line.split('=')
-            key = parts[0]
-            arg = parts[1]
-            if key=="code" or key=="CODE":
-                variables = arg.split(',')
-            elif key=="htype" or key=="HYTPE":
-                if arg=="g" or arg=="G":
-                    mode="grid"
-                elif arg=="z" or arg=="Z":
-                    mode="grid"
-                    zonal=True
-                elif arg=="s" or arg=="S":
-                    mode="spectral"
-                elif arg=="f" or arg=="F":
-                    mode="fourier"
-            elif key=="mean" or key=="MEAN":
-                if int(arg)==0:
-                    timeaverage=False
-                    stdev = False
-                elif int(arg)==1:
-                    timeaverage=True
-                    stdev = False
-                elif int(arg)==2:
-                    stdev = True
-                elif int(arg)==3:
-                    timeaverage=True
-                    stdev = True
-            elif key=="radius" or key=="RADIUS":
-                radius = float(arg)/6371220.0      #Radii in the namelist are given in metres
-            elif key=="gravity" or key=="GRAVITY":
-                gravity = float(arg)
-            elif (key=="mars" or key=="MARS") and int(arg)==1:
-                gravity = MARS_GRAV
-                radius  = MARS_RADIUS/6371220.0    #We want to start off with radii in Earth radii
-                gascon  = MARS_RD      #This is called RD in burn7, not gascon
+            if len(parts)>1:
+                key = parts[0]
+                arg = parts[1]
+                if key=="code" or key=="CODE":
+                    variables = arg.split(',')
+                elif key=="htype" or key=="HYTPE":
+                    if arg=="g" or arg=="G":
+                        mode="grid"
+                    elif arg=="z" or arg=="Z":
+                        mode="grid"
+                        zonal=True
+                    elif arg=="s" or arg=="S":
+                        mode="spectral"
+                    elif arg=="f" or arg=="F":
+                        mode="fourier"
+                elif key=="mean" or key=="MEAN":
+                    if int(arg)==0:
+                        timeaverage=False
+                        stdev = False
+                    elif int(arg)==1:
+                        timeaverage=True
+                        stdev = False
+                    elif int(arg)==2:
+                        stdev = True
+                    elif int(arg)==3:
+                        timeaverage=True
+                        stdev = True
+                elif key=="radius" or key=="RADIUS":
+                    radius = float(arg)/6371220.0      #Radii in the namelist are given in metres
+                elif key=="gravity" or key=="GRAVITY":
+                    gravity = float(arg)
+                elif (key=="mars" or key=="MARS") and int(arg)==1:
+                    gravity = MARS_GRAV
+                    radius  = MARS_RADIUS/6371220.0    #We want to start off with radii in Earth radii
+                    gascon  = MARS_RD      #This is called RD in burn7, not gascon
         data = dataset(rawfile, variables, mode=mode,radius=radius,gravity=gravity,gascon=gascon, 
-                       zonal=zonal, substellarlon=substellarlon, physfilter=physfilter)
+                       zonal=zonal, substellarlon=substellarlon, physfilter=physfilter,logfile=logfile)
         
     # Compute time averages, binning, stdev, etc
     
