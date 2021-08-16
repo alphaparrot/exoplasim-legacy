@@ -6,7 +6,7 @@ setup(
     version='3.0.0a1',
     packages=['exoplasim',],
     zip_safe=False,
-    install_requires=["numpy","netCDF4","matplotlib","scipy"],
+    install_requires=["numpy","matplotlib","scipy"],
     extras_require = {"netCDF4": ["netCDF4"],
                       "HDF5": ["h5py"]},
     include_package_data=True,
