@@ -16,13 +16,14 @@ Read the full documentation at http://exoplasim.readthedocs.io.
 Requirements
 ------------
     
-* netCDF4
-* numpy
-* scipy (only needed for additional utilities)
-* matplotlib (only needed for additional utilities)
-* a Fortran compiler
-* a C compiler
-* (optionally) MPI libraries for those compilers
+*   numpy
+*   scipy
+*   matplotlib (only needed for additional utilities)
+*   a Fortran compiler
+*   a C compiler
+*   (optionally) MPI libraries for those compilers
+*   netCDF4 (optional)
+*   h5py (optional)
     
 Installation
 ------------
@@ -38,12 +39,21 @@ OR::
 The first time you import the module and try to create a model
 after either installing or updating, ExoPlaSim will run a 
 configuration script, write the install directory into its 
-source code, and compile the burn7 NetCDF postprocessor. You must 
-have NetCDF libraries available in the path when this happens.
-The burn7 compilation process will build and compile a patched
-version of the NetCDF libraries necessary for burn7--burn7 makes
-use of features anachronistic to a particular version of NetCDF
-that no longer exists.
+source code, and (if applicable) compile the burn7 NetCDF postprocessor.
+
+Multiple output formats are supported by the built-in `pyburn`
+postprocessor. If you wish to use HDF5 or NetCDF output formats, you
+will need the netCDF4-python and h5py libraries, respectively. You
+can ensure these are included at install-time by specifying them:
+
+::
+    pip install exoplasim[netCDF4]
+    
+OR::
+    pip install exoplasim[HDF5]
+    
+OR::
+    pip install exoplasim[netCDF4,HDF5]
 
 You may also configure and compile the model manually if you wish
 to not use the Python API, by entering the exoplasim/ directory
@@ -51,6 +61,15 @@ and running first configure.sh, then compile.sh (compilation flags
 are shown by running ``./compile.sh -h``). The postprocessor and its
 libraries can be compiled by entering ``exoplasim/postprocessor/`` and
 running ``./build_init.sh``.
+
+burn7 compilation
+-----------------
+You must have NetCDF libraries available in the path to build burn7.
+The burn7 compilation process will build and compile a patched
+version of the NetCDF libraries necessary for burn7--burn7 makes
+use of features anachronistic to a particular version of NetCDF
+that no longer exists.
+
 
 PlaSim Documentation
 --------------------

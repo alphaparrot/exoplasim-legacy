@@ -4,7 +4,7 @@ Read raw exoplasim output files and postprocess them into netCDF output files.
 import numpy as np
 import struct
 import gcmt
-import scipy
+import scipy, scipy.integrate, scipy.interpolate
 import os
 
 '''
@@ -26,6 +26,16 @@ Additionally, at least at first, there are the following restrictions:
     
     **The Mars shortcut for derived variables is unsupported.** This will be supported in future versions.
 '''
+
+def _log(destination,string):
+    if destination is None:
+        if string=="\n":
+            print()
+        else:
+            print(string)
+    else:
+        with open(destination,"a") as f:
+            f.write(string+"\n")
 
 #dictionary that can be searched by string (integer) codes
 ilibrary = {"110":["mld"  ,"mixed_layer_depth"               ,"m"          ], 
@@ -184,6 +194,8 @@ MARS_GRAV   = 3.728
 MARS_RADIUS = 3400000.0
 MARS_RD     = 189.0
 L_TIMES_RHOH2O = -333700000.0
+RLAPSE      = 0.0065    #International Standard Atmosphere temperature lapse rate in K/m
+RH2O        = 1000 * 1.380658e-23*6.0221367e+23 / 18.0153
 SUPPORTED = [".nc"        , #NetCDF
              ".npz"       , #NumPy
              ".npy"       , #Synonym for NumPy
@@ -470,7 +482,6 @@ def readallvariables(fbuffer):
         if kcode not in variables:
             variables[kcode] = np.array(field)
             headers[kcode] = header
-            #print("variable %d"%int(kcode))
         else:
             variables[kcode] = np.append(variables[kcode],field)
     
@@ -536,6 +547,8 @@ def readfile(filename):
         Dictionary of model variables, indexed by numerical code
     '''
     
+    import pyfft
+    
     with open(filename,"rb") as fb:
         fbuffer = fb.read()
     
@@ -561,7 +574,7 @@ def readfile(filename):
     ntru = headers['main'][7]
     ntimes = len(time)
         
-    sid,gwd = _gaulat(nlat)
+    sid,gwd = pyfft.inigau(nlat)
     rlat = np.arcsin(sid)
     lat = rlat*180.0/np.pi
     
@@ -711,9 +724,9 @@ def _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
         if (ntru+1)*(ntru+2) in variable.shape: #spectral variable
             specvar = variable
             if len(variable.shape)==3:
-                dims = ("time",levd,"modes")
+                dims = ("time",levd,"modes","complex")
             else:
-                dims = ("time","modes")
+                dims = ("time","modes","complex")
         else:
             if len(variable.shape)==4: #Include lev
                 nlevs = variable.shape[1]
@@ -722,7 +735,7 @@ def _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                            np.transpose(np.reshape(variable,
                                                    (ntimes*nlevs,nlat,nlon)))
                            )
-                dims = ("time",levd,"modes")
+                dims = ("time",levd,"modes","complex")
             else:
                 
                 ntimes = variable.shape[0]
@@ -730,9 +743,14 @@ def _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                            np.transpose(np.reshape(variable,
                                                    (ntimes,nlat,nlon)))
                            )
-                dims = ("time","modes")
+                dims = ("time","modes","complex")
             spvar = pyfft.gp2sp(gpvar,nlat,nlon,ntru,int(physfilter))
             specvar = np.transpose(spvar)
+        shape = list(specvar.shape)
+        shape[-1] //= 2
+        shape.append(2)
+        shape = tuple(shape)
+        specvar = np.reshape(specvar,shape)
         meta.append(dims)
         outvar = specvar
         
@@ -857,8 +875,8 @@ def _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
     return (outvar,meta)
     
 
-def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
-                        substellarlon=0.0,physfilter=False,zonal=False):
+def _transformvectorvar(uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,mode='grid',
+                        substellarlon=0.0,physfilter=False,zonal=False,radius=6371220.0):
     '''Ensure a variable is in a given horizontal mode.
     
     Parameters
@@ -908,6 +926,16 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='gr
     
     import pyfft
     
+    if np.nanmax(lats)>10: #Dealing with degrees, not radians
+        rlats = lats*np.pi/180.0
+    else:
+        rlats = lats[:]
+        
+    nlat = len(rlats)
+        
+    rdcostheta = radius/np.cos(rlats)
+    costhetadr = np.cos(rlats)/radius
+    
     if nlev in uvar.shape:
         levd = "lev"
     elif nlev+1 in uvar.shape:
@@ -924,7 +952,7 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='gr
                            )
                 spvvar = np.asfortranarray(
                             np.transpose(np.reshape(vvar,
-                                                    (ntimes*nlevs,uvar.shape[2])))
+                                                    (ntimes*nlevs,vvar.shape[2])))
                            )
                 gridshape = (ntimes,nlevs,nlat,nlon)
                 dims = ["time",levd,"lat","lon"]
@@ -940,7 +968,7 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='gr
                            )
                 gridshape = (ntimes,nlat,nlon)
                 dims = ["time","lat","lon"]
-            griduvar,gridvvar = pyfft.spvgp(spuvar,spvvar,nlat,nlon,ntru,int(physfilter))
+            griduvar,gridvvar = pyfft.spvgp(spuvar,spvvar,rdcostheta,nlon,ntru,int(physfilter))
             griduvar = np.reshape(np.transpose(griduvar),gridshape)
             gridvvar = np.reshape(np.transpose(gridvvar),gridshape)
             griduvar = np.roll(griduvar,nlon//2,axis=-1)
@@ -988,7 +1016,7 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='gr
                            )
                 gridshape = (ntimes,nlat,nlon)
                 dims = ["time","lat","lon"]
-            griduvar, gridvvar = pyfft.spvgp(spuvar,spvvar,nlat,nlon,ntru,int(physfilter))
+            griduvar, gridvvar = pyfft.spvgp(spuvar,spvvar,rdcostheta,nlon,ntru,int(physfilter))
             griduvar = np.reshape(np.transpose(griduvar),gridshape)
             gridvvar = np.reshape(np.transpose(gridvvar),gridshape)
             griduvar = np.roll(griduvar,nlon//2,axis=-1)
@@ -1016,9 +1044,9 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='gr
             specuvar = uvar
             specvvar = vvar
             if len(uvar.shape)==3:
-                dims = ("time",levd,"modes")
+                dims = ("time",levd,"modes","complex")
             else:
-                dims = ("time","modes")
+                dims = ("time","modes","complex")
         else:
             if len(uvar.shape)==4: #Include lev
                 nlevs = uvar.shape[1]
@@ -1031,7 +1059,7 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='gr
                             np.transpose(np.reshape(vvar,
                                                     (ntimes*nlevs,nlat,nlon)))
                            )
-                dims = ("time",levd,"modes")
+                dims = ("time",levd,"modes","complex")
             else:
                 
                 ntimes = uvar.shape[0]
@@ -1043,10 +1071,17 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='gr
                             np.transpose(np.reshape(vvar,
                                                     (ntimes,nlat,nlon)))
                            )
-                dims = ("time","modes")
-            spuvar,spvvar = pyfft.gpvsp(gpvuar,gpvvar,nlat,nlon,ntru,int(physfilter))
+                dims = ("time","modes","complex")
+            spuvar,spvvar = pyfft.gpvsp(gpvuar,gpvvar,costhetadr,ntru,int(physfilter))
             specuvar = np.transpose(spuvar)
             specvvar = np.transpose(spvvar)
+        shape = list(specuvar.shape)
+        shape[-1] //= 2
+        shape.append(2)
+        shape = tuple(shape)
+        specuvar = np.reshape(specuvar,shape)
+        specvvar = np.reshape(specvvar,shape)
+        
         umeta.append(dims)
         vmeta.append(dims)
         outuvar = specuvar
@@ -1079,7 +1114,7 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='gr
                            )
                 fcshape = (ntimes,nlat,nlon//2,2)
                 dims = ["time","lat","fourier","complex"]
-            gpuvar, gpvvar = pyfft.spvgp(spuvar,spvvar,nlat,nlon,ntru,int(physfilter))
+            gpuvar, gpvvar = pyfft.spvgp(spuvar,spvvar,rdcostheta,nlon,ntru,int(physfilter))
             fcuvar = pyfft.gp3fc(gpuvar)
             fcvvar = pyfft.gp3fc(gpvvar)
             fourieruvar = np.reshape(np.transpose(fcuvar),fcshape)
@@ -1147,7 +1182,7 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='gr
                            )
                 gridshape = (ntimes,nlat,nlon)
                 dims = ["time","lat","lon"]
-            griduvar, gridvvar = pyfft.spvgp(spuvar,spvvar,nlat,nlon,ntru,int(physfilter))
+            griduvar, gridvvar = pyfft.spvgp(spuvar,spvvar,rdcostheta,nlon,ntru,int(physfilter))
             griduvar = np.reshape(np.transpose(griduvar),gridshape)
             gridvvar = np.reshape(np.transpose(gridvvar),gridshape)
             griduvar = np.roll(griduvar,nlon//2,axis=-1)
@@ -1211,11 +1246,11 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,nlat,nlon,nlev,ntru,ntime,mode='gr
     else:
         raise Exception("Invalid output mode selected")
                 
-    return (outuvar,outvvar,umeta.vmeta)
+    return (outuvar,outvvar,umeta,vmeta)
     
 
 def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0, physfilter=False,
-            radius=1.0,gravity=9.80665,gascon=287.0):
+            radius=1.0,gravity=9.80665,gascon=287.0,logfile=None):
     '''Read a raw output file, and construct a dataset.
     
     Parameters
@@ -1252,6 +1287,9 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
         Surface gravity in m/s^2.
     gascon : float, optional
         Specific gas constant for dry gas (R$_d$) in J/kg/K.  
+    logfile : str or None, optional
+        If None, log diagnostics will get printed to standard output. Otherwise, the log file
+        to which diagnostic output should be written.
         
     Returns
     -------
@@ -1284,9 +1322,9 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
     rlon = lon*np.pi/180.0
     colat = np.cos(rlat)
     
-    gridlnps,lnpsmeta = _transformvar(rdataset["152"][:],ilibrary["152"][:],nlat,nlon,nlev,ntru,ntime,
-                                  mode='grid',substellarlon=substellarlon,physfilter=physfilter,
-                                  zonal=False)
+    gridlnps,lnpsmeta = _transformvar(rawdata[str(lnpscode)][:],ilibrary[str(lnpscode)][:],nlat,nlon,
+                                      nlev,ntru,ntime,mode='grid',substellarlon=substellarlon,
+                                      physfilter=physfilter,zonal=False)
     dpsdx = np.zeros(gridlnps.shape)
     for jlat in range(nlat):
         dpsdx[...,jlat,:] = np.gradient(gridlnps[...,jlat,:],rlon*radius*colat[jlat],axis=-1)
@@ -1296,9 +1334,29 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
     levp = np.zeros(nlev+1)
     levp[-1] = 1.0
     levp[1:-1] = 0.5*(lev[1:]+lev[0:-1])
-    levp[0] = lev[0]-(levp[1]-lev[0])
+    levp[0] = 0.5*lev[0]#-(levp[1]-lev[0])
     pa = gridps[:,np.newaxis,:,:] * lev[np.newaxis,:,np.newaxis,np.newaxis]
     hpa = gridps[:,np.newaxis,:,:] * levp[np.newaxis,:,np.newaxis,np.newaxis]
+    
+    meanpa = np.nanmean(pa,axis=(0,2,3))*1.0e-2
+    meanhpa = np.nanmean(hpa,axis=(0,2,3))*1.0e-2
+    
+    _log(logfile,"Interface Pressure     Mid-Level Pressure")
+    _log(logfile,"*****************************************") #%18s
+    _log(logfile,"%14f hpa     ------------------"%(meanhpa[0]))
+    for jlev in range(nlev):
+        _log(logfile,"------------------     %14f hpa"%(meanpa[jlev]))
+        _log(logfile,"%14f hpa     ------------------"%(meanhpa[jlev+1]))
+    _log(logfile,"*****************************************") #%18s
+
+    specmodes = np.zeros((ntru+1)*(ntru+2))
+    
+    w=0
+    for m in range(ntru+1):
+        for n in range(m,ntru+1):
+            specmodes[w  ] = n
+            specmodes[w+1] = n
+            w+=2
     
     for key in variablecodes:
         '''Collect metadata from our built-in list, and extract 
@@ -1313,7 +1371,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 variable = rawdata[str(key)][:]
                 derived=False
             else:
-                #print(str(key)+" not in rawdata;",rawdata.keys())
+                #_log(logfile,str(key)+" not in rawdata;",rawdata.keys())
                 derived=True
         else:
             if key in ilibrary:
@@ -1322,7 +1380,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = slibrary[key][:]
                 kcode = meta[0]
                 meta[0] = key
-                #print("Reassigning key; key was %s and is now %s"%(key,kcode))
+                #_log(logfile,"Reassigning key; key was %s and is now %s"%(key,kcode))
                 key = str(kcode) #Now key is always the integer code, and meta[0] is always the name
             else:
                 raise Exception("Unknown variable code requested: %s"%key)
@@ -1330,21 +1388,23 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 variable = rawdata[key][:]
                 derived=False
             else:
-                #print(key+" not in rawdata;",rawdata.keys())
+                #_log(logfile,key+" not in rawdata;",rawdata.keys())
                 derived=True
+        #_log(logfile,meta)
         meta.append(key)
-        print(meta,derived,rawdata.keys())
+        #_log(logfile,meta)
+        #_log(logfile,meta,derived,rawdata.keys())
         if not derived:
-            #print("Found variable; no need to derive: %s"%meta[0])
+            #_log(logfile,"Found variable; no need to derive: %s"%meta[0])
             variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-            rdataset[meta[0]] = (variable,meta)
-            print("Collected variable: %s"%meta[0])
+            rdataset[meta[0]]= [variable,meta]
+            _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],variable.shape[0]))
         else: #derived=True       
         
             # Add in derived variables
-            #print(nlat,nlon,ntru,nlevs*ntimes)
+            #_log(logfile,nlat,nlon,ntru,nlevs*ntimes)
             #ta = pyfft.sp2gp(np.asfortranarray(np.transpose(np.reshape(data["130"],(ntimes*nlevs,data["130"].shape[-1])))),
                              #nlat,nlon,ntru,int(physfilter))
             #ta = np.reshape(np.transpose(ta),(ntimes,nlevs,nlat,nlon))
@@ -1356,143 +1416,169 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     div  = rawdata[str(divcode)][:]
                     vort = rawdata[str(vortcode)][:]
                     umeta = ilibrary[key][:]
+                    umeta.append(key)
                     vmeta = ilibrary[str(vcode)][:]
-                    ua,va,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,nlat,nlon,nlev,ntru,
+                    ua,va,meta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
-                                                            physfilter=physfilter,zonal=zonal)
+                                                            physfilter=physfilter,zonal=zonal,
+                                                            radius=radius)
                     windless = False
-                rdataset[umeta[0]] = (ua,umeta)
+                else:
+                    meta=umeta[:-1]
+                    meta.append(key)
+                    meta.append(umeta[-1])
+                rdataset[meta[0]] = [ua,meta]
             elif key==str(vcode): #va
                 if windless:
                     div  = rawdata[str(divcode)][:]
                     vort = rawdata[str(vortcode)][:]
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[key][:]
-                    ua,va,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,nlat,nlon,nlev,ntru,
+                    vmeta.append(key)
+                    ua,va,umeta,meta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
-                                                            physfilter=physfilter,zonal=zonal)
+                                                            physfilter=physfilter,zonal=zonal,
+                                                            radius=radius)
                     windless = False
-                rdataset[vmeta[0]] = (va,vmeta)
+                else:
+                    meta=vmeta[:-1]
+                    meta.append(key)
+                    meta.append(vmeta[-1])
+                rdataset[meta[0]] = [va,meta]
             elif key==str(spdcode): #spd
                 if windless:
                     div  = rawdata[str(divcode)][:]
                     vort = rawdata[str(vortcode)][:]
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[str(vcode)][:]
-                    ua,va,spdmeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,nlat,nlon,nlev,ntru,
+                    ua,va,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
-                                                            physfilter=physfilter,zonal=zonal)
+                                                            physfilter=physfilter,zonal=zonal,
+                                                            radius=radius)
                     windless = False
                 meta = ilibrary[key][:]
+                meta.append(key)
                 meta.append(umeta[-1])
                 spd = np.sqrt(ua**2+va**2)
-                rdataset[meta[0]] = (spd,meta)
+                rdataset[meta[0]] = [spd,meta]
                 
             elif key==str(dpsdxcode): #dpsdx
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = gridps*dpsdx
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(dpsdycode): #dpsdy
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = gridps*dpsdy
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(preccode): #precipiation
                 # prc + prl
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = rawdata["142"][:]+rawdata["143"][:]
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(ntopcode): #Net top radiation
                 # rst + rlut
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = rawdata["178"][:]+rawdata["179"][:]
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(nbotcode): #Net bottom radiation
                 # rss + rls
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = rawdata["176"][:]+rawdata["177"][:]
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(nheatcode): #Net heat flux
                 # Melt*L*rho + rss + rls + hfss + hfls
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = (rawdata["218"][:]*L_TIMES_RHOH2O +rawdata["176"][:] + rawdata["177"][:]
                            +rawdata["146"][:] + rawdata["147"][:])
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(nh2ocode): #Net water flux
                 # evap - mrro + precip
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = rawdata["182"][:] - rawdata["160"][:] + rawdata["142"][:] + rawdata["143"][:]
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(swatmcode): #Shortwave net 
                 # rst = rss
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = rawdata["178"][:] - rawdata["176"][:]
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(lwatmcode): #longwave net 
                 # rlut - rst
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = rawdata["179"][:] - rawdata["177"][:]
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(natmcode): #Net atmospheric radiation
                 # rst + rlut - rss - rst
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = rawdata["178"][:] - rawdata["176"][:] + rawdata["179"][:] - rawdata["177"][:]
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(sruncode): #Precip + Evap - Increase in snow  = water added to bucket
                 #Actual runoff should be precip + evap + melt + soilh2o - bucketmax
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = rawdata["182"][:] - rawdata["221"][:] + rawdata["142"][:] + rawdata["143"][:]
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(freshcode): #Precip + Evap
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable = rawdata["142"][:] + rawdata["143"][:] + rawdata["182"][:]
                 variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(wcode): #Omega? vertical air velocity in Pa/s
                 # w = p(j)*(u(i,j)*dpsdx(i,j)+v(i,j)*dpsdy(i,j)) 
@@ -1512,8 +1598,9 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 #We already got pa
                   
                 if not windless:
-                    uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,nlat,nlon,nlev,ntru,
-                                                            ntime,mode='grid',
+                    uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta[:],vmeta[:],lat,
+                                                            nlon,nlev,ntru,
+                                                            ntime,mode='grid',radius=radius,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False)
                     dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -1524,30 +1611,31 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     vort = rawdata[str(vortcode)][:]
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[str(vcode)][:]
-                    uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,nlat,nlon,nlev,ntru,
-                                                            ntime,mode='grid',
+                    uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                                                            ntime,mode='grid',radius=radius,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False)
                     dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                              mode='grid',substellarlon=substellarlon,
-                                             physfilter=physfilter,zonal=False)
                                              physfilter=physfilter,zonal=False)
                     
                 wap = np.zeros(dv.shape)
                 for t in range(ntime):
                     for j in range(nlat):
                         for i in range(nlon):
-                            wap[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] + vv*dpsdy[t,j,i]) 
+                            wap[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] 
+                                                        +vv[t,:,j,i]*dpsdy[t,j,i]) 
                                             - scipy.integrate.cumtrapz(np.append([0,],
                                                                        dv[t,:,j,i]
                                                                        +uu[t,:,j,i]*dpsdx[t,j,i]
                                                                        +vv[t,:,j,i]*dpsdy[t,j,i]),
                                                                        x=np.append([0,],pa[t,:,j,i])))
                 meta = ilibrary[key][:]
+                meta.append(key)
                 variable,meta = _transformvar(wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]] = [variable*1.0e-2,meta] #transform to hPa/s
                 
             elif key==str(wzcode): #Vertical wind wa
                 # wa = -omega * gascon * ta / (grav * pa)
@@ -1568,8 +1656,9 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     omega = rdataset["wap"][0]
                 else:
                     if not windless:
-                        uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,nlat,nlon,nlev,ntru,
-                                                                ntime,mode='grid',
+                        uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta[:],vmeta[:],
+                                                                lat,nlon,nlev,ntru,
+                                                                ntime,mode='grid',radius=radius,
                                                                 substellarlon=substellarlon,
                                                                 physfilter=physfilter,zonal=False)
                         dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -1580,8 +1669,8 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                         vort = rawdata[str(vortcode)][:]
                         umeta = ilibrary[str(ucode)][:]
                         vmeta = ilibrary[str(vcode)][:]
-                        uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,nlat,nlon,nlev,ntru,
-                                                                ntime,mode='grid',
+                        uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                                                                ntime,mode='grid',radius=radius,
                                                                 substellarlon=substellarlon,
                                                                 physfilter=physfilter,zonal=False)
                         dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -1592,13 +1681,13 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                             for j in range(nlat):
                                 for i in range(nlon):
                                     omega[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] 
-                                                                   + vv*dpsdy[t,j,i]) 
+                                                                  +vv[t,:,j,i]*dpsdy[t,j,i]) 
                                                       - scipy.integrate.cumtrapz(np.append([0,],
                                                                              dv[t,:,j,i]
                                                                              +uu[t,:,j,i]*dpsdx[t,j,i]
                                                                              +vv[t,:,j,i]*dpsdy[t,j,i]),
                                                                         x=np.append([0,],(pa[t,:,j,i]))))
-                omega,wmeta = _transformvar(omega,wmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
+                omega,wmeta = _transformvar(omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                                             substellarlon=substellarlon,physfilter=physfilter)
                 if "ta" in rdataset:
                     ta,tameta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
@@ -1611,51 +1700,77 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                                               physfilter=physfilter,zonal=False)
                 
                 
-                wa = -omega*gascon*ta / (grav*pa)
-                wa,wmeta = _transformvar(wa,ilibrary[key][:],nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                         substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
-                rdataset[wmeta[0]] = (wa,wmeta)
+                wa = -omega*gascon*ta / (gravity*pa)
+                meta = ilibrary[key][:]
+                meta.append(key)
+                wa,meta = _transformvar(wa,meta,nlat,nlon,
+                                        nlev,ntru,ntime,mode=mode,
+                                        substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
+                rdataset[meta[0]] = [wa,meta]
                 
             elif key==str(pscode): #surface pressure
-                variable,meta = _transformvar(gridps,ilibrary[key][:],nlat,nlon,nlev,ntru,ntime,
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(gridps,meta,nlat,nlon,
+                                              nlev,ntru,ntime,
                                               mode=mode,substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(vpotcode): #Velocity potential (psi)
-                vdiv,vmeta = _transformvar(rawdata[str(divcode)][:],ilibrary[str(divcode)][:],nlat,nlon,
+                meta = ilibrary[key][:]
+                meta.append(key)
+                vdiv,vmeta = _transformvar(rawdata[str(divcode)][:],
+                                           meta,nlat,nlon,
                                            nlev,ntru,ntime,mode='spectral',substellarlon=substellarlon,
                                            physfilter=physfilter,zonal=False) #Need it to be spectral
-                
+                vdivshape = list(vdiv.shape[:-1])
+                vdivshape[-1]*=2
+                vdivshape = tuple(vdivshape)
+                vdiv = np.reshape(vdiv,vdivshape)
                 vpot = np.zeros(vdiv.shape)
-                vpot[...,2:] = vdiv[...,2:] * radius**2/(n**2+n)
+                modes = np.resize(specmodes,vdiv.shape)
+                vpot[...,2:] = vdiv[...,2:] * radius**2/(modes**2+modes)[...,2:]
 
-                variable,meta = _transformvar(vpot,ilibrary[key][:],nlat,nlon,nlev,ntru,ntime,mode=mode,
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(vpot,meta,
+                                              nlat,nlon,nlev,ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(stfcode): #Streamfunction (stf)
-                svort,smeta = _transformvar(rawdata[str(vortcode)][:],ilibrary[str(vortcode)][:],nlat,
+                svort,smeta = _transformvar(rawdata[str(vortcode)][:],
+                                            ilibrary[str(vortcode)][:],nlat,
                                             nlon,nlev,ntru,ntime,mode='spectral',
                                             substellarlon=substellarlon,physfilter=physfilter,
                                             zonal=False) #Need it to be spectral
-                
+                svortshape = list(svort.shape[:-1])
+                svortshape[-1]*=2
+                svortshape = tuple(svortshape)
+                svort = np.reshape(svort,svortshape)
                 stf = np.zeros(svort.shape)
-                stf[...,2:] = svort[...,2:] * radius**2/(n**2+n)
+                modes = np.resize(specmodes,svort.shape)
+                stf[...,2:] = svort[...,2:] * radius**2/(modes**2+modes)[...,2:]
                 
-                variable,meta = _transformvar(stf,ilibrary[key][:],nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                    substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(stf,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(slpcode): #Sea-level pressure (slp)
                 
                 if "sg" in rdataset:
-                    geopot,gmeta = _transformvar(rdataset["sg"][0][:],ilibrary[str(geopotcode)][:],nlat,
+                    geopot,gmeta = _transformvar(rdataset["sg"][0][:],
+                                                 ilibrary[str(geopotcode)][:],nlat,
                                                  nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 else:
-                    geopot,gmeta = _transformvar(rawdata[geopotcode][:],ilibrary[str(geopotcode)][:],
+                    geopot,gmeta = _transformvar(rawdata[str(geopotcode)][:],
+                                                 ilibrary[str(geopotcode)][:],
                                                  nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
@@ -1667,8 +1782,8 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    tta,tmeta = _transformvar(rawdata[tempcode][:],ilibrary[str(tempcode)][:],nlat,nlon,
-                                                 nlev,ntru,ntime,mode="grid",
+                    tta,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                                              nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 temp = tta[:,-1,...]
@@ -1682,10 +1797,10 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 slp[abs(geopot)<1.0e-4] = aph[abs(geopot)<1.0e-4]
                 
                 mask = abs(geopot)>=1.0e-4
-                alpha = gascon*rlapse/gravity
+                alpha = gascon*RLAPSE/gravity
                 tstar = (1 + alpha*(aph[mask]/apf[mask]-1))*temp[mask]
                 tstar[tstar<255.0] = 0.5*(255+tstar[tstar<255.0])
-                tmsl = tstar + geopot[mask]*rlapse/gravity
+                tmsl = tstar + geopot[mask]*RLAPSE/gravity
                 ZPRT = geopot[mask] / (gascon*tstar)
                 ZPRTAL = np.zeros(ZPRT.shape)
                 mask2 = abs(tmsl-tstar)<1.0e-6
@@ -1695,14 +1810,18 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 ZPRTAL[mask3] = ZPRT[mask3] * alpha
                 slp[mask] = aph[mask] * np.exp(ZPRT*(1.0-ZPRTAL*(0.5-ZPRTAL/3.0)))
                 
-                variable,meta = _transformvar(slp,ilibrary[key][:],nlat,nlon,nlev,ntru,ntime,mode=mode,
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(slp,meta,nlat,nlon,
+                                              nlev,ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                                               
             elif key==str(geopotzcode): #Geopotential height 
                 #we need temperature, humidity, half-level pressure
                 if "hus" in rdataset:
-                    qq,qmeta = _transformvar(rdataset["hus"][0][:],ilibrary[str(humcode)][:],nlat,nlon,
+                    qq,qmeta = _transformvar(rdataset["hus"][0][:],
+                                             ilibrary[str(humcode)][:],nlat,nlon,
                                              nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                 else:
@@ -1718,8 +1837,8 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    temp,tmeta = _transformvar(rawdata[tempcode][:],ilibrary[str(tempcode)][:],nlat,nlon,
-                                                 nlev,ntru,ntime,mode="grid",
+                    temp,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                                               nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 
@@ -1729,7 +1848,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 else:
-                    oro,gmeta = _transformvar(rawdata[geopotcode][:],ilibrary[str(geopotcode)][:],
+                    oro,gmeta = _transformvar(rawdata[str(geopotcode)][:],ilibrary[str(geopotcode)][:],
                                                  nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
@@ -1740,7 +1859,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 gz[:,nlev,...] = oro[:] #bottom layer of geopotential Z is the orographic geopotential
                 
-                VTMP = RV/gascon - 1.0
+                VTMP = RH2O/gascon - 1.0
                 twolog2 = 2.0*np.log(2.0)
                 
                 if np.nanmax(qq)>=1.0e-14: #Non-dry atmosphere
@@ -1758,9 +1877,12 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 gz *= 1.0/gravity
                 
-                variable,meta = _transformvar(gz,ilibrary[key][:],nlat,nlon,nlev,ntru,ntime,mode=mode,
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(gz,meta,
+                                              nlat,nlon,nlev,ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
 
                 
             elif key==str(rhumcode): #relative humidity (hur)
@@ -1777,8 +1899,8 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    temp,tmeta = _transformvar(rawdata[tempcode][:],ilibrary[str(tempcode)][:],nlat,nlon,
-                                                 nlev,ntru,ntime,mode="grid",
+                    temp,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                                               nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 
@@ -1803,35 +1925,46 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 rh[rh<0.0  ] =   0.0
                 rh[rh>100.0] = 100.0
                 
-                variable,meta = _transformvar(rh,ilibrary[key][:],nlat,nlon,nlev,ntru,ntime,mode=mode,
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(rh,meta,nlat,nlon,nlev,
+                                              ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(hpresscode): #Half-level pressure
                 
-                variable,meta = _transformvar(hpa,ilibrary[key][:],nlat,nlon,nlev,ntru,ntime,mode=mode,
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(hpa,meta,nlat,nlon,
+                                              nlev,ntru,ntime,mode=mode,
                                            substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(fpresscode): #Full-level pressure
                 
-                variable,meta = _transformvar(pa,ilibrary[key][:],nlat,nlon,nlev,ntru,ntime,mode=mode,
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(pa,meta,
+                                              nlat,nlon,nlev,ntru,ntime,mode=mode,
                                           substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
-                rdataset[meta[0]] = (variable,meta)
+                rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(thetahcode) or key==str(thetafcode): #Potential temperature
                 
                 if "theta" in rdataset or "thetah" in rdataset:
                     if key==str(thetahcode):
-                        variable,meta = _transformvar(thetah,ilibrary[key][:],nlat,nlon,nlev,ntru,
+                        meta = ilibrary[key][:]
+                        meta.append(key)
+                        variable,meta = _transformvar(thetah,meta,nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
-                        rdataset[meta[0]] = (variable,meta)
+                        rdataset[meta[0]]= [variable,meta]
                     elif key==str(thetafcode):
-                        variable,meta = _transformvar(theta,ilibrary[key][:],nlat,nlon,nlev,ntru,
+                        variable,meta = _transformvar(theta,meta,nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
-                        rdataset[meta[0]] = (variable,meta)
+                        rdataset[meta[0]]= [variable,meta]
                 else:
                     
                     if "ta" in rdataset:
@@ -1840,10 +1973,21 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                                                  substellarlon=substellarlon,
                                                  physfilter=physfilter,zonal=False)
                     else:
-                        ta,tmeta = _transformvar(rawdata[tempcode][:],ilibrary[str(tempcode)][:],nlat,
-                                                 nlon,nlev,ntru,ntime,mode="grid",
+                        ta,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
+                                                 nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
+                    
+                    if "ts" in rdataset:
+                        tsurf,tsmeta = _transformvar(rdataset["ts"][0][:],ilibrary[str(tscode)][:],nlat,
+                                                     nlon,nlev,ntru,ntime,mode="grid",
+                                                     substellarlon=substellarlon,
+                                                     physfilter=physfilter,zonal=False)
+                    else:
+                        tsurf,tsmeta = _transformvar(rawdata[str(tscode)][:],ilibrary[str(tscode)][:],
+                                                     nlat,nlon,nlev,ntru,ntime,mode="grid",
+                                                     substellarlon=substellarlon,physfilter=physfilter,
+                                                     zonal=False)
                     
                     thetah = np.zeros(hpa.shape)
                     theta  = np.zeros( pa.shape)
@@ -1856,61 +2000,827 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     thetah[:,nlev,...] = tsurf[:]
                     theta = 0.5*(thetah[:,:-1,...] + thetah[:,1:,...])
                     
+                    meta = ilibrary[key][:]
+                    meta.append(key)
                     if key==str(thetahcode):
-                        variable,meta = _transformvar(thetah,ilibrary[key][:],nlat,nlon,nlev,ntru,
+                        variable,meta = _transformvar(thetah,meta,
+                                                      nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
-                        rdataset[meta[0]] = (variable,meta)
+                        rdataset[meta[0]]= [variable,meta]
                     elif key==str(thetafcode):
-                        variable,meta = _transformvar(theta,ilibrary[key][:],nlat,nlon,nlev,ntru,
+                        variable,meta = _transformvar(theta,meta,
+                                                      nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
-                        rdataset[meta[0]] = (variable,meta)
+                        rdataset[meta[0]]= [variable,meta]
                         
-                
-            '''
-            burn7 routines we may need to copy:
-            * dv2ps (streamfunction etc)
-            * spvfc (spectral->fourier)
-            * sp2fci (inverse legendre transform)
-            * sp2fcd (to get to dpsdy)
-            * fc2gp (fourier to gridpoint)
-            * Fill humidity holes (where it's -1)
-            * Omega_w (to get w wind)
-            * sh2rh (relative humidity from specific humidity)
-            * Extrap (to get sea-level pressure)
-            * Speed (for windspeed)
-            * Remember to add 142 and 143 for precip 
-            * Add 178 and 179 for net_top 
-            * add 176 and 177 for net_bot 
-            * Add 218*L_times_rhoH2O and 176 and 177 and 146 and 147 for net_heat
-            * add 182 - 160 + 142 + 143 for net_water 
-            * sw_atm -> 178 - 176
-            * lw_atm -> 179 - 177
-            * net_atm -> 178 + 179 - 176 - 177
-            * surf_runoff -> 182 - 221 + 142 + 143
-            * fresh_water -> 142 + 143 + 182
-            * gp2fc_uv
-            * fc2sp_uv
-            * sp2fc_uv
-            * fc2gp_uv
-            * gp2fc 
-            * scaluv
-            * fc2sp 
-            '''
-                
-        
+            _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],variable.shape[0]))
           
-    rdataset["lat"] = (lat,["lat","latitude","deg"])
-    rdataset["lon"] = (lon,["lon","longitude","deg"])
-    rdataset["lev"] = (lev,["lev","sigma_coordinate","nondimensional"])
-    rdataset["levp"] = (levp,["lev","half_sigma_coordinate","nondimensional"])
-    rdataset["time"] = (time,["time","timestep_of_year","timesteps"])      
+    rdataset["lat"] = [lat,["lat","latitude","deg"] ]
+    rdataset["lon"] = [lon,["lon","longitude","deg"]]
+    rdataset["lev"] = [lev,["lev","sigma_coordinate","nondimensional"]       ]
+    rdataset["levp"] = [levp,["levp","half_sigma_coordinate","nondimensional"]]
+    rdataset["time"] = [time,["time","timestep_of_year","timesteps"]         ]      
+    
+    return rdataset
+
+
+def advancedDataset(filename, variablecodes, substellarlon=0.0,
+                    radius=1.0,gravity=9.80665,gascon=287.0,logfile=None):
+    '''Read a raw output file, and construct a dataset.
+    
+    Parameters
+    ----------
+    filename : str
+        Path to the raw output file
+    variablecodes : dict
+        Variables to include. Each member must use the variable name as the key, and contain a sub-dict
+        with the horizontal mode, zonal averaging, and physics filtering  options optionall set as 
+        members. For example: `{"ts":{"mode":"grid","zonal":False},
+        "stf":{"mode":"grid","zonal":True,"physfilter":True}}`. Options that are not set take on their
+        default values from :py:func`dataset() <exoplasim.pyburn.dataset>`.
+    mode : str, optional
+        Horizontal output mode. Can be 'grid', meaning the Gaussian latitude-longitude grid used
+        in ExoPlaSim, 'spectral', meaning spherical harmonics, 
+        'fourier', meaning Fourier coefficients and latitudes, 'synchronous', meaning a
+        Gaussian latitude-longitude grid in the synchronous coordinate system defined in
+        Paradise, et al (2021), with the north pole centered on the substellar point, or
+        'syncfourier', meaning Fourier coefficients computed along the dipolar meridians in the
+        synchronous coordinate system (e.g. the substellar-antistellar-polar meridian, which is 0 degrees,
+        or the substellar-evening-antistellar-morning equatorial meridian, which is 90 degrees). Because this
+        will get assigned to the original latitude array, that will become -90 degrees for the polar
+        meridian, and 0 degrees for the equatorial meridian, identical to the typical equatorial coordinate
+        system.
+    zonal : bool, optional
+        For grid modes ("grid" and "synchronous"), compute and output zonal means
+    physfilter : bool, optional
+        Whether or not a physics filter should be used when transforming spectral variables to
+        Fourier or grid domains
+    substellarlon : float, optional
+        If mode='synchronous', the longitude of the substellar point in equatorial coordinates,
+        in degrees
+    radius : float, optional
+        Planet radius in Earth radii
+    gravity : float, optional
+        Surface gravity in m/s^2.
+    gascon : float, optional
+        Specific gas constant for dry gas (R$_d$) in J/kg/K. 
+    logfile : str or None, optional
+        If None, log diagnostics will get printed to standard output. Otherwise, the log file
+        to which diagnostic output should be written.
+        
+    Returns
+    -------
+    dict
+        Dictionary of extracted variables
+    '''
+    
+    radius *= 6371220.0 #convert Earth radii to metres
+    
+    rawdata = readfile(filename)
+    
+    
+    lat = rawdata["lat"]
+    lon = rawdata["lon"]
+    lev = rawdata["lev"]
+    time = rawdata["time"]
+    
+    nlat = len(lat)
+    nlon = len(lon)
+    nlev = len(lev)
+    ntime = len(time)
+    
+    ntru = (nlon-1) // 3
+    
+    rdataset = {}
+    
+    windless=True #Once we get ua and va, this should be false
+    
+    rlat = lat*np.pi/180.0
+    rlon = lon*np.pi/180.0
+    colat = np.cos(rlat)
+    
+    gridlnps,lnpsmeta = _transformvar(rawdata[str(lnpscode)][:],ilibrary[str(lnpscode)][:],nlat,nlon,
+                                      nlev,ntru,ntime,mode='grid',substellarlon=substellarlon,
+                                      physfilter=physfilter,zonal=False)
+    dpsdx = np.zeros(gridlnps.shape)
+    for jlat in range(nlat):
+        dpsdx[...,jlat,:] = np.gradient(gridlnps[...,jlat,:],rlon*radius*colat[jlat],axis=-1)
+    dpsdy = np.gradient(gridlnps,rlat*radius,axis=-2)
+    gridps = np.exp(gridlnps)
+    
+    levp = np.zeros(nlev+1)
+    levp[-1] = 1.0
+    levp[1:-1] = 0.5*(lev[1:]+lev[0:-1])
+    levp[0] = 0.5*lev[0]#-(levp[1]-lev[0])
+    pa = gridps[:,np.newaxis,:,:] * lev[np.newaxis,:,np.newaxis,np.newaxis]
+    hpa = gridps[:,np.newaxis,:,:] * levp[np.newaxis,:,np.newaxis,np.newaxis]
+    
+    meanpa = np.nanmean(pa,axis=(0,2,3))*1.0e-2
+    meanhpa = np.nanmean(hpa,axis=(0,2,3))*1.0e-2
+    
+    _log(logfile,"Interface Pressure     Mid-Level Pressure")
+    _log(logfile,"*****************************************") #%18s
+    _log(logfile,"%14f hpa     ------------------"%(meanhpa[0]))
+    for jlev in range(nlev):
+        _log(logfile,"------------------     %14f hpa"%(meanpa[jlev]))
+        _log(logfile,"%14f hpa     ------------------"%(meanhpa[jlev+1]))
+    _log(logfile,"*****************************************") #%18s
+
+    specmodes = np.zeros((ntru+1)*(ntru+2))
+    
+    w=0
+    for m in range(ntru+1):
+        for n in range(m,ntru+1):
+            specmodes[w  ] = n
+            specmodes[w+1] = n
+            w+=2
+    
+    for key in variablecodes:
+        '''Collect metadata from our built-in list, and extract 
+        the variable data if it already exists; if not set a flag
+        that we need to derive it.'''
+        if type(key)==int:
+            try:
+                meta = ilibrary[str(key)][:]
+            except:
+                raise Exception("Unknown variable code requested: %s"%str(key))
+            if str(key) in rawdata:
+                variable = rawdata[str(key)][:]
+                derived=False
+            else:
+                #_log(logfile,str(key)+" not in rawdata;",rawdata.keys())
+                derived=True
+        else:
+            if key in ilibrary:
+                meta = ilibrary[key][:]
+            elif key in slibrary:
+                meta = slibrary[key][:]
+                kcode = meta[0]
+                meta[0] = key
+                #_log(logfile,"Reassigning key; key was %s and is now %s"%(key,kcode))
+                key = str(kcode) #Now key is always the integer code, and meta[0] is always the name
+            else:
+                raise Exception("Unknown variable code requested: %s"%key)
+            if key in rawdata:
+                variable = rawdata[key][:]
+                derived=False
+            else:
+                #_log(logfile,key+" not in rawdata;",rawdata.keys())
+                derived=True
+        #_log(logfile,meta)
+        meta.append(key)
+        #_log(logfile,meta)
+        #_log(logfile,meta,derived,rawdata.keys())
+        if not derived:
+            #_log(logfile,"Found variable; no need to derive: %s"%meta[0])
+            mode = "grid"; zonal=False; physfilter=False
+            if "mode" in variablecodes[key]:
+                mode=variablecodes[key]["mode"]
+            if "zonal" in variablecodes[key]:
+                zonal=variablecodes[key]["zonal"]
+            if "physfilter" in variablecodes[key]:
+                physfilter=variablecodes[key]["physfilter"]
+            variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+            rdataset[meta[0]]= [variable,meta]
+            _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],variable.shape[0]))
+        else: #derived=True       
+        
+            # Add in derived variables
+            #_log(logfile,nlat,nlon,ntru,nlevs*ntimes)
+            #ta = pyfft.sp2gp(np.asfortranarray(np.transpose(np.reshape(data["130"],(ntimes*nlevs,data["130"].shape[-1])))),
+                             #nlat,nlon,ntru,int(physfilter))
+            #ta = np.reshape(np.transpose(ta),(ntimes,nlevs,nlat,nlon))
+            
+            #data["ta"] = ta
+            
+            mode = "grid"; zonal=False; physfilter=False
+            if "mode" in variablecodes[key]:
+                mode=variablecodes[key]["mode"]
+            if "zonal" in variablecodes[key]:
+                zonal=variablecodes[key]["zonal"]
+            if "physfilter" in variablecodes[key]:
+                physfilter=variablecodes[key]["physfilter"]
+            
+            if key==str(ucode): #ua
+                if windless:
+                    div  = rawdata[str(divcode)][:]
+                    vort = rawdata[str(vortcode)][:]
+                    umeta = ilibrary[key][:]
+                    umeta.append(key)
+                    vmeta = ilibrary[str(vcode)][:]
+                    ua,va,meta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                                                            ntime,mode=mode,substellarlon=substellarlon,
+                                                            physfilter=physfilter,zonal=zonal,
+                                                            radius=radius)
+                    windless = False
+                else:
+                    meta=umeta[:-1]
+                    meta.append(key)
+                    meta.append(umeta[-1])
+                rdataset[meta[0]] = [ua,meta]
+            elif key==str(vcode): #va
+                if windless:
+                    div  = rawdata[str(divcode)][:]
+                    vort = rawdata[str(vortcode)][:]
+                    umeta = ilibrary[str(ucode)][:]
+                    vmeta = ilibrary[key][:]
+                    vmeta.append(key)
+                    ua,va,umeta,meta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                                                            ntime,mode=mode,substellarlon=substellarlon,
+                                                            physfilter=physfilter,zonal=zonal,
+                                                            radius=radius)
+                    windless = False
+                else:
+                    meta=vmeta[:-1]
+                    meta.append(key)
+                    meta.append(vmeta[-1])
+                rdataset[meta[0]] = [va,meta]
+            elif key==str(spdcode): #spd
+                if windless:
+                    div  = rawdata[str(divcode)][:]
+                    vort = rawdata[str(vortcode)][:]
+                    umeta = ilibrary[str(ucode)][:]
+                    vmeta = ilibrary[str(vcode)][:]
+                    ua,va,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                                                            ntime,mode=mode,substellarlon=substellarlon,
+                                                            physfilter=physfilter,zonal=zonal,
+                                                            radius=radius)
+                    windless = False
+                meta = ilibrary[key][:]
+                meta.append(key)
+                meta.append(umeta[-1])
+                spd = np.sqrt(ua**2+va**2)
+                rdataset[meta[0]] = [spd,meta]
+                
+            elif key==str(dpsdxcode): #dpsdx
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = gridps*dpsdx
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(dpsdycode): #dpsdy
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = gridps*dpsdy
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(preccode): #precipiation
+                # prc + prl
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = rawdata["142"][:]+rawdata["143"][:]
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(ntopcode): #Net top radiation
+                # rst + rlut
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = rawdata["178"][:]+rawdata["179"][:]
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(nbotcode): #Net bottom radiation
+                # rss + rls
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = rawdata["176"][:]+rawdata["177"][:]
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(nheatcode): #Net heat flux
+                # Melt*L*rho + rss + rls + hfss + hfls
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = (rawdata["218"][:]*L_TIMES_RHOH2O +rawdata["176"][:] + rawdata["177"][:]
+                           +rawdata["146"][:] + rawdata["147"][:])
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(nh2ocode): #Net water flux
+                # evap - mrro + precip
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = rawdata["182"][:] - rawdata["160"][:] + rawdata["142"][:] + rawdata["143"][:]
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(swatmcode): #Shortwave net 
+                # rst = rss
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = rawdata["178"][:] - rawdata["176"][:]
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(lwatmcode): #longwave net 
+                # rlut - rst
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = rawdata["179"][:] - rawdata["177"][:]
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(natmcode): #Net atmospheric radiation
+                # rst + rlut - rss - rst
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = rawdata["178"][:] - rawdata["176"][:] + rawdata["179"][:] - rawdata["177"][:]
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(sruncode): #Precip + Evap - Increase in snow  = water added to bucket
+                #Actual runoff should be precip + evap + melt + soilh2o - bucketmax
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = rawdata["182"][:] - rawdata["221"][:] + rawdata["142"][:] + rawdata["143"][:]
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(freshcode): #Precip + Evap
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable = rawdata["142"][:] + rawdata["143"][:] + rawdata["182"][:]
+                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(wcode): #Omega? vertical air velocity in Pa/s
+                # w = p(j)*(u(i,j)*dpsdx(i,j)+v(i,j)*dpsdy(i,j)) 
+                  #   - deltap(j)*(div(i,j)+u(i,j)*dpsdx(i,j)+v(i,j)*dpsdy(i,j))
+                  
+                
+                #get pa
+                #if "ps" in rdataset:
+                    #ps,pmeta = _transformvar(rdataset["ps"][0][:],rdataset["ps"][1][:],nlat,nlon,nlev,
+                                             #ntru,ntime,mode='grid',substellarlon=substellarlon,
+                                             #physfilter=physfilter,zonal=False)
+                #else:
+                    #ps,pmeta = _transformvar(gridps,ilibrary["134"],nlat,nlon,nlev,
+                                             #ntru,ntime,mode='grid',substellarlon=substellarlon,
+                                             #physfilter=physfilter,zonal=False)
+                #pa = ps[:,np.newaxis,:,:]*lev[np.newaxis,:,np.newaxis,np.newaxis]
+                #We already got pa
+                  
+                if not windless:
+                    uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta[:],vmeta[:],lat,
+                                                            nlon,nlev,ntru,
+                                                            ntime,mode='grid',radius=radius,
+                                                            substellarlon=substellarlon,
+                                                            physfilter=physfilter,zonal=False)
+                    dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                                             mode='grid',substellarlon=substellarlon,
+                                             physfilter=physfilter,zonal=False)
+                else:
+                    div  = rawdata[str(divcode)][:]
+                    vort = rawdata[str(vortcode)][:]
+                    umeta = ilibrary[str(ucode)][:]
+                    vmeta = ilibrary[str(vcode)][:]
+                    uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                                                            ntime,mode='grid',radius=radius,
+                                                            substellarlon=substellarlon,
+                                                            physfilter=physfilter,zonal=False)
+                    dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                                             mode='grid',substellarlon=substellarlon,
+                                             physfilter=physfilter,zonal=False)
+                    
+                wap = np.zeros(dv.shape)
+                for t in range(ntime):
+                    for j in range(nlat):
+                        for i in range(nlon):
+                            wap[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] 
+                                                        +vv[t,:,j,i]*dpsdy[t,j,i]) 
+                                            - scipy.integrate.cumtrapz(np.append([0,],
+                                                                       dv[t,:,j,i]
+                                                                       +uu[t,:,j,i]*dpsdx[t,j,i]
+                                                                       +vv[t,:,j,i]*dpsdy[t,j,i]),
+                                                                       x=np.append([0,],pa[t,:,j,i])))
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]] = [variable*1.0e-2,meta] #transform to hPa/s
+                
+            elif key==str(wzcode): #Vertical wind wa
+                # wa = -omega * gascon * ta / (grav * pa)
+                
+                #get pa
+                #if "ps" in rdataset:
+                    #ps,pmeta = _transformvar(rdataset["ps"][0][:],rdataset["ps"][1][:],nlat,nlon,nlev,
+                                             #ntru,ntime,mode='grid',substellarlon=substellarlon,
+                                             #physfilter=physfilter,zonal=False)
+                #else:
+                    #ps,pmeta = _transformvar(gridps,ilibrary["134"],nlat,nlon,nlev,
+                                             #ntru,ntime,mode='grid',substellarlon=substellarlon,
+                                             #physfilter=physfilter,zonal=False)
+                #pa = ps[:,np.newaxis,:,:]*lev[np.newaxis,:,np.newaxis,np.newaxis]
+                #We already got pa
+                
+                if "wap" in rdataset:
+                    omega = rdataset["wap"][0]
+                else:
+                    if not windless:
+                        uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta[:],vmeta[:],
+                                                                lat,nlon,nlev,ntru,
+                                                                ntime,mode='grid',radius=radius,
+                                                                substellarlon=substellarlon,
+                                                                physfilter=physfilter,zonal=False)
+                        dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                                                  mode='grid',substellarlon=substellarlon,
+                                                  physfilter=physfilter,zonal=False)
+                    else:
+                        div  = rawdata[str(divcode)][:]
+                        vort = rawdata[str(vortcode)][:]
+                        umeta = ilibrary[str(ucode)][:]
+                        vmeta = ilibrary[str(vcode)][:]
+                        uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                                                                ntime,mode='grid',radius=radius,
+                                                                substellarlon=substellarlon,
+                                                                physfilter=physfilter,zonal=False)
+                        dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                                                  mode='grid',substellarlon=substellarlon,
+                                                  physfilter=physfilter,zonal=False)
+                        omega = np.zeros(dv.shape)
+                        for t in range(ntime):
+                            for j in range(nlat):
+                                for i in range(nlon):
+                                    omega[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] 
+                                                                  +vv[t,:,j,i]*dpsdy[t,j,i]) 
+                                                      - scipy.integrate.cumtrapz(np.append([0,],
+                                                                             dv[t,:,j,i]
+                                                                             +uu[t,:,j,i]*dpsdx[t,j,i]
+                                                                             +vv[t,:,j,i]*dpsdy[t,j,i]),
+                                                                        x=np.append([0,],(pa[t,:,j,i]))))
+                omega,wmeta = _transformvar(omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
+                                            substellarlon=substellarlon,physfilter=physfilter)
+                if "ta" in rdataset:
+                    ta,tameta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                                              nlev,ntru,ntime,mode='grid',substellarlon=substellarlon,
+                                              physfilter=physfilter,zonal=False)
+                else:
+                    ta,tameta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
+                                              nlat,nlon,nlev,ntru,ntime,mode='grid',
+                                              substellarlon=substellarlon,
+                                              physfilter=physfilter,zonal=False)
+                
+                
+                wa = -omega*gascon*ta / (gravity*pa)
+                meta = ilibrary[key][:]
+                meta.append(key)
+                wa,meta = _transformvar(wa,meta,nlat,nlon,
+                                        nlev,ntru,ntime,mode=mode,
+                                        substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
+                rdataset[meta[0]] = [wa,meta]
+                
+            elif key==str(pscode): #surface pressure
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(gridps,meta,nlat,nlon,
+                                              nlev,ntru,ntime,
+                                              mode=mode,substellarlon=substellarlon,
+                                              physfilter=physfilter,zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(vpotcode): #Velocity potential (psi)
+                meta = ilibrary[key][:]
+                meta.append(key)
+                vdiv,vmeta = _transformvar(rawdata[str(divcode)][:],
+                                           meta,nlat,nlon,
+                                           nlev,ntru,ntime,mode='spectral',substellarlon=substellarlon,
+                                           physfilter=physfilter,zonal=False) #Need it to be spectral
+                vdivshape = list(vdiv.shape[:-1])
+                vdivshape[-1]*=2
+                vdivshape = tuple(vdivshape)
+                vdiv = np.reshape(vdiv,vdivshape)
+                vpot = np.zeros(vdiv.shape)
+                modes = np.resize(specmodes,vdiv.shape)
+                vpot[...,2:] = vdiv[...,2:] * radius**2/(modes**2+modes)[...,2:]
+
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(vpot,meta,
+                                              nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                    substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(stfcode): #Streamfunction (stf)
+                svort,smeta = _transformvar(rawdata[str(vortcode)][:],
+                                            ilibrary[str(vortcode)][:],nlat,
+                                            nlon,nlev,ntru,ntime,mode='spectral',
+                                            substellarlon=substellarlon,physfilter=physfilter,
+                                            zonal=False) #Need it to be spectral
+                svortshape = list(svort.shape[:-1])
+                svortshape[-1]*=2
+                svortshape = tuple(svortshape)
+                svort = np.reshape(svort,svortshape)
+                stf = np.zeros(svort.shape)
+                modes = np.resize(specmodes,svort.shape)
+                stf[...,2:] = svort[...,2:] * radius**2/(modes**2+modes)[...,2:]
+                
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(stf,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                              substellarlon=substellarlon,physfilter=physfilter,
+                                              zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(slpcode): #Sea-level pressure (slp)
+                
+                if "sg" in rdataset:
+                    geopot,gmeta = _transformvar(rdataset["sg"][0][:],
+                                                 ilibrary[str(geopotcode)][:],nlat,
+                                                 nlon,nlev,ntru,ntime,mode="grid",
+                                                 substellarlon=substellarlon,physfilter=physfilter,
+                                                 zonal=False)
+                else:
+                    geopot,gmeta = _transformvar(rawdata[str(geopotcode)][:],
+                                                 ilibrary[str(geopotcode)][:],
+                                                 nlat,nlon,nlev,ntru,ntime,mode="grid",
+                                                 substellarlon=substellarlon,physfilter=physfilter,
+                                                 zonal=False)
+                
+                #temp should be bottom layer of atmospheric temperature
+                
+                if "ta" in rdataset:
+                    tta,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                                              nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
+                                              physfilter=physfilter,zonal=False)
+                else:
+                    tta,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                                              nlon,nlev,ntru,ntime,mode="grid",
+                                                 substellarlon=substellarlon,physfilter=physfilter,
+                                                 zonal=False)
+                temp = tta[:,-1,...]
+                
+                #aph is half-level pressure
+                #apf is full-level pressure
+                aph = hpa[:,-1,...] #surface pressure
+                apf =  pa[:,-1,...] #mid-layer pressure of bottom layer
+                
+                slp = np.zeros(geopot.shape)
+                slp[abs(geopot)<1.0e-4] = aph[abs(geopot)<1.0e-4]
+                
+                mask = abs(geopot)>=1.0e-4
+                alpha = gascon*RLAPSE/gravity
+                tstar = (1 + alpha*(aph[mask]/apf[mask]-1))*temp[mask]
+                tstar[tstar<255.0] = 0.5*(255+tstar[tstar<255.0])
+                tmsl = tstar + geopot[mask]*RLAPSE/gravity
+                ZPRT = geopot[mask] / (gascon*tstar)
+                ZPRTAL = np.zeros(ZPRT.shape)
+                mask2 = abs(tmsl-tstar)<1.0e-6
+                mask3 = abs(tmsl-tstar)>=1.0e-6
+                ZPRTAL[mask2] = 0.0
+                alpha = gascon * (tmsl[mask3]-tstar[mask3])/geopot[mask][mask3]
+                ZPRTAL[mask3] = ZPRT[mask3] * alpha
+                slp[mask] = aph[mask] * np.exp(ZPRT*(1.0-ZPRTAL*(0.5-ZPRTAL/3.0)))
+                
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(slp,meta,nlat,nlon,
+                                              nlev,ntru,ntime,mode=mode,
+                                    substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                                              
+            elif key==str(geopotzcode): #Geopotential height 
+                #we need temperature, humidity, half-level pressure
+                if "hus" in rdataset:
+                    qq,qmeta = _transformvar(rdataset["hus"][0][:],
+                                             ilibrary[str(humcode)][:],nlat,nlon,
+                                             nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
+                                             physfilter=physfilter,zonal=False)
+                else:
+                    qq,qmeta = _transformvar(rawdata[str(humcode)][:],ilibrary[str(humcode)][:],nlat,
+                                             nlon,nlev,ntru,ntime,mode="grid",
+                                             substellarlon=substellarlon,
+                                             physfilter=physfilter,zonal=False)
+                qq[qq<0] = 0.0
+                
+                
+                if "ta" in rdataset:
+                    temp,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                                              nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
+                                              physfilter=physfilter,zonal=False)
+                else:
+                    temp,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                                               nlon,nlev,ntru,ntime,mode="grid",
+                                                 substellarlon=substellarlon,physfilter=physfilter,
+                                                 zonal=False)
+                
+                if "sg" in rdataset:
+                    oro,gmeta = _transformvar(rdataset["sg"][0][:],ilibrary[str(geopotcode)][:],nlat,
+                                                 nlon,nlev,ntru,ntime,mode="grid",
+                                                 substellarlon=substellarlon,physfilter=physfilter,
+                                                 zonal=False)
+                else:
+                    oro,gmeta = _transformvar(rawdata[str(geopotcode)][:],ilibrary[str(geopotcode)][:],
+                                                 nlat,nlon,nlev,ntru,ntime,mode="grid",
+                                                 substellarlon=substellarlon,physfilter=physfilter,
+                                                 zonal=False)
+                
+                gzshape = list(qq.shape)
+                gzshape[1] = len(levp)
+                gz = np.zeros(gzshape)
+                
+                gz[:,nlev,...] = oro[:] #bottom layer of geopotential Z is the orographic geopotential
+                
+                VTMP = RH2O/gascon - 1.0
+                twolog2 = 2.0*np.log(2.0)
+                
+                if np.nanmax(qq)>=1.0e-14: #Non-dry atmosphere
+                    for jlev in range(nlev-1,0,-1):
+                        gz[:,jlev,...] = (gz[:,jlev+1,...]
+                                        + gascon*temp[:,jlev,...]*(1.0+VTMP+qq[:,jlev,...])
+                                                *np.log(hpa[:,jlev+1,...])/hpa[:,jlev,...])
+                    gz[:,0,...] = gz[:,1,...] + gascon*temp[:,0,...]*(1.0+VTMP+qq[:,0,...])*twolog2
+                    
+                else: #Dry atmosphere
+                    for jlev in range(nlev-1,0,-1):
+                        gz[:,jlev,...] = (gz[:,jlev+1,...] + gascon*temp[:,jlev,...]
+                                                             *np.log(hpa[:,jlev+1,...])/hpa[:,jlev,...])
+                    gz[:,0,...] = gz[:,1,...] + gascon*temp[:,0,...]*twolog2
+                
+                gz *= 1.0/gravity
+                
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(gz,meta,
+                                              nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                    substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+
+                
+            elif key==str(rhumcode): #relative humidity (hur)
+                
+                rv     = 461.51
+                TMELT  = 273.16
+                ra1    = 610.78
+                ra2    =  17.2693882
+                ra4    =  35.86
+                rdbrv  = gascon / rv
+                
+                if "ta" in rdataset:
+                    temp,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                                              nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
+                                              physfilter=physfilter,zonal=False)
+                else:
+                    temp,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                                               nlon,nlev,ntru,ntime,mode="grid",
+                                                 substellarlon=substellarlon,physfilter=physfilter,
+                                                 zonal=False)
+                
+                if "hus" in rdataset:
+                    qq,qmeta = _transformvar(rdataset["hus"][0][:],ilibrary[str(humcode)][:],nlat,nlon,
+                                             nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
+                                             physfilter=physfilter,zonal=False)
+                else:
+                    qq,qmeta = _transformvar(rawdata[str(humcode)][:],ilibrary[str(humcode)][:],nlat,
+                                             nlon,nlev,ntru,ntime,mode="grid",
+                                             substellarlon=substellarlon,
+                                             physfilter=physfilter,zonal=False)
+                
+                #This is the saturation vapor pressure divided by the local pressure to give saturation
+                #specific humidity, but it seems like it must account for the pressure contribution of
+                #water.
+                zqsat  = rdbrv * ra1 * np.exp(ra2 * (temp-TMELT)/(temp-ra4)) / pa #saturation spec hum
+                zqsat *= 1.0 / (1.0 - (1.0/rdbrv-1.0)*zqsat)
+                
+                rh     = qq/zqsat * 100.0
+                
+                rh[rh<0.0  ] =   0.0
+                rh[rh>100.0] = 100.0
+                
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(rh,meta,nlat,nlon,nlev,
+                                              ntru,ntime,mode=mode,
+                                    substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(hpresscode): #Half-level pressure
+                
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(hpa,meta,nlat,nlon,
+                                              nlev,ntru,ntime,mode=mode,
+                                           substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(fpresscode): #Full-level pressure
+                
+                meta = ilibrary[key][:]
+                meta.append(key)
+                variable,meta = _transformvar(pa,meta,
+                                              nlat,nlon,nlev,ntru,ntime,mode=mode,
+                                          substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
+                rdataset[meta[0]]= [variable,meta]
+                
+            elif key==str(thetahcode) or key==str(thetafcode): #Potential temperature
+                
+                if "theta" in rdataset or "thetah" in rdataset:
+                    if key==str(thetahcode):
+                        meta = ilibrary[key][:]
+                        meta.append(key)
+                        variable,meta = _transformvar(thetah,meta,nlat,nlon,nlev,ntru,
+                                                      ntime,mode=mode,substellarlon=substellarlon,
+                                                      physfilter=physfilter,zonal=zonal)
+                        rdataset[meta[0]]= [variable,meta]
+                    elif key==str(thetafcode):
+                        variable,meta = _transformvar(theta,meta,nlat,nlon,nlev,ntru,
+                                                      ntime,mode=mode,substellarlon=substellarlon,
+                                                      physfilter=physfilter,zonal=zonal)
+                        rdataset[meta[0]]= [variable,meta]
+                else:
+                    
+                    if "ta" in rdataset:
+                        ta,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,
+                                                 nlon,nlev,ntru,ntime,mode="grid",
+                                                 substellarlon=substellarlon,
+                                                 physfilter=physfilter,zonal=False)
+                    else:
+                        ta,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
+                                                 nlat,nlon,nlev,ntru,ntime,mode="grid",
+                                                 substellarlon=substellarlon,physfilter=physfilter,
+                                                 zonal=False)
+                    
+                    if "ts" in rdataset:
+                        tsurf,tsmeta = _transformvar(rdataset["ts"][0][:],ilibrary[str(tscode)][:],nlat,
+                                                     nlon,nlev,ntru,ntime,mode="grid",
+                                                     substellarlon=substellarlon,
+                                                     physfilter=physfilter,zonal=False)
+                    else:
+                        tsurf,tsmeta = _transformvar(rawdata[str(tscode)][:],ilibrary[str(tscode)][:],
+                                                     nlat,nlon,nlev,ntru,ntime,mode="grid",
+                                                     substellarlon=substellarlon,physfilter=physfilter,
+                                                     zonal=False)
+                    
+                    thetah = np.zeros(hpa.shape)
+                    theta  = np.zeros( pa.shape)
+                    
+                    kappa = 1.0/3.5
+                    
+                    for jlev in range(nlev-1):
+                        thetah[:,jlev+1,...] = (0.5*(ta[:,jlev,...]+ta[:,jlev+1,...])
+                                               *(gridps/hpa[:,jlev,...])**kappa)
+                    thetah[:,nlev,...] = tsurf[:]
+                    theta = 0.5*(thetah[:,:-1,...] + thetah[:,1:,...])
+                    
+                    meta = ilibrary[key][:]
+                    meta.append(key)
+                    if key==str(thetahcode):
+                        variable,meta = _transformvar(thetah,meta,
+                                                      nlat,nlon,nlev,ntru,
+                                                      ntime,mode=mode,substellarlon=substellarlon,
+                                                      physfilter=physfilter,zonal=zonal)
+                        rdataset[meta[0]]= [variable,meta]
+                    elif key==str(thetafcode):
+                        variable,meta = _transformvar(theta,meta,
+                                                      nlat,nlon,nlev,ntru,
+                                                      ntime,mode=mode,substellarlon=substellarlon,
+                                                      physfilter=physfilter,zonal=zonal)
+                        rdataset[meta[0]]= [variable,meta]
+                        
+            _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],variable.shape[0]))
+          
+    rdataset["lat"] = [lat,["lat","latitude","deg"] ]
+    rdataset["lon"] = [lon,["lon","longitude","deg"]]
+    rdataset["lev"] = [lev,["lev","sigma_coordinate","nondimensional"]       ]
+    rdataset["levp"] = [levp,["levp","half_sigma_coordinate","nondimensional"]]
+    rdataset["time"] = [time,["time","timestep_of_year","timesteps"]         ]      
     
     return rdataset
 
                 
-def netcdf(rdataset,filename="most_output.nc"):
+def netcdf(rdataset,filename="most_output.nc",append=False,logfile=None):
     '''Write a dataset to a netCDF file.
     
     Parameters
@@ -1919,6 +2829,11 @@ def netcdf(rdataset,filename="most_output.nc"):
         A dictionary of outputs as generated from :py:func`pyburn.dataset()<exoplasim.pyburn.dataset>`
     filename : str, optional
         Path to the output file that should be written.
+    append : bool, optional
+        Whether the file should be opened in "append" mode, or overwritten (default).
+    logfile : str or None, optional
+        If None, log diagnostics will get printed to standard output. Otherwise, the log file
+        to which diagnostic output should be written.
         
     Returns
     -------
@@ -1926,8 +2841,6 @@ def netcdf(rdataset,filename="most_output.nc"):
         A netCDF object corresponding to the file that has been written.
     '''
     import netCDF4 as nc
-    
-    ncd = nc.Dataset(filename, "w", format="NETCDF4")
     
     latitude  = rdataset["lat" ]
     longitude = rdataset["lon" ]
@@ -1940,84 +2853,114 @@ def netcdf(rdataset,filename="most_output.nc"):
     nlevs  = len(    level[0])
     ntimes = len(timestamp[0])
     ntru = (nlons-1)//3
-    nmodes = (ntru+1)*(ntru+2)
+    nmodes = ((ntru+1)*(ntru+2))//2
     
-    lat = ncd.createDimension("lat",   nlats)
-    lon = ncd.createDimension("lon",   nlons)
-    lev = ncd.createDimension("lev",   nlevs)
-    levp= ncd.createDimension("levp",  nlevs+1)
-    ttime = ncd.createDimension("time",ntimes)
-    cmplx = ncd.createDimension("complex",2)
-    fourier = ncd.createDimension("fourier",nlons//2)
-    sphmods = ncd.createDimension("modes",nmodes)
+    complex64   = np.dtype([("real",np.float32),("imag",np.float32)]) 
     
-    latitudes   = ncd.createVariable("lat", "f4",("lat", ),zlib=True,least_significant_digit=6)
-    longitudes  = ncd.createVariable("lon", "f4",("lon", ),zlib=True,least_significant_digit=6)
-    levels      = ncd.createVariable("lev", "f4",("lev", ),zlib=True,least_significant_digit=6)
-    hlevels     = ncd.createVariable("levp","f4",("levp",),zlib=True,least_significant_digit=6)
-    times       = ncd.createVariable("time","f4",("time",),zlib=True,least_significant_digit=6)
-    complexn    = ncd.createVariable("complex","f4",("complex",),zlib=True,least_significant_digit=6)
-    fourierc    = ncd.createVariable("fharmonic","f4",("fourier",),zlib=True,least_significant_digit=6)
-    spharmonics = ncd.createVariable("modes","f4",("modes",),zlib=True,least_significant_digit=6)
     
-    ncd.set_auto_mask(False)
-    latitudes.set_auto_mask(False)  
-    longitudes.set_auto_mask(False)   
-    levels.set_auto_mask(False)  
-    hlevels.set_auto_mask(False)
-    times.set_auto_mask(False)
-    complexn.set_auto_mask(False)
-    fourierc.set_auto_mask(False)
-    spharmonics.set_auto_mask(False)
+    if append:
+        ncd = nc.Dataset(filename, "a", format="NETCDF4")
+        
+        complex64_t = ncd.cmptypes["complex64"]
+        
+        ntimes0 = len(ncd.variables["time"][:])
+        t0 = ntimes0
+        t1 = t0+ntimes
+        times = ncd.variables['time']
+        times[t0:t1] = np.array(timestamp[0]).astype("float32")
+    else:
+        ncd = nc.Dataset(filename, "w", format="NETCDF4")
+        
+        complex64_t = ncd.createCompoundType(complex64,"complex64")
+        
+        t0 = 0
+        t1 = ntimes
+        
+        lat = ncd.createDimension("lat",   nlats)
+        lon = ncd.createDimension("lon",   nlons)
+        lev = ncd.createDimension("lev",   nlevs)
+        levp= ncd.createDimension("levp",  nlevs+1)
+        ttime = ncd.createDimension("time",None)
+        #cmplx = ncd.createDimension("complex",2)
+        fourier = ncd.createDimension("fourier",nlons//2)
+        sphmods = ncd.createDimension("modes",nmodes)
+        
+        latitudes   = ncd.createVariable("lat", "f4",("lat", ),zlib=True,least_significant_digit=6)
+        longitudes  = ncd.createVariable("lon", "f4",("lon", ),zlib=True,least_significant_digit=6)
+        levels      = ncd.createVariable("lev", "f4",("lev", ),zlib=True,least_significant_digit=6)
+        hlevels     = ncd.createVariable("levp","f4",("levp",),zlib=True,least_significant_digit=6)
+        times       = ncd.createVariable("time","f4",("time",),zlib=True,least_significant_digit=6)
+        #complexn    = ncd.createVariable("complex",complex64_t,("complex",),
+                                        #zlib=True,least_significant_digit=6)
+        fourierc    = ncd.createVariable("fharmonic","f4",("fourier",),zlib=True,least_significant_digit=6)
+        spharmonics = ncd.createVariable("modes","f4",("modes",),zlib=True,least_significant_digit=6)
     
-    latitudes.units  =  latitude[1][2]
-    longitudes.units = longitude[1][2]
-    levels.units     =     level[1][2]
-    hlevels.units     =   levelp[1][2]
-    times.units      = timestamp[1][2]
-    complexn.units   = "n/a"
-    fourierc.units   = "n/a"
-    spharmonics.units= "n/a"
+        ncd.set_auto_mask(False)
+        latitudes.set_auto_mask(False)  
+        longitudes.set_auto_mask(False)   
+        levels.set_auto_mask(False)  
+        hlevels.set_auto_mask(False)
+        times.set_auto_mask(False)
+        #complexn.set_auto_mask(False)
+        fourierc.set_auto_mask(False)
+        spharmonics.set_auto_mask(False)
+        
+        latitudes.units  =  latitude[1][2]
+        longitudes.units = longitude[1][2]
+        levels.units     =     level[1][2]
+        hlevels.units     =   levelp[1][2]
+        times.units      = timestamp[1][2]
+        #complexn.units   = "n/a"
+        fourierc.units   = "n/a"
+        spharmonics.units= "n/a"
+        
+        latitudes[:]   = np.array( latitude[0]).astype("float32")
+        longitudes[:]  = np.array(longitude[0]).astype("float32")
+        levels[:]      = np.array(    level[0]).astype("float32")
+        hlevels[:]     = np.array(   levelp[0]).astype("float32")
+        times[:]       = np.array(timestamp[0]).astype("float32")
+        #complexn[0]["real"] = 1.0; complexn[0]["imag"] = 0.0
+        #complexn[0]["real"] = 0.0; complexn[0]["imag"] = 1.0
+        fourierc[:] = np.arange(nlons//2,dtype='float32')
+        
+        specmodes = np.zeros(nmodes)
+        w=0
+        for m in range(ntru+1):
+            for n in range(m,ntru+1):
+                specmodes[w  ] = n
+                w+=1
+        
+        spharmonics[:] = np.array(specmodes).astype('float32')
+        
+        longitudes.axis = 'X'
+        fourierc.axis   = 'X'
+        spharmonics.axis    = 'X'
+        latitudes.axis  = 'Y'
+        levels.axis     = 'Z'
+        hlevels.axis     = 'Z'
+        
+        latitudes.standard_name = latitude[1][1]
+        longitudes.standard_name= longitude[1][1]
+        levels.standard_name    = level[1][1]
+        hlevels.standard_name    = levelp[1][1]
+        #complexn.standard_name  = "complex_plane"
+        fourierc.standard_name  = "fourier_coefficients"
+        spharmonics.standard_name   = "spherical_real_modes"
+        times.standard_name     = timestamp[1][1]
+        
+        latitudes.long_name = latitude[1][1]
+        longitudes.long_name= longitude[1][1]
+        levels.long_name    = "sigma at layer midpoints"
+        hlevels.long_name   = "sigma at layer interfaces"
+        #complexn.long_name  = "complex coefficients"
+        fourierc.long_name  = "Fourier coefficients"
+        spharmonics.long_name   = "Spherical harmonic real global modes"
+        times.long_name     = timestamp[1][1]
+        
+        levels.positive  = "down"
+        hlevels.positive = "down"
     
-    latitudes[:]   =  latitude[0].astype("float32")
-    longitudes[:]  = longitude[0].astype("float32")
-    levels[:]      =     level[0].astype("float32")
-    hlevels[:]     =    levelp[0].astype("float32")
-    times[:]       = timestamp[0].astype("float32")
-    complexn[0] = np.float32(1.0)
-    complexn[1] = np.float32(1.0j)
-    fourierc[:] = np.arange(nlons//2,dtype='float32')
-    sphmods[:] = np.arange(nmodes,dtype='float32')
-    
-    longitudes.axis = 'X'
-    fourierc.axis   = 'X'
-    sphmods.axis    = 'X'
-    latitudes.axis  = 'Y'
-    levels.axis     = 'Z'
-    hlevels.axis     = 'Z'
-    
-    latitudes.standard_name = latitude[1][1]
-    longitudes.standard_name= longitude[1][1]
-    levels.standard_name    = level[1][1]
-    hlevels.standard_name    = levelp[1][1]
-    complexn.standard_name  = "complex_plane"
-    fourierc.standard_name  = "fourier_coefficients"
-    sphmods.standard_name   = "spherical_real_modes"
-    times.standard_name     = timestamp[1][1]
-    
-    latitudes.long_name = latitude[1][1]
-    longitudes.long_name= longitude[1][1]
-    levels.long_name    = "sigma at layer midpoints"
-    hlevels.long_name   = "sigma at layer interfaces"
-    complexn.long_name  = "complex coefficients"
-    fourierc.long_name  = "Fourier coefficients"
-    sphmods.long_name   = "Spherical harmonic real global modes"
-    times.long_name     = timestamp[1][1]
-    
-    levels.positive  = "down"
-    hlevels.positive = "down"
-    
-    keyvars = rdataset.keys()
+    keyvars = list(rdataset.keys())
     keyvars.remove("time")
     keyvars.remove("lat" )
     keyvars.remove("lon" )
@@ -2026,24 +2969,58 @@ def netcdf(rdataset,filename="most_output.nc"):
     
     for key in keyvars:
         datavar,meta = rdataset[key]
-        dims = meta[4]
-        
-        variable = ncd.createVariable(key,"f4",dims,zlib=True,least_significant_digit=6)
-        variable.set_auto_mask(False)
-        variable.units = meta[2]
-        variable[:] = datavar[:]
-        variable.standard_name = meta[1]
-        variable.long_name = meta[1]
-        variable.units = meta[2]
-        variable.code = meta[3]
+        try:
+            dims = meta[4]
+        except:
+            _log(logfile,meta)
+            raise
+        shape = datavar.shape
+        if "complex" in dims: #Complex dtype
+            dims = dims[:-1]
+            if not append:
+                try:
+                    variable = ncd.createVariable(key,complex64_t,dims,zlib=True,
+                                                  least_significant_digit=6)
+                except:
+                    _log(logfile,meta)
+                    raise
+                variable.set_auto_mask(False)
+            else:
+                variable = ncd.variables[key]
+            data = np.empty(shape[:-1],complex64)
+            data["real"] = datavar[...,0]; data["imag"] = datavar[...,1]
+            variable[t0:t1,...] = data
+        else:
+            if not append:
+                try:
+                    variable = ncd.createVariable(key,"f4",dims,zlib=True,least_significant_digit=6)
+                except:
+                    _log(logfile,meta)
+                    raise
+                variable.set_auto_mask(False)
+                try:
+                    variable[:] = datavar[:]
+                except:
+                    _log(logfile,dims,variable.shape,datavar.shape)
+                    _log(logfile,meta)
+                    raise
+            else:
+                variable = ncd.variables[key]
+                variable[t0:t1,...] = datavar[:]
+        if not append:
+            variable.units = meta[2]
+            variable.standard_name = meta[1]
+            variable.long_name = meta[1]
+            variable.units = meta[2]
+            variable.code = meta[3]
         if "fourier" not in dims and "modes" not in dims:
             variable.grid_type = "gaussian"
-        print("Packing %s in %s\t....... %d timestamps"%(key,filename,ntimes))
+        _log(logfile,"Packing %8s in %s\t....... %d timestamps"%(key,filename,ntimes))
         
     ncd.sync()
     return ncd
     
-def npsavez(rdataset,filename="most_output.npz"):
+def npsavez(rdataset,filename="most_output.npz",logfile=None):
     '''Write a dataset to a NumPy compressed .npz file.
     
     Two output files will be created: filename as specified (e.g. most_output.npz), which contains the
@@ -2056,6 +3033,9 @@ def npsavez(rdataset,filename="most_output.npz"):
         A dictionary of outputs as generated from :py:func`pyburn.dataset()<exoplasim.pyburn.dataset>`
     filename : str, optional
         Path to the output file that should be written.
+    logfile : str or None, optional
+        If None, log diagnostics will get printed to standard output. Otherwise, the log file
+        to which diagnostic output should be written.
         
     Returns
     -------
@@ -2065,16 +3045,37 @@ def npsavez(rdataset,filename="most_output.npz"):
     '''
     variables = {}
     meta = {}
-    for key in rdataset:
-        variables[key] = rdataset[key][0]
+    variables["lat" ] = rdataset["lat" ][0]
+    variables["lon" ] = rdataset["lon" ][0]
+    variables["lev" ] = rdataset["lev" ][0]
+    variables["levp"] = rdataset["levp"][0]
+    variables["time"] = rdataset["time"][0]
+    meta["lat" ] = rdataset["lat" ][1]
+    meta["lon" ] = rdataset["lon" ][1]
+    meta["lev" ] = rdataset["lev" ][1]
+    meta["levp"] = rdataset["levp"][1]
+    meta["time"] = rdataset["time"][1]
+    keyvars = list(rdataset.keys())
+    keyvars.remove("lat" )
+    keyvars.remove('lon' ) 
+    keyvars.remove("lev" )
+    keyvars.remove("levp")
+    keyvars.remove("time")
+    for key in keyvars:
+        variables[key] = rdataset[key][0].astype("float32")
+        vmeta = rdataset[key][1]
+        for n in range(len(vmeta)):
+            if type(vmeta[n])==tuple or type(vmeta[n])==list:
+                vmeta[n] = '/'.join(vmeta[n])
         meta[key] = rdataset[key][1]
+        _log(logfile,"Packing %8s in %s\t....... %d timestamps"%(key,filename,rdataset[key][0].shape[0]))
     metafilename = filename[:-4]+"_metadata.npz"
     
     np.savez_compressed(metafilename,**meta)
     np.savez_compressed(filename,**variables)
     return (variables,meta)
     
-def _writecsvs(filename,variables,meta,extension=None):
+def _writecsvs(filename,variables,meta,extension=None,logfile=None):
     '''Write CSV output files
     
     Files are placed in a subdirectory named from the filename naming pattern (stripping off the extension).
@@ -2089,6 +3090,9 @@ def _writecsvs(filename,variables,meta,extension=None):
         Dictionary of metadata fields for associated variables
     extension : str, optional
         File extension to use for individual files
+    logfile : str or None, optional
+        If None, log diagnostics will get printed to standard output. Otherwise, the log file
+        to which diagnostic output should be written.
         
     Returns
     -------
@@ -2099,27 +3103,57 @@ def _writecsvs(filename,variables,meta,extension=None):
     dirname = filename[:-idx]
     if dirname[-4:]==".tar":
         dirname = dirname[:-4]
-        idx+4
+        idx+=4
     if extension is None:
         extension = filename[-idx:]
+    fname = dirname
+    if "/" in dirname:
+        fname = dirname.split("/")[-1]
     os.system("mkdir %s"%dirname) #Create a subdirectory that just omits the file extension
     files = []
-    for var in variables:
+    dimvars = ["lat","lon","lev","levp","time"]
+    keyvars = list(variables.keys())
+    for var in dimvars:
+        outname =  "%s/%s_%s%s"%(dirname,fname,var,extension)
+        np.savetxt(outname,variables[var].astype("float32"),
+                   header=(str(len(variables[var]))+",|||,"
+                          +','.join(meta[var])),delimiter=',')
+        keyvars.remove(var)
+        files.append(outname)
+    maxlen = 0
+    for var in keyvars:
+        maxlen = max(maxlen,len("%s/%s_%s%s"%(dirname,fname,var,extension)))
+    maxlen+=1
+    for var in keyvars:
         #This creates e.g. most_output/most_output_ts.csv if filename was most_output.csv
         shape = variables[var].shape
         dim2 = shape[-1]
-        dim1 = np.prod(shape[:-1])
+        dim1 = int(np.prod(shape[:-1]))
         var2d = np.reshape(variables[var],(dim1,dim2)) #np.savetxt can only handle 2 dimensions
-        outname =  "%s/%s_%s%s"%(dirname,dirname,var,extension)
-        np.savetxt(outname,var2d,
+        outname =  "%s/%s_%s%s"%(dirname,fname,var,extension)
+        try:
+            np.savetxt(outname,var2d.astype("float32"),
                    header=(','.join(np.array(shape).astype(str))+",|||,"
-                          +','.join(meta[var])),delimiter=',')
+                          +','.join(meta[var][:-1])+",".join(meta[var][-1])),delimiter=',')
+        except:
+            print(",".join(np.array(shape).astype(str)))
+            print(",|||,")
+            print(meta[var])
+            print(','.join(meta[var]))
+            print(','.join(np.array(shape).astype(str))+",|||,"
+                          +','.join(meta[var]))
+            raise
         #The original shape of the array to which it should be reshaped on unpacking is in the header,
         #with the actual metadata separated from the shape by '|||'
         files.append(outname)
+        try:
+            writeline = "Writing %8s to %"+str(maxlen)+"s\t....... %d timestamps"
+            _log(logfile,writeline%(var,outname,variables[var].shape[0]))
+        except:
+            _log(logfile,"Writing %8s to %s"%(var,filename))
     return files,dirname+"/"
     
-def csv(rdataset,filename="most_output.tar.gz"):
+def csv(rdataset,filename="most_output.tar.gz",logfile=None,extracompression=False):
     '''Write a dataset to CSV/TXT-type output, optionally compressed.
     
     If a tarball format (e.g. *.tar or *.tar.gz) is used, output files will be packed into a tarball.
@@ -2141,6 +3175,12 @@ def csv(rdataset,filename="most_output.tar.gz"):
         A dictionary of outputs as generated from :py:func`pyburn.dataset()<exoplasim.pyburn.dataset>`
     filename : str, optional
         Path to the output file that should be written. This will be parsed to determine output type.
+    logfile : str or None, optional
+        If None, log diagnostics will get printed to standard output. Otherwise, the log file
+        to which diagnostic output should be written.
+    extracompression : bool, optional
+        If True, then component files in tarball outputs will be compressed individually with gzip, 
+        instead of being plain-text CSV files.
         
     Returns
     -------
@@ -2159,28 +3199,60 @@ def csv(rdataset,filename="most_output.tar.gz"):
 
     if fileparts[-2]=="tar": #We will be doing compression
         import tarfile
-        files,dirname = _writecsvs(filename,variables,meta,extension='.csv')
+        ext = ".csv"
+        if extracompression:
+            ext = ".gz"
+        files,dirname = _writecsvs(filename,variables,meta,extension=ext,logfile=logfile)
+        namelen = len(filename)
         with tarfile.open(filename,"w:%s"%fileparts[-1]) as tarball:
+            
+            maxlen = 0
+            for tfile in files:
+                maxlen = max(maxlen,len(tfile))
             for var in files:
-                tarball.add(var)
+                varname = var
+                if len(varname.split("/"))>2:
+                    varname = "/".join(varname.split("/")[-2:])
+                tarball.add(var,arcname=varname)
+                writeline = "Packing %"+str(maxlen)+"s in %"+str(namelen)+"s"
+                try:
+                    _log(logfile,(writeline+" ....... %d timestamps")%(var,filename,
+                                                                  rdataset[var][0].shape[0]))
+                except:
+                    _log(logfile,writeline%(var,filename))
         os.system("rm -rf %s"%dirname)
         return filename
         
     elif fileparts[-1]=="tar": #We're still making a tarball, but it won't be compressed
         import tarfile
-        files,dirname = _writecsvs(filename,variables,meta,extension='.csv')
+        ext = ".csv"
+        if extracompression:
+            ext = ".gz"
+        files,dirname = _writecsvs(filename,variables,meta,extension=ext,logfile=logfile)
+        namelen = len(filename)
+        
         with tarfile.open(filename,"w") as tarball:
+            
+            maxlen = 0
+            for tfile in files:
+                maxlen = max(maxlen,len(tfile))
             for var in files:
                 tarball.add(var)
+                writeline = "Packing %"+str(maxlen)+"s in %"+str(namelen)+"s"
+                try:
+                    _log(logfile,(writeline+"\t....... %d timestamps")%(var,filename,
+                                                                  rdataset[var][0].shape[0]))
+                except:
+                    _log(logfile,writeline%(var,filename))
         os.system("rm -rf %s"%dirname)
         return filename
         
     else: #Just a collection of CSV/TXT-type files in a subdirectory, which may be individually-compressed.
         #These files can have .txt, .csv, or .gz file extensions.
-        files,dirname = _writecsvs(filename,variables,meta)
+        files,dirname = _writecsvs(filename,variables,meta,logfile=logfile)
         return files,dirname
      
-def hdf5(rdataset,filename="most_output.hdf5"):
+def hdf5(rdataset,filename="most_output.hdf5",append=False,logfile=None):
     '''Write a dataset to HDF5 output.
     
     Note: HDF5 files are opened in append mode. This means that this format can be used to create
@@ -2195,6 +3267,11 @@ def hdf5(rdataset,filename="most_output.hdf5"):
         A dictionary of outputs as generated from :py:func`pyburn.dataset()<exoplasim.pyburn.dataset>`
     filename : str, optional
         Path to the output file that should be written.
+    append : bool, optional
+        Whether or not the file should be opened in append mode, or overwritten (default). 
+    logfile : str or None, optional
+        If None, log diagnostics will get printed to standard output. Otherwise, the log file
+        to which diagnostic output should be written.
         
     Returns
     -------
@@ -2204,44 +3281,71 @@ def hdf5(rdataset,filename="most_output.hdf5"):
     
     import h5py
     
-    hdfile = h5py.File(filename,"a")
+    mode = "w"
+    if append:
+        mode = "a"
+    hdfile = h5py.File(filename,mode)
     
     latitude  = rdataset["lat" ]
     longitude = rdataset["lon" ]
     level     = rdataset["lev" ]
+    levelp    = rdataset["levp"]
+    time      = rdataset["time"]
     
-    keyvars = rdataset.keys()
+    keyvars = list(rdataset.keys())
     keyvars.remove("lat" )
     keyvars.remove("lon" )
     keyvars.remove("lev" )
+    keyvars.remove("levp")
+    keyvars.remove("time")
     
     #We only add lat, lon, and lev once to the file, so we do it here if the file appears to be new
     if "lat" not in hdfile:
-        hdfile.create_dataset("lat",data=latitude[0],compression='gzip',compression_opts=9,shuffle=True,
-                              fletcher32=True)
-        hdfile.attrs["lat"] = np.array(latitude[1]) #Store metadata
+        hdfile.create_dataset("lat",data=latitude[0].astype('float32'),compression='gzip',
+                              compression_opts=9,shuffle=True,fletcher32=True)
+        hdfile.attrs["lat"] = np.array(latitude[1]).astype('S') #Store metadata
     if "lon" not in hdfile:
-        hdfile.create_dataset("lon",data=longitude[0],compression='gzip',compression_opts=9,shuffle=True,
-                              fletcher32=True)
-        hdfile.attrs["lon"] = np.array(longitude[1]) #Store metadata
+        hdfile.create_dataset("lon",data=longitude[0].astype('float32'),compression='gzip',
+                              compression_opts=9,shuffle=True,fletcher32=True)
+        hdfile.attrs["lon"] = np.array(longitude[1]).astype('S') #Store metadata
     if "lev" not in hdfile:
-        hdfile.create_dataset("lev",data=level[0],compression='gzip',compression_opts=9,shuffle=True,
-                              fletcher32=True)
-        hdfile.attrs["lev"] = np.array(level[1]) #Store metadata
+        hdfile.create_dataset("lev",data=level[0].astype('float32'),compression='gzip',
+                              compression_opts=9,shuffle=True,fletcher32=True)
+        hdfile.attrs["lev"] = np.array(level[1]).astype('S') #Store metadata
+    if "levp" not in hdfile:
+        hdfile.create_dataset("levp",data=levelp[0].astype('float32'),compression='gzip',
+                              compression_opts=9,shuffle=True,fletcher32=True)
+        hdfile.attrs["levp"] = np.array(levelp[1]).astype('S') #Store metadata
+    if "time" not in hdfile:
+        hdfile.create_dataset("time",data=time[0].astype('float32'),compression='gzip',
+                              compression_opts=9,shuffle=True,fletcher32=True)
+        hdfile.attrs["time"] = np.array(time[1]).astype('S') #Store metadata
     
     for var in keyvars:
         if var not in hdfile:
-            hdfile.create_dataset(var,data=rdataset[var][0],compression="gzip",maxshape=(None,),
-                                  compression_opts=9,shuffle=True,fletcher32=True)
-            hdfile.attrs[var] = np.array(rdataset[var][1]) #Store metadata
+            maxshape = [None,]
+            for dim in rdataset[var][0].shape[1:]:
+                maxshape.append(dim)
+            maxshape=tuple(maxshape)
+            hdfile.create_dataset(var,data=rdataset[var][0].astype("float32"),compression="gzip",
+                                  maxshape=maxshape,compression_opts=9,shuffle=True,fletcher32=True)
+            #_log(logfile,rdataset[var][1])
+            #_log(logfile,np.array(rdataset[var][1]).astype('S'))
+            meta = rdataset[var][1]
+            meta[-1] = ','.join(meta[-1])
+            try:
+                hdfile.attrs[var] = np.array(meta).astype('S') #Store metadata
+            except:
+                _log(logfile,meta)
         else:
-            hdfile.resize((hdfile[var].shape[0]+rdataset[var].shape[0]),axis=0) #Expand file
-            hdfile[var][-rdataset[var].shape[0]:] = rdataset[var]               #Add to existing array
+            hdfile[var].resize((hdfile[var].shape[0]+rdataset[var][0].shape[0]),axis=0) #Expand file
+            hdfile[var][-rdataset[var][0].shape[0]:] = rdataset[var][0].astype("float32") #Append
+        _log(logfile,"Packing %8s in %s\t....... %d timestamps"%(var,filename,rdataset[var][0].shape[0]))
     return hdfile
              
 
-def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='grid',
-                zonal=False, substellarlon=0.0, physfilter=False.timeaverage=True,stdev=False
+def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibrary.keys()),mode='grid',
+                zonal=False, substellarlon=0.0, physfilter=False,timeaverage=True,stdev=False,
                 times=12,interpolatetimes=True,radius=1.0,gravity=9.80665,gascon=287.0,mars=False):
     '''Convert a raw output file into a postprocessed formatted file.
     
@@ -2278,6 +3382,12 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
         *.tar.bz2, *.tar.xz) are supported. If a format (such as npz) that requires
         that metadata be placed in a separate file is chosen, a second file with a '_metadata' suffix will be
         created.
+    append : bool, optional
+        If True, and outfile already exists, then append to outfile rather than overwriting it. Currently
+        only supported for netCDF and HDF5 formats. Support for other formats coming soon.
+    logfile : str or None, optional
+        If None, log diagnostics will get printed to standard output. Otherwise, the log file
+        to which diagnostic output should be written.
     namelist : str, optional
         Path to a burn7 postprocessor namelist file. If not given, then `variables` must be set. 
     variables : list or dict, optional
@@ -2305,10 +3415,10 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
         Longitude of the substellar point. Only relevant if a synchronous coordinate output mode is chosen.
     physfilter : bool, optional
         Whether or not a physics filter should be used in spectral transforms.
-    times : int or array-like, optional
+    times : int or array-like or None, optional
         Either the number of timestamps by which to divide the output, or a list of times given as a fraction
         of the output file duration (which enables e.g. a higher frequency of outputs during periapse of an
-        eccentric orbit, when insolation is changing more rapidly).
+        eccentric orbit, when insolation is changing more rapidly). If None, the timestamps in the raw output will be written directly to file.
     timeaverage : bool, optional
         Whether or not timestamps in the output file should be averaged to produce the requested number of 
         output timestamps. Timestamps for averaged outputs will correspond to the middle of the averaged time period.
@@ -2337,13 +3447,22 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
     elif fileparts[-1] == "npz" or fileparts[-1] == "npy":
         pass #OK
     elif (fileparts[-1] in ("csv","txt","gz","tar") or \
-          fileparts[-2}+"."+fileparts[-1] in ("tar.gz","tar.bz2","tar.xz")):
+          (fileparts[-2]+"."+fileparts[-1]) in ("tar.gz","tar.bz2","tar.xz")):
         pass #OK
     elif fileparts[-1] in ("hdf5","h5","he5"):
         pass #OK
     else:
-        raise Exception("Unsupported output format detected. Supported formats are:\n%s"%("\n\t".join(SUPPORTED)))
+        raise Exception("Unsupported output format detected. Supported formats are:\n\t\n\t%s"%("\n\t".join(SUPPORTED)))
     
+    _log(logfile,"==================================")
+    _log(logfile,"| PYBURN EXOPLASIM POSTPROCESSOR |")
+    _log(logfile,"|  v1.0, Adiv Paradise (C) 2021  |")
+    _log(logfile,"==================================")
+    _log(logfile,"\n")
+    _log(logfile,("--------" +"-"*len(rawfile) + "----"))
+    _log(logfile,("Reading %"+"%d"%len(rawfile)+"s ...")%rawfile)
+    _log(logfile,("--------" +"-"*len(rawfile) + "----"))
+    _log(logfile,"\n")
     
     if namelist is None:
         if variables is None:
@@ -2354,12 +3473,12 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
             gravity = MARS_GRAV
         if type(variables)==tuple or type(variables)==list:
             data = dataset(rawfile, variables, mode=mode,radius=radius,gravity=gravity,gascon=gascon, 
-                           zonal=zonal, substellarlon=substellarlon, physfilter=physfilter)
+                           zonal=zonal, substellarlon=substellarlon, 
+                           physfilter=physfilter,logfile=logfile)
         elif type(variables)==dict: #for advancedDataset
-            pass
-            #data = advancedDataset(rawfile, variables, mode=mode,radius=radius,gravity=gravity,
-                                   #gascon=gascon, zonal=zonal, substellarlon=substellarlon, 
-                                   #physfilter=physfilter)
+            data = advancedDataset(rawfile, variables, mode=mode,radius=radius,gravity=gravity,
+                                   gascon=gascon, zonal=zonal, substellarlon=substellarlon, 
+                                   physfilter=physfilter, logfile=logfile)
         
     else:
         #Scrape namelist
@@ -2410,46 +3529,92 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
     dtimes = data["time"][0]
     ntimes = len(dtimes)
     
+    if times is None:
+        times = ntimes
+    
     if type(times)==int: #A number of time outputs was specified
         if ntimes==times: #The number of outputs exactly equals the number provided
-            pass #We don't need to do anything
+            timeaverage = False #This way stdev still gets computed, but over the whole file.
         
         else:
             if timeaverage:
-               indices = np.linspace(0,ntimes,times+1,True).astype(int)
-               counts = np.diff(indices)
-               varkeys = data.keys()
-               varkeys.remove("time")
-               varkeys.remove("lat")
-               varkeys.remove("lon")
-               varkeys.remove("lev")
-               newtimes = np.add.reduceat(dtimes,indices[:-1]) / counts
-               for var in varkeys:
-                   odata = data[var][0][:]
-                   newshape = list(odata.shape)
-                   newshape[0] = times
-                   newshape = tuple(newshape)
-                   data[var][0] = np.add.reduceat(odata,indices[:-1],axis=0) / np.resize(counts,newshape)
-                   if stdev:  #Compute standard deviation
-                       stdvar = np.zeros(data[var][0].shape)
-                       for nt in range(stdvar.shape[0]):
-                           stdvar[nt,...] = np.std(odata[indices[nt]:indices[nt+1]],axis=0)
-                       stdmeta = list(data[var][1][:])
-                       stdmeta[0]+="_std"
-                       stdmeta[1]+="_standard_deviation"
-                       data[var+"_std"] = (stdvar,stdmeta)
+               _log(logfile,"\nComputing averages, going from %d timestamps to %d ..."%(ntimes,times))
+               if times>ntimes and interpolatetimes:
+                   _log(logfile,
+                        "Interpolating by a factor of 10 to compute averages at super-resolution....")
+                   ttimes = np.linspace(dtimes[0],dtimes[-1],num=10*ntimes)
+                   indices = np.digitize(np.linspace(dtimes[0],dtimes[-1],num=times+1),ttimes)-1
+                   indices[-1] = len(ttimes)
+                   counts = np.diff(indices)
+                   newtimes = np.linspace(dtimes[0],dtimes[-1],num=times+1)
+                   newtimes = 0.5*(newtimes[:-1]+newtimes[1:])
+                   varkeys = list(data.keys())
+                   varkeys.remove("time")
+                   varkeys.remove("lat")
+                   varkeys.remove("lon")
+                   varkeys.remove("lev")
+                   varkeys.remove("levp")
+                   if stdev:
+                       _log(logfile,"Computing standard deviations ....")
+                   for var in varkeys:
+                        odata = data[var][0][:]
+                        interpfunc = scipy.interpolate.interp1d(dtimes,odata,axis=0,kind='linear')
+                        tempdata = interpfunc(ttimes)
+                        newshape = list(odata.shape)
+                        newshape[0] = times
+                        newshape = tuple(newshape)
+                        newcounts = np.transpose(np.resize(counts,newshape[::-1]))
+                        data[var][0] = np.add.reduceat(tempdata,indices[:-1],axis=0)/ newcounts
+                        if stdev:  #Compute standard deviation
+                            stdvar = np.zeros(data[var][0].shape)
+                            for nt in range(stdvar.shape[0]):
+                                stdvar[nt,...] = np.std(tempdata[indices[nt]:indices[nt+1]],axis=0)
+                            stdmeta = list(data[var][1][:])
+                            stdmeta[0]+="_std"
+                            stdmeta[1]+="_standard_deviation"
+                            data[var+"_std"] = (stdvar,stdmeta)
+               else:
+                   indices = np.linspace(0,ntimes,times+1,True).astype(int)
+                   counts = np.diff(indices)
+                   varkeys = list(data.keys())
+                   varkeys.remove("time")
+                   varkeys.remove("lat")
+                   varkeys.remove("lon")
+                   varkeys.remove("lev")
+                   varkeys.remove("levp")
+                   newtimes = np.add.reduceat(dtimes,indices[:-1]) / counts
+                   if stdev:
+                       _log(logfile,"Computing standard deviations ....")
+                   for var in varkeys:
+                       odata = data[var][0][:]
+                       newshape = list(odata.shape)
+                       newshape[0] = times
+                       newshape = tuple(newshape)
+                       newcounts = np.transpose(np.resize(counts,newshape[::-1]))
+                       data[var][0] = np.add.reduceat(odata,indices[:-1],axis=0) / newcounts
+                       if stdev:  #Compute standard deviation
+                           stdvar = np.zeros(data[var][0].shape)
+                           for nt in range(stdvar.shape[0]):
+                               stdvar[nt,...] = np.std(odata[indices[nt]:indices[nt+1]],axis=0)
+                           stdmeta = list(data[var][1][:])
+                           stdmeta[0]+="_std"
+                           stdmeta[1]+="_standard_deviation"
+                           data[var+"_std"] = (stdvar,stdmeta)
                data["time"][0] = newtimes
             else:
                if interpolatetimes:
                    interpolation = "linear"
+                   _log(logfile,"\nInterpolating from %d timestamps to %d ..."%(ntimes,times))
                else:
                    interpolation = "nearest"
+                   _log(logfile,"\nSelecting %d timestamps from %d ..."%(times,ntimes))
                newtimes = np.linspace(0.,1.,num=times)*dtimes[-1] #We can't extrapolate; only interpolate
-               varkeys = data.keys()
+               varkeys = list(data.keys())
                varkeys.remove("time")
                varkeys.remove("lat")
                varkeys.remove("lon")
                varkeys.remove("lev")
+               varkeys.remove("levp")
                for var in varkeys:
                    odata = data[var][0][:]
                    interpfunc = scipy.interpolate.interp1d(dtimes,odata,axis=0,kind=interpolation)
@@ -2463,21 +3628,28 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
     else: #A list of times was specified
         
         if timeaverage: #times values are assumed to be bin edges
+            _log(logfile,"\nComputing averages, going from %d timestamps to %d ..."%(ntimes,len(times)-1))
             if not interpolatetimes: #We will always round down to the nearest neighbor
+                _log(logfile,
+                     "Interpolation disabled, so bin edges are being selected via nearest-neighbor.")
                 indices = np.digitize(np.array(times)*dtimes[-1],dtimes)-1
                 counts = np.diff(indices)
-                varkeys = data.keys()
+                varkeys = list(data.keys())
                 varkeys.remove("time")
                 varkeys.remove("lat")
                 varkeys.remove("lon")
                 varkeys.remove("lev")
+                varkeys.remove("levp")
                 newtimes = np.add.reduceat(dtimes,indices[:-1]) / counts
+                if stdev:
+                    _log(logfile,"Computing standard deviations ....")
                 for var in varkeys:
                     odata = data[var][0][:]
                     newshape = list(odata.shape)
-                    newshape[0] = times
+                    newshape[0] = len(times)-1
                     newshape = tuple(newshape)
-                    data[var][0] = np.add.reduceat(odata,indices[:-1],axis=0) / np.resize(counts,newshape)
+                    newcounts = np.transpose(np.resize(counts,newshape[::-1]))
+                    data[var][0] = np.add.reduceat(odata,indices[:-1],axis=0) / newcounts
                     if stdev:  #Compute standard deviation
                         stdvar = np.zeros(data[var][0].shape)
                         for nt in range(stdvar.shape[0]):
@@ -2488,22 +3660,27 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
                         data[var+"_std"] = (stdvar,stdmeta)
                 data["time"][0] = newtimes
             else: #First we'll interpolate to high time resolution, then compute average via binning
+                _log(logfile,"Interpolating to find bin edges....")
                 ttimes = np.linspace(dtimes[0],dtimes[-1],num=10*ntimes)
                 indices = np.digitize(np.array(times)*dtimes[-1],ttimes)-1
                 counts = np.diff(indices)
-                varkeys = data.keys()
+                varkeys = list(data.keys())
                 varkeys.remove("time")
                 varkeys.remove("lat")
                 varkeys.remove("lon")
                 varkeys.remove("lev")
+                varkeys.remove("levp")
+                if stdev:
+                    _log(logfile,"Computing standard deviations ....")
                 for var in varkeys:
                     odata = data[var][0][:]
                     interpfunc = scipy.interpolate.interp1d(dtimes,odata,axis=0,kind='linear')
                     tempdata = interpfunc(ttimes)
                     newshape = list(odata.shape)
-                    newshape[0] = len(times)
+                    newshape[0] = len(times)-1
                     newshape = tuple(newshape)
-                    data[var][0] = np.add.reduceat(tempdata,indices[:-1],axis=0) / np.resize(counts,newshape)
+                    newcounts = np.transpose(np.resize(counts,newshape[::-1]))
+                    data[var][0] = np.add.reduceat(tempdata,indices[:-1],axis=0)/ newcounts
                     if stdev:  #Compute standard deviation
                         stdvar = np.zeros(data[var][0].shape)
                         for nt in range(stdvar.shape[0]):
@@ -2520,13 +3697,16 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
             newtimes = np.array(times)*dtimes[-1] #Convert to timestamps
             if interpolatetimes:
                 interpolation = "linear"
+                _log(logfile,"\nInterpolating from %d timestamps to %d ..."%(ntimes,len(times)))
             else:
                 interpolation = "nearest"
-            varkeys = data.keys()
+                _log(logfile,"\nSelecting %d timestamps from %d ..."%(len(times),ntimes))
+            varkeys = list(data.keys())
             varkeys.remove("time")
             varkeys.remove("lat")
             varkeys.remove("lon")
             varkeys.remove("lev")
+            varkeys.remove("levp")
             for var in varkeys:
                 odata = data[var][0][:]
                 interpfunc = scipy.interpolate.interp1d(dtimes,odata,axis=0,kind=interpolation)
@@ -2539,6 +3719,7 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
         
     #Standard deviation if timeaverage is False
     if not timeaverage and stdev:
+        _log(logfile,"\nComputing standard deviations ....")
         for var in varkeys:
             stdvar = np.std(data[var],axis=0)
             stdmeta = list(data[var][1][:])
@@ -2549,18 +3730,35 @@ def postprocess(rawfile,outfile,namelist=None,variables=ilibrary.keys(),mode='gr
         
     # Write to output
     
+    _log(logfile,"\n")
+    _log(logfile,("--------" +"-"*len(outfile) + "----"))
+    _log(logfile,("Writing %"+"%d"%len(outfile)+"s ...")%outfile)
+    _log(logfile,("--------" +"-"*len(outfile) + "----"))
+    _log(logfile,"\n")
+    
     fileparts = outfile.split('.')
     if fileparts[-1] == "nc":
-        output=netcdf(data,filename=outfile)
+        output=netcdf(data,filename=outfile,logfile=logfile)
+        output.close()
     elif fileparts[-1] == "npz" or fileparts[-1] == "npy":
-        output=npsavez(data,filename=outfile)
+        output=npsavez(data,filename=outfile,logfile=logfile)
     elif (fileparts[-1] in ("csv","txt","gz","tar") or \
-          fileparts[-2}+"."+fileparts[-1] in ("tar.gz","tar.bz2","tar.xz")):
-        output=csv(data,filename=outfile)
+          (fileparts[-2]+"."+fileparts[-1]) in ("tar.gz","tar.bz2","tar.xz")):
+        output=csv(data,filename=outfile,logfile=logfile)
     elif fileparts[-1] in ("hdf5","h5","he5"):
-        output=hdf5(data,filename=outfile)
+        output=hdf5(data,filename=outfile,logfile=logfile)
+        output.close()
     else:
-        raise Exception("Unsupported output format detected. Supported formats are:\n%s"%("\n\t".join(SUPPORTED)))
+        raise Exception("Unsupported output format detected. Supported formats are:\n\t\n\t%s"%("\n\t".join(SUPPORTED)))
+    
+    _log(logfile,"\n")
+    _log(logfile,"%s closed."%outfile)
+    _log(logfile,"\n")
+    
+    _log(logfile,"================================")
+    _log(logfile,"| PYBURN FINISHED SUCCESSFULLY |")
+    _log(logfile,"================================")
+    
     
     
         

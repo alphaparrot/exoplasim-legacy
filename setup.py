@@ -3,10 +3,12 @@ import os
  
 setup(
     name='exoplasim',
-    version='2.3.0a1',
+    version='3.0.0a1',
     packages=['exoplasim',],
     zip_safe=False,
     install_requires=["numpy","netCDF4","matplotlib","scipy"],
+    extras_require = {"netCDF4": ["netCDF4"],
+                      "HDF5": ["h5py"]},
     include_package_data=True,
     author='Adiv Paradise',
     author_email='paradise.astro@gmail.com',

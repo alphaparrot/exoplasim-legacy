@@ -4,11 +4,11 @@ sourcedir = None
 
 import os
 import sys
+import subprocess
 import numpy as np
 import glob
-import netCDF4 as nc
-import pyburn
 import exoplasim.gcmt
+import exoplasim.pyburn
 import exoplasim.randomcontinents
 import exoplasim.makestellarspec
 import platform
@@ -32,6 +32,10 @@ gases_default = {'pH2': 0.0,
                 'pNe': 18.18e-6,
                 'pKr': 1.14e-6,
                 'pH2O':0.01}
+
+MARS_GRAV   = 3.728
+MARS_RADIUS = 3400000.0
+MARS_RD     = 189.0
 
 def _noneparse(text,dtype):
     if text=="None" or text=="none":
@@ -98,6 +102,18 @@ class Model(object):
         boundary conditions, etc. If not set, will default to exoplasim/plasim/run/.        
     modelname : str, optional 
         The name to use for the model and its output files when finished.
+    burn7 : bool, optional
+        If True, the legacy burn7 C++ postprocessor will be used. Otherwise, the new pyburn 
+        postprocessor will be used (default).
+    outputtype : str, optional
+        File extension to use for the output, if using the pyburn postprocessor. Supported extensions
+        are `.nc`, `.npy`, `.npz`, `.hdf5`, `.he5`, `.h5`, `.csv`, `.gz`, `.txt`, `.tar`, `.tar.gz`,
+        `.tar.xz`, and `.tar.bz2`. If using `.nc`, `netcdf4-python` must be installed. If using any of 
+        `.hdf5`, `.he5`, or `.h5`, then `h5py` must be installed. The default is the numpy compressed
+        format, `.npz`.
+    crashtolerant : bool, optional
+        If True, then on a crash, ExoPlaSim will rewind 10 years and resume from there.
+        If fewer than 10 years have elapsed, ExoPlaSim will simply crash.
         
     Returns
     -------
@@ -139,11 +155,16 @@ class Model(object):
     """
     def __init__(self,resolution="T21",layers=10,ncpus=4,precision=8,debug=False,inityear=0,
                 recompile=False,optimization=None,mars=False,workdir="most",source=None,force991=False,
-                modelname="MOST_EXP",burn7=True):
+                modelname="MOST_EXP",burn7=F,outputtype=".npz",crashtolerant=False):
         
         global sourcedir
         
         self.burn7 = burn7
+        
+        self.extension = outputtype
+        self._configuredpostprocessor = False
+        
+        self.crashtolerant = crashtolerant
         
         if not sourcedir: #This means we haven't run yet, and have some post-install work to do
             os.system('spth=$(python%s -c "import exoplasim as exo; print(exo.__path__)") && echo $spth>sourcepath'%sys.version[0])
@@ -178,8 +199,34 @@ class Model(object):
                     else:
                         os.system("cd postprocessor && rm burn7.x && make")
                     os.chdir(cwd)
+                    os.system("touch %s/postprocessor/netcdfbuilt"%sourcedir)
             except PermissionError:
                 raise PermissionError("\nHi! Welcome to ExoPlaSim. It looks like this is the first "+
+                                    "time you're using this program since installing, and you "+
+                                    "may have installed it to a location that needs root "+
+                                    "privileges to modify. This is not ideal! If you want to "+
+                                    "use the program this way, you will need to run python code"+
+                                    " that uses ExoPlaSim with sudo privileges; i.e. sudo "+
+                                    "python3 myscript.py. If you did this because pip install "+
+                                    "breaks without sudo privileges, then try using \n\n\tpip "+ "install --user exoplasim \n\ninstead. It is generally a "+
+                                    "very bad idea to install things with sudo pip install.")
+        if self.burn7:
+            self.extension = ".nc"
+            if not os.path.isfile("%s/postprocessor/netcdfbuilt"%sourcedir): #netcdf postprocessor hasn't been built
+                try:
+                    cwd = os.getcwd()
+                    os.chdir(sourcedir)
+                    os.system("nc-config --version > ncversion.tmp")
+                    with open("ncversion.tmp","r") as ncftmpf:
+                        version = float('.'.join(ncftmpf.read().split()[1].split('.')[:2]))
+                    if version>4.2:
+                        os.system("cd postprocessor && ./build_init.sh || ./build_init_compatibility.sh")
+                    else:
+                        os.system("cd postprocessor && rm burn7.x && make")
+                    os.chdir(cwd)
+                    os.system("touch %s/postprocessor/netcdfbuilt"%sourcedir)
+                except PermissionError:
+                    raise PermissionError("\nHi! Welcome to ExoPlaSim. It looks like this is the first "+
                                     "time you're using this program since installing, and you "+
                                     "may have installed it to a location that needs root "+
                                     "privileges to modify. This is not ideal! If you want to "+
@@ -300,11 +347,11 @@ class Model(object):
         years : int, optional
             Number of years to run    
         postprocess : bool, optional
-            True/False. Whether or not NetCDF files should be produced on-the-fly
+            True/False. Whether or not output files should be produced on-the-fly
         crashifbroken : bool, optional
             True/False. If True, use Pythonic error handling    
         clean : bool, optional
-            True/False. If True, delete raw output files once NetCDF files are made
+            True/False. If True, delete raw output files once output files are made
             
         """
         if not self.runscript:
@@ -432,87 +479,118 @@ class Model(object):
             snowname="MOST_SNOW.%05d"%self.currentyear
             stormname="MOST.%05d.STORM"%self.currentyear
             
+            runerror = True
+            
             #Run ExoPlaSim
-            os.system(self._exec+self.executable)
-            
-            #Sort, categorize, and arrange the various outputs
-            os.system("[ -e restart_dsnow ] && rm restart_dsnow")
-            print("[ -e restart_dsnow ] && rm restart_dsnow")
-            os.system("[ -e restart_xsnow ] && rm restart_xsnow")
-            print("[ -e restart_xsnow ] && rm restart_xsnow")
-            os.system("[ -e Abort_Message ] && exit 1")
-            print("[ -e Abort_Message ] && exit 1")
-            os.system("[ -e plasim_output ] && mv plasim_output "+dataname)
-            print("[ -e plasim_output ] && mv plasim_output "+dataname)
-            os.system("[ -e plasim_snapshot ] && mv plasim_snapshot "+snapname)
-            print("[ -e plasim_snapshot ] && mv plasim_snapshot "+snapname)
-            if self.highcadence["toggle"]:
-                os.system("[ -e plasim_hcadence ] && mv plasim_hcadence "+hcname)
-                print("[ -e plasim_hcadence ] && mv plasim_hcadence "+hcname)
-            os.system("[ -e plasim_diag ] && mv plasim_diag "+diagname)
-            print("[ -e plasim_diag ] && mv plasim_diag "+diagname)
-            os.system("[ -e plasim_status ] && cp plasim_status plasim_restart")
-            print("[ -e plasim_status ] && cp plasim_status plasim_restart")
-            os.system("[ -e plasim_status ] && mv plasim_status "+restname)
-            print("[ -e plasim_status ] && mv plasim_status "+restname)
-            os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
-            print("[ -e restart_snow ] && mv restart_snow "+snowname)
-            os.system("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
-            print("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
-            
-            #Do any additional work
-            timeavg=0
-            snapsht=0
-            highcdn=0
             try:
-                timeavg=self.postprocess(dataname,"example.nl",
-                                        log="burnout",crashifbroken=crashifbroken)
-                snapsht=self.postprocess(snapname,"snapshot.nl",
-                                        log="snapout",crashifbroken=crashifbroken)
-                os.system("mv %s.nc snapshots/"%snapname)
+                subprocess.run([self._exec+self.executable],check=True)
+            
+                #Sort, categorize, and arrange the various outputs
+                os.system("[ -e restart_dsnow ] && rm restart_dsnow")
+                print("[ -e restart_dsnow ] && rm restart_dsnow")
+                os.system("[ -e restart_xsnow ] && rm restart_xsnow")
+                print("[ -e restart_xsnow ] && rm restart_xsnow")
+                os.system("[ -e Abort_Message ] && exit 1")
+                print("[ -e Abort_Message ] && exit 1")
+                os.system("[ -e plasim_output ] && mv plasim_output "+dataname)
+                print("[ -e plasim_output ] && mv plasim_output "+dataname)
+                os.system("[ -e plasim_snapshot ] && mv plasim_snapshot "+snapname)
+                print("[ -e plasim_snapshot ] && mv plasim_snapshot "+snapname)
                 if self.highcadence["toggle"]:
-                    highcdn=self.postprocess(hcname  ,"snapshot.nl",
-                                            log="hcout"  ,crashifbroken=crashifbroken)
-                    os.system("mv %s.nc highcadence/"%hcname)
-            except Exception as e:
-                print(e)
-                self._crash()
-            if clean:
-                if timeavg:
-                    os.system("rm %s"%dataname)
-                if snapsht:
-                    os.system("rm %s"%snapname)
-                if highcdn:
-                    os.system("rm %s"%hcname)
-                   
-            if os.path.exists("Abort_Message"): #We need to stop RIGHT NOW
-                self._crash() 
+                    os.system("[ -e plasim_hcadence ] && mv plasim_hcadence "+hcname)
+                    print("[ -e plasim_hcadence ] && mv plasim_hcadence "+hcname)
+                os.system("[ -e plasim_diag ] && mv plasim_diag "+diagname)
+                print("[ -e plasim_diag ] && mv plasim_diag "+diagname)
+                os.system("[ -e plasim_status ] && cp plasim_status plasim_restart")
+                print("[ -e plasim_status ] && cp plasim_status plasim_restart")
+                os.system("[ -e plasim_status ] && mv plasim_status "+restname)
+                print("[ -e plasim_status ] && mv plasim_status "+restname)
+                os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
+                print("[ -e restart_snow ] && mv restart_snow "+snowname)
+                os.system("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
+                print("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
                 
-            if crashifbroken: #Check to see that we aren't throwing NaNs
+                #Do any additional work
+                timeavg=0
+                snapsht=0
+                highcdn=0
                 try:
-                    check=self.integritycheck(dataname+".nc")
+                    timeavg=self.postprocess(dataname,"example.nl",
+                                            log="burnout",crashifbroken=crashifbroken)
+                    snapsht=self.postprocess(snapname,"snapshot.nl",
+                                            log="snapout",crashifbroken=crashifbroken)
+                    os.system("mv %s%s snapshots/"%(snapname,self.extension))
+                    if self.highcadence["toggle"]:
+                        highcdn=self.postprocess(hcname  ,"snapshot.nl",
+                                                log="hcout"  ,crashifbroken=crashifbroken)
+                        os.system("mv %s%s highcadence/"%(hcname,self.extension))
                 except Exception as e:
                     print(e)
+                    if self.crashtolerant:
+                        raise #We actually need to get out of here before the cleanup routines kick in
                     self._crash()
-            
-            print("Finished Year %d With No Problems"%self.currentyear)
-            self.currentyear += 1
-            sb = self.getbalance("hfns")
-            tb = self.getbalance("ntr")
-            os.system("echo '%02.6f  %02.6f'>>%s/balance.log"%(sb,tb,self.workdir))
-            
-            if timelimit:
-                avgyear = self._checktimes() #get how long it took to run each year
-                os.system("echo '%1.3f minutes'>>%s/runtimes.log"%(avgyear[-1],self.workdir))
-                currentyears = np.loadtxt("%s/runtimes.log"%self.workdir,usecols=[0,]) 
-                     #^Get how long it took to run each year of the current run
-                currentavgyear = np.nanmean(currentyears) 
-                     #^Average walltime per year for this run
-                runlimit = min(runstart + int(timelimit//currentavgyear),ogrunlimit)
-                crunlimit = min(int(timelimit//currentavgyear),ogrunlimit-runstart)
-                            #options for the runlimit are N0+T/tau, where tau is avg year
-                os.system("echo 'limit to %d years total; %d years this run'>>%s/limits.log"%(runlimit,crunlimit,self.workdir))
-                minyears = min(ogminyears,runlimit)
+                if clean:
+                    if timeavg:
+                        os.system("rm %s"%dataname)
+                    if snapsht:
+                        os.system("rm %s"%snapname)
+                    if highcdn:
+                        os.system("rm %s"%hcname)
+                    
+                if os.path.exists("Abort_Message"): #We need to stop RIGHT NOW
+                    if self.crashtolerant: #get out right now before the cleanup routines start
+                        raise Exception("ExoPlaSim native Abort Message raised")
+                    self._crash() 
+                    
+                if crashifbroken: #Check to see that we aren't throwing NaNs
+                    try:
+                        check=self.integritycheck(dataname+"%s"%self.extension)
+                    except Exception as e:
+                        if self.crashtolerant:
+                            raise #get out before the cleaners arrive
+                        print(e)
+                        self._crash()
+                        
+                runerror = False
+                
+                print("Finished Year %d With No Problems"%self.currentyear)
+                self.currentyear += 1
+                sb = self.getbalance("hfns")
+                tb = self.getbalance("ntr")
+                os.system("echo '%02.6f  %02.6f'>>%s/balance.log"%(sb,tb,self.workdir))
+                
+                if timelimit:
+                    avgyear = self._checktimes() #get how long it took to run each year
+                    os.system("echo '%1.3f minutes'>>%s/runtimes.log"%(avgyear[-1],self.workdir))
+                    currentyears = np.loadtxt("%s/runtimes.log"%self.workdir,usecols=[0,]) 
+                        #^Get how long it took to run each year of the current run
+                    currentavgyear = np.nanmean(currentyears) 
+                        #^Average walltime per year for this run
+                    runlimit = min(runstart + int(timelimit//currentavgyear),ogrunlimit)
+                    crunlimit = min(int(timelimit//currentavgyear),ogrunlimit-runstart)
+                                #options for the runlimit are N0+T/tau, where tau is avg year
+                    os.system("echo 'limit to %d years total; %d years this run'>>%s/limits.log"%(runlimit,crunlimit,self.workdir))
+                    minyears = min(ogminyears,runlimit)
+                
+            except Exception as e:
+                if runerror:
+                    if self.crashtolerant and self.currentyear>=10:
+                        self.currentyear-=10
+                        os.system("cp MOST_REST.%05d plasim_restart"%self.currentyear)
+                        for n in range(self.currentyear+1,self.currentyear+10):
+                            os.system("rm MOST*%05d*"%n)
+                            os.system("rm snapshots/MOST*%05d*"%n)
+                            os.system("rm highcadence/MOST*%05d*"%n)
+                        os.system("rm plasim_status")
+                        os.system("rm plasim_output")
+                        os.system("rm plasim_hcadence")
+                        os.system("rm plasim_snapshot")
+                        self.currentyear+=1
+                    else:
+                        print(e)
+                        self._crash() #Bring in the cleaners
+                else:
+                    pass
             
             
         bott = self.gethistory(key="hfns")
@@ -565,10 +643,10 @@ class Model(object):
         numpy.ndarray
             1-D Array of global annual means
         """
-        files = sorted(glob.glob("%s/MOST*.nc"%self.workdir))
+        files = sorted(glob.glob("%s/MOST*%s"%(self.workdir,self.extension)))
         dd=np.zeros(len(files))
         for n in range(0,len(files)):
-            ncd = nc.Dataset(files[n])
+            ncd = gcmt.load(files[n])
             variable = ncd.variables[key][:]
             lon = ncd.variables['lon'][:]
             lat = ncd.variables['lat'][:]
@@ -595,7 +673,7 @@ class Model(object):
         bool
             Whether or not the model is in energy balance equilibrium
         """
-        nfiles = len((glob.glob("%s/MOST*.nc"%self.workdir)))
+        nfiles = len((glob.glob("%s/MOST*%s"%(self.workdir,self.extension))))
         if nfiles==0: #For when the run restarts and there are no netcdf files yet
             return False
         prior=False
@@ -648,11 +726,11 @@ class Model(object):
         years : int, optional
             Number of years to run    
         postprocess : bool, optional
-            True/False. Whether or not NetCDF files should be produced on-the-fly
+            True/False. Whether or not output files should be produced on-the-fly
         crashifbroken : bool, optional
             True/False. If True, use Pythonic error handling    
         clean : bool, optional
-            True/False. If True, delete raw output files once NetCDF files are made
+            True/False. If True, delete raw output files once output files are made
             
 
         """
@@ -671,101 +749,275 @@ class Model(object):
             stormname="MOST.%05d.STORM"%self.currentyear
             
             #Run ExoPlaSim
-            os.system(self._exec+self.executable)
+            try:
+                subprocess.run([self._exec+self.executable],check=True)
             
-            #Sort, categorize, and arrange the various outputs
-            os.system("[ -e restart_dsnow ] && rm restart_dsnow")
-            os.system("[ -e restart_xsnow ] && rm restart_xsnow")
-            os.system("[ -e Abort_Message ] && exit 1")
-            os.system("[ -e plasim_output ] && mv plasim_output "+dataname)
-            os.system("[ -e plasim_snapshot ] && mv plasim_snapshot "+snapname)
-            if self.highcadence["toggle"]:
-                os.system("[ -e plasim_hcadence ] && mv plasim_hcadence "+hcname)
-            os.system("[ -e plasim_diag ] && mv plasim_diag "+diagname)
-            os.system("[ -e plasim_status ] && cp plasim_status plasim_restart")
-            os.system("[ -e plasim_status ] && mv plasim_status "+restname)
-            os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
-            os.system("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
-            
-            #Do any additional work
-            timeavg=0
-            snapsht=0
-            highcdn=0
-            if postprocess:
-                try:
-                    timeavg=self.postprocess(dataname,"example.nl",
-                                            log="burnout",crashifbroken=crashifbroken)
-                    snapsht=self.postprocess(snapname,"snapshot.nl",
-                                            log="snapout",crashifbroken=crashifbroken)
-                    os.system("mv %s.nc snapshots/"%snapname)
-                    if self.highcadence["toggle"]:
-                        highcdn=self.postprocess(hcname  ,"snapshot.nl",
-                                                log="hcout"  ,crashifbroken=crashifbroken)
-                        os.system("mv %s.nc highcadence/"%hcname)
-                except Exception as e:
-                    print(e)
+                #Sort, categorize, and arrange the various outputs
+                os.system("[ -e restart_dsnow ] && rm restart_dsnow")
+                os.system("[ -e restart_xsnow ] && rm restart_xsnow")
+                os.system("[ -e Abort_Message ] && exit 1")
+                os.system("[ -e plasim_output ] && mv plasim_output "+dataname)
+                os.system("[ -e plasim_snapshot ] && mv plasim_snapshot "+snapname)
+                if self.highcadence["toggle"]:
+                    os.system("[ -e plasim_hcadence ] && mv plasim_hcadence "+hcname)
+                os.system("[ -e plasim_diag ] && mv plasim_diag "+diagname)
+                os.system("[ -e plasim_status ] && cp plasim_status plasim_restart")
+                os.system("[ -e plasim_status ] && mv plasim_status "+restname)
+                os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
+                os.system("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
+                
+                #Do any additional work
+                timeavg=0
+                snapsht=0
+                highcdn=0
+                if postprocess:
+                    try:
+                        timeavg=self.postprocess(dataname,"example.nl",
+                                                log="burnout",crashifbroken=crashifbroken)
+                        snapsht=self.postprocess(snapname,"snapshot.nl",
+                                                log="snapout",crashifbroken=crashifbroken)
+                        os.system("mv %s%s snapshots/"%(snapname,self.extension))
+                        if self.highcadence["toggle"]:
+                            highcdn=self.postprocess(hcname  ,"snapshot.nl",
+                                                    log="hcout"  ,crashifbroken=crashifbroken)
+                            os.system("mv %s%s highcadence/"%(hcname,self.extension))
+                    except Exception as e:
+                        if self.crashtolerant:
+                            raise
+                        print(e)
+                        self._crash()
+                if clean:
+                    if timeavg:
+                        os.system("rm %s"%dataname)
+                    if snapsht:
+                        os.system("rm %s"%snapname)
+                    if highcdn:
+                        os.system("rm %s"%hcname)
+                        
+                if os.path.exists("Abort_Message"): #We need to stop RIGHT NOW
+                    if self.crashtolerant:
+                        raise Exception("ExoPlaSim native Abort Message raised")
                     self._crash()
-            if clean:
-                if timeavg:
-                    os.system("rm %s"%dataname)
-                if snapsht:
-                    os.system("rm %s"%snapname)
-                if highcdn:
-                    os.system("rm %s"%hcname)
                     
-            if os.path.exists("Abort_Message"): #We need to stop RIGHT NOW
-                self._crash()
-                
-            if crashifbroken: #Check to see that we aren't throwing NaNs
-                try:
-                    check=self.integritycheck(dataname+".nc")
-                except Exception as e:
+                if crashifbroken: #Check to see that we aren't throwing NaNs
+                    try:
+                        check=self.integritycheck(dataname+"%s"%self.extension)
+                    except Exception as e:
+                        if self.crashtolerant:
+                            raise
+                        print(e)
+                        self._crash()
+                    
+                self.currentyear += 1
+            except Exception as e:
+                if self.crashtolerant and self.currentyear>=10:
+                    print(self.currentyear,e)
+                    self.currentyear-=10
+                    os.system("cp MOST_REST.%05d plasim_restart"%self.currentyear)
+                    for n in range(self.currentyear+1,self.currentyear+10):
+                        os.system("rm MOST*%05d*"%n)
+                        os.system("rm snapshots/MOST*%05d*"%n)
+                        os.system("rm highcadence/MOST*%05d*"%n)
+                    os.system("rm plasim_status")
+                    os.system("rm plasim_output")
+                    os.system("rm plasim_hcadence")
+                    os.system("rm plasim_snapshot")
+                    self.currentyear+=1
+                else:
                     print(e)
-                    self._crash()
+                    self._crash() #Bring in the cleaners
                 
-            self.currentyear += 1
     
-    def postprocess(self,inputfile,namelist,log="postprocess.log",crashifbroken=False):
+    def cfgpostprocessor(self,extension=".npz",namelist=None,variables=list(ilibrary.keys()),mode='grid',
+                         zonal=False, substellarlon=0.0, physfilter=False,timeaverage=True,stdev=False,
+                         times=12,interpolatetimes=True):
+        '''Configure postprocessor options for pyburn.
+        
+        Output format is determined by the file extension of outfile. Current supported formats are 
+        NetCDF (*.nc), numpy's `np.savez_compressed` format (*.npz), and CSV format. If NumPy's 
+        single-array .npy extension is used, .npz will be substituted--this is a compressed ZIP archive 
+        containing .npy files. Additionally, the CSV output format can be used in compressed form either
+        individually by using the .gz file extension, or collectively via tarballs (compressed or 
+        uncompressed).
+        
+        If a tarball format (e.g. *.tar or *.tar.gz) is used, output files will be packed into a tarball.
+        gzip (.gz), bzip2 (.bz2), and lzma (.xz) compression types are supported. If a tarball format is 
+        not used, then accepted file extensions are .csv, .txt, or .gz. All three will produce a
+        directory named following the filename pattern, with one file per variable in the directory. If 
+        the .gz extension is used, NumPy will compress each output file using gzip compression. 
+        
+        CSV-type files will only contain 2D
+        variable information, so the first N-1 dimensions will be flattened. The original variable shape 
+        is included in the file header (prepended with a # character) as the first items in a comma-
+        separated list, with the first non-dimension item given as the '|||' placeholder. On reading 
+        variables from these files, they should be reshaped according to these dimensions. This is true 
+        even in tarballs (which contain CSV files).
+        
+        A T21 model output with 10 vertical levels, 12 output times, all supported variables in grid 
+        mode,and no standard deviation computation will have the following sizes for each format:
+        
+            netCDF : 12.8 MiB
+            HDF5 : 17.2 MiB
+            NumPy (default) : 19.3 MiB
+            tar.xz : 33.6 MiB
+            tar.bz2 : 36.8 MiB
+            gzipped : 45.9 MiB
+            uncompressed : 160.2 MiB
+        
+        Using the NetCDF (.nc) format requires the netCDF4 python package.
+        
+        Using the HDF4 format (.h5, .hdf5, .he5) requires the h5py python package.
+        
+        All supported formats can be read by :py:func:`exoplasim.gcmt.load() <exoplasim.gcmt.load>` and
+        will return identical data objects analogous to netCDF4 archives.
+    
+        Parameters
+        ----------
+        extension : str, optional
+            Output format to use, specified via file extension. Supported formats are netCDF (`.nc`), 
+            NumPy compressed archives (`.npy`, `.npz`), HDF5 archives (`.hdf5`, `.he5`, `.h5`), or
+            plain-text comma-separated value files, which may be compressed individually or as a
+            tarball (`.csv`, `.gz`, `.txt`, `.tar`, `.tar.gz`, `.tar.xz`, and `.tar.bz2`). If using 
+            netCDF, `netcdf4-python` must be installed. If using HDF5, then `h5py` must be installed. 
+            The default is the numpy compressed format, `.npz`.
+        namelist : str, optional
+            Path to a burn7 postprocessor namelist file. If not given, then `variables` must be set. 
+        variables : list or dict, optional
+            If a list is given, a list of either variable keycodes (integers or strings), or the abbreviated
+            variable name (e.g. 'ts' for surface temperature). If a dict is given, each item in the dictionary
+            should have the keycode or variable name as the key, and the desired horizontal mode and additional
+            options for that variable as a sub-dict. Each member of the subdict should be passable as **kwargs 
+            to :py:func`pyburn.advancedDataset() <exoplasim.pyburn.advancedDataset>`. If None, then `namelist` must be set.
+        mode : str, optional
+            Horizontal output mode, if modes are not specified for individual variables. Options are 
+            'grid', meaning the Gaussian latitude-longitude grid used
+            in ExoPlaSim, 'spectral', meaning spherical harmonics, 
+            'fourier', meaning Fourier coefficients and latitudes, 'synchronous', meaning a
+            Gaussian latitude-longitude grid in the synchronous coordinate system defined in
+            Paradise, et al (2021), with the north pole centered on the substellar point, or
+            'syncfourier', meaning Fourier coefficients computed along the dipolar meridians in the
+            synchronous coordinate system (e.g. the substellar-antistellar-polar meridian, which is 0 degrees,
+            or the substellar-evening-antistellar-morning equatorial meridian, which is 90 degrees). Because this
+            will get assigned to the original latitude array, that will become -90 degrees for the polar
+            meridian, and 0 degrees for the equatorial meridian, identical to the typical equatorial coordinate
+            system.
+        zonal : bool, optional
+            Whether zonal means should be computed for applicable variables.
+        substellarlon : float, optional
+            Longitude of the substellar point. Only relevant if a synchronous coordinate output mode is chosen.
+        physfilter : bool, optional
+            Whether or not a physics filter should be used in spectral transforms.
+        times : int or array-like or None, optional
+            Either the number of timestamps by which to divide the output, or a list of times given as a fraction
+            of the output file duration (which enables e.g. a higher frequency of outputs during periapse of an
+            eccentric orbit, when insolation is changing more rapidly). Note that if a list is given, all 
+            members of the list MUST be between 0 and 1, inclusive. If None, the timestamps in the raw output will be written directly to file.
+        timeaverage : bool, optional
+            Whether or not timestamps in the output file should be averaged to produce the requested number of 
+            output timestamps. Timestamps for averaged outputs will correspond to the middle of the averaged time period.
+        stdev : bool, optional
+            Whether or not standard deviations should be computed. If timeaverage is True, this will be the 
+            standard deviation over the averaged time period; if False, then it will be the standard deviation
+            over the whole duration of the output file
+        interpolatetimes : bool, optional
+            If true, then if the times requested don't correspond to existing timestamps, outputs will be
+            linearly interpolated to those times. If false, then nearest-neighbor interpolation will be used.
+        '''
+        self._configuredpostprocessor = True
+        self.extension = extension
+        self.postprocessorcfg = {"variables"        : variables,
+                                 "namelist"         : namelist,
+                                 "mode"             : mode,
+                                 "zonal"            : zonal,
+                                 "substellarlon"    : substellarlon,
+                                 "physfilter"       : physfilter,
+                                 "timeaverage"      : timeaverage,
+                                 "stdev"            : stdev,
+                                 "times"            : times,
+                                 "interpolatetimes" : interpolatetimes}
+    
+    def postprocess(self,inputfile,variables,log="postprocess.log",crashifbroken=False,**kwargs):
         """    Produce NetCDF output from an input file, using a specified postprocessing namelist. 
 
         Parameters
         ----------
         inputfile : str
             The raw output file to be processed
-        namelist : str 
-            The burn7 namelist to use
+        variables : str or list or dict or None
+            Can be a path to a burn7-style namelist, a list of variable codes or keys, or a dictionary
+            containing output options for each variable. If None, then a variable set pre-configured with
+            :py:func`Model.cfgpostprocessor() <exoplasim.Model.cfgpostprocessor>` will be used. If the
+            postprocessor was not pre-configured, this will prompt pyburn to use the default set.
         log : str, optional
             The log file to which burn7 should output standard output and errors
         crashifbroken : bool, optional 
             True/False. If True, exoplasim will run .integritycheck() on the file.
+        **kwargs : keyword arguments
+            Keyword arguments accepted by pyburn.postprocess. Do not specify radius, gravity, or
+            gascon. These are set by the model configuration. Specifying additional keywords here
+            will override any options set via :py:func`Model.cfgpostprocessor() <exoplasim.Model.cfgpostprocessor>`
 
         Returns
         -------
         int
             1 if successful, 0 if not
         """
-        stat=os.system("./burn7.x -n<%s>%s %s %s.nc"%(namelist,log,inputfile,inputfile))
-        if stat==0:
-            print("NetCDF output written to %s.nc; log written to %s"%(inputfile,log))
-            self.recursecheck=False
-            return 1
-        else:
-            if crashifbroken:
-                if not self.recursecheck:
-                    if self.integritycheck("%s.nc"%inputfile):
-                        self.recursecheck=True
-                        print("burn7 threw some errors; may want to check %s"%log)
-                    else:
-                        raise RuntimeError("Error writing output to %s.nc; "%inputfile +
-                                            "log written to %s"%log)
-                else:
-                    raise RuntimeError("An error was encountered, likely with the postprocessor. ExoPlaSim was unable to investigate further due to a recursion trap.")
+        namelist = None
+        if type(variables)==str:
+            namelist = variables
+        if self.burn7:
+            stat=os.system("./burn7.x -n<%s>%s %s %s%s"%(namelist,log,inputfile,inputfile,self.extension))
+            if stat==0:
+                print("NetCDF output written to %s%s; log written to %s"%(inputfile,self.extension,log))
+                self.recursecheck=False
+                return 1
             else:
-                print("Error writing output to %s.nc; log written to %s"%(inputfile,log))
-                raise RuntimeError("Going to stop here just in case......")
-            return 0
+                if crashifbroken:
+                    if not self.recursecheck:
+                        if self.integritycheck("%s%s"%(inputfile,self.extension)):
+                            self.recursecheck=True
+                            print("burn7 threw some errors; may want to check %s"%log)
+                        else:
+                            raise RuntimeError("Error writing output to %s%s; "%(inputfile,self.extension) +
+                                                "log written to %s"%log)
+                    else:
+                        raise RuntimeError("An error was encountered, likely with the postprocessor. ExoPlaSim was unable to investigate further due to a recursion trap.")
+                else:
+                    print("Error writing output to %s%s; log written to %s"%(inputfile,self.extension,log))
+                    raise RuntimeError("Going to stop here just in case......")
+                return 0
+        else:
+            try:
+                if len(kwargs.keys())==0 and self._configuredpostprocessor:
+                    kwargs = self.postprocessorcfg
+                if variables is None and self._configuredpostprocessor:
+                    pyburn.postprocess(inputfile,inputfile+self.extension,logfile=log,
+                                       radius=self.radius*6371220.0,
+                                       gravity=self.gravity,gascon=self.gascon,**kwargs)
+                else:
+                    pyburn.postprocess(inputfile,inputfile+self.extension,logfile=log,namelist=namelist,
+                                       variables=variables,radius=self.radius*6371220.0,
+                                       gravity=self.gravity,gascon=self.gascon,**kwargs)
+                return 1
+            except:
+                print(sys.exc_info()[0])
+                if crashifbroken:
+                    if not self.recursecheck:
+                        if self.integritycheck("%s%s"%(inputfile,self.extension)):
+                            self.recursecheck=True
+                            print("pyburn threw some errors; may want to check %s"%log)
+                        else:
+                            raise RuntimeError("Error writing output to %s%s; "%(inputfile,self.extension) +
+                                                "log written to %s"%log)
+                    else:
+                        raise RuntimeError("An error was encountered, likely with the postprocessor. ExoPlaSim was unable to investigate further due to a recursion trap.")
+                else:
+                    print("Error writing output to %s%s; log written to %s"%(inputfile,self.extension,log))
+                    raise RuntimeError("Going to stop here just in case......")
+                return 0
         
-    def integritycheck(self,ncfile): #MUST pass a NetCDF file that contains surface temperature
+        
+    def integritycheck(self,ncfile): #MUST pass an output archive that contains surface temperature
         """    Check an output file to see it contains the expected variables and isn't full of NaNs.
             
         If the file does not exist, exoplasim will attempt to create it using the postprocessor.
@@ -791,7 +1043,7 @@ class Model(object):
                 ioe = self.postprocess(ncfile[:-3],"example.nl",crashifbroken=False)
                 self.recursecheck=True
         if ioe:
-            ncd = nc.Dataset(ncfile,"r")
+            ncd = gcmt.load(ncfile)
             try:
                 ts = ncd.variables["ts"][:]
             except:
@@ -837,7 +1089,7 @@ class Model(object):
         if allyears:
             os.chdir(outputdir)
             os.system("mkdir %s"%self.modelname)
-            os.system("cp %s/MOST*.nc %s/"%(self.workdir,self.modelname))
+            os.system("cp %s/MOST*%s %s/"%(self.workdir,self.extension,self.modelname))
             if self.snapshots:
                 os.system("cp -r %s/snapshots %s/snapshots"%(self.workdir,self.modelname))
             if self.highcadence['toggle']:
@@ -851,17 +1103,17 @@ class Model(object):
             #                                        self.modelname,self.modelname))
             newworkdir = os.getcwd()+"/"+self.modelname
         else:
-            outputs = sorted(glob.glob("%s/MOST*.nc"%self.workdir))
+            outputs = sorted(glob.glob("%s/MOST*%s"%(self.workdir,self.extension)))
             os.chdir(outputdir)
-            os.system("cp %s %s.nc"%(outputs[-1],self.modelname))
+            os.system("cp %s %s%s"%(outputs[-1],self.modelname,self.extension))
             diags = sorted(glob.glob("%s/MOST*DIAG*"%self.workdir))
             os.system("cp %s %s.DIAG"%(diags[-1],self.modelname))
             if self.snapshots:
-                snps = sorted(glob.glob("%s/snapshots/*.nc"%self.workdir))
-                os.system("cp %s %s_snapshot.nc"%(snps[-1],self.modelname))
+                snps = sorted(glob.glob("%s/snapshots/*%s"%(self.workdir,self.extension)))
+                os.system("cp %s %s_snapshot%s"%(snps[-1],self.modelname,self.extension))
             if self.highcadence["toggle"]:
-                hcs = sorted(glob.glob("%s/highcadence/MOST*.nc"%self.workdir))
-                os.system("cp %s %s_highcadence.nc"%(hcs[-1],self.modelname))
+                hcs = sorted(glob.glob("%s/highcadence/MOST*%s"%(self.workdir,self.extension)))
+                os.system("cp %s %s_highcadence%s"%(hcs[-1],self.modelname,self.extension))
             if keeprestarts:
                 rsts = sorted(glob.glob("%s/MOST_REST*"%self.workdir))
                 os.system("cp %s %s_restart"%(rsts[-1],self.modelname))
@@ -893,20 +1145,20 @@ class Model(object):
         """
         #Note: if the work directory has been cleaned out, only the final year will be returned.
         if snapshot and not highcadence:
-            name = "snapshots/MOST_SNAP.%05d.nc"%year
+            name = "snapshots/MOST_SNAP.%05d%s"%(year,self.extension)
         elif highcadence and not snapshot:
-            name = "highcadence/MOST_HC.%05d.nc"%year
+            name = "highcadence/MOST_HC.%05d%s"%(year,self.extension)
         else:
-            name = "MOST.%05d.nc"%year
+            name = "MOST.%05d%s"%(year,self.extension)
         if self.cleaned:
             if snapshot and not highcadence:
-                name = "%s_snapshot.nc"%self.modelname
+                name = "%s_snapshot%s"%(self.modelname,self.extension)
             elif highcadence and not snapshot:
-                name = "%s_highcadence.nc"%self.modelname
+                name = "%s_highcadence%s"%(self.modelname,self.extension)
             else:
-                name = "%s.nc"%self.modelname
+                name = "%s%s"%(self.modelname,self.extension)
         if os.path.exists(self.workdir+"/"+name):
-            ncd = nc.Dataset(self.workdir+"/"+name,"r")
+            ncd = gcmt.load(self.workdir+"/"+name)
             return ncd
         else:
             raise RuntimeError("Output file %s not found."%(self.workdir+"/"+name))
@@ -957,7 +1209,7 @@ class Model(object):
             meanop = np.mean
         
         if year<0:
-            #nfiles = len(glob.glob(self.workdir+"/"+pattern+"*.nc"))
+            #nfiles = len(glob.glob(self.workdir+"/"+pattern+"*%s"%self.extension))
             #year = nfiles+year
             year += self.currentyear #year=-1 should give the most recent year
     
@@ -1031,7 +1283,15 @@ class Model(object):
         
     def emergencyabort(self):
         """A problem has been encountered by an external script, and the model needs to crash gracefully"""
-        self._crash()
+        if self.crashtolerant and self.currentyear>=10:
+            self.currentyear-=10
+            os.system("cp MOST_REST.%05d plasim_restart"%self.currentyear)
+            os.system("rm plasim_status")
+            os.system("rm plasim_output")
+            os.system("rm plasim_hcadence")
+            os.system("rm plasim_snapshot")
+        else:
+            self._crash()
     
     def configure(self,noutput=True,flux=1367.0,startemp=None,starspec=None,pH2=None,
             pHe=None,pN2=None,pO2=None,pCO2=None,pAr=None,pNe=None,
@@ -2770,6 +3030,13 @@ References
         fnl=f.read().split('\n')
         f.close()
         found=False
+        
+        idx = 1
+        for n in range(len(fnl)):
+            if "&" in fnl[n]: #This is the start of the namelist
+                idx = n+1
+                break
+        
         fnl1=fnl[1].split(' ')
         if '=' in fnl1:
             mode='EQ'
@@ -2801,9 +3068,9 @@ References
             fnl[l]=' '.join(fnl[l])
         if not found:
             if mode=='EQ':
-                fnl.insert(-3,' '+arg+' = '+val+' ')
+                fnl.insert(idx,' '+arg+' = '+val+' ')
             else:
-                fnl.insert(-3,' '+arg+'= '+val+' ,')
+                fnl.insert(idx,' '+arg+'= '+val+' ,')
             
         f=open(self.workdir+"/"+namelist,"w")
         f.write('\n'.join(fnl))

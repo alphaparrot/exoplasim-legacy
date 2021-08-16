@@ -696,9 +696,9 @@
       
       subroutine inigau(klat,pz0,pzw)        ! pz0 & pzw are (kind=8) reals !!!
       implicit none
-      integer                  :: klat       ! Number of Gaussian latitudes
-      real (kind=8)            :: pz0(klat)  ! Gaussian abscissas
-      real (kind=8)            :: pzw(klat)  ! Gaussian weights
+      integer ,intent(IN)        :: klat       ! Number of Gaussian latitudes
+      real (kind=8), intent(out) :: pz0(klat)  ! Gaussian abscissas
+      real (kind=8), intent(out) :: pzw(klat)  ! Gaussian weights
       integer                  :: jlat       ! Latitudinal loop index
       integer                  :: jiter      ! Iteration loop index
       integer      , parameter :: NITER = 50 ! Maximum # of iterations
@@ -1009,7 +1009,7 @@
 !     SUBROUTINE SPVGP
 !     ================
       
-      subroutine spvgp(sd,sz,gu,gv,NLAT,NLON,NTRU,NLEV,nfs)
+      subroutine spvgp(sd,sz,rdcostheta,gu,gv,NLAT,NLON,NTRU,NLEV,nfs)
       implicit none
       integer :: v, k, l ! Loop index for level
       integer, intent(in ) :: NLEV
@@ -1017,40 +1017,51 @@
       integer, intent(in ) :: NTRU
       integer, intent(in ) :: NLAT
       integer, intent(in ) :: nfs
-      
       real (kind=8), intent(in ) :: sd((NTRU+1)*(NTRU+2),NLEV)
 !f2py intent(in ) :: sd
       real (kind=8), intent(in ) :: sz((NTRU+1)*(NTRU+2),NLEV)
 !f2py intent(in ) :: sz
+      real (kind=8), intent(in ) :: rdcostheta(NLAT) !radius / cos(latitude)
+!f2py intent(in ) :: rdcostheta
       real (kind=8), intent(out) :: gu(NLON, NLAT, NLEV)
 !f2py intent(out) :: gu
       real (kind=8), intent(out) :: gv(NLON, NLAT, NLEV)
 !f2py intent(out) :: gv
 
-      real (kind=8) sdd(2, (NTRU+1)*(NTRU+2)/2, NLEV)
-      real (kind=8) szz(2, (NTRU+1)*(NTRU+2)/2, NLEV)
-      real (kind=8) guu(2, NLON/2, NLAT, NLEV)
-      real (kind=8) gvv(2, NLON/2, NLAT, nLEV)
+!       real (kind=8) sdd(2, (NTRU+1)*(NTRU+2)/2, NLEV)
+!       real (kind=8) szz(2, (NTRU+1)*(NTRU+2)/2, NLEV)
+      real (kind=8) fuu(2, NLON/2, NLAT, NLEV)
+      real (kind=8) fvv(2, NLON/2, NLAT, nLEV)
+      real (kind=8) fup(NLON, NLAT)
+      real (kind=8) fvp(NLON, NLAT)
+      real (kind=8) gup(NLON, NLAT)
+      real (kind=8) gvp(NLON, NLAT)
       
-      do v = 1, NLEV
-        do k = 1, (NTRU+1)*(NTRU+2)/2
-          sdd(1,k,v) = sd(2*k-1,v)
-          sdd(2,k,v) = sd(2*k  ,v)
-          szz(1,k,v) = sz(2*k-1,v)
-          szz(2,k,v) = sz(2*k  ,v)
-        enddo
-      enddo
+!       do v = 1, NLEV
+!         do k = 1, (NTRU+1)*(NTRU+2)/2
+!           sdd(1,k,v) = sd(2*k-1,v)
+!           sdd(2,k,v) = sd(2*k  ,v)
+!           szz(1,k,v) = sz(2*k-1,v)
+!           szz(2,k,v) = sz(2*k  ,v)
+!         enddo
+!       enddo
       
-      call dv2uv(sdd,szz,guu,gvv,NLAT,NLON,NTRU,NLEV,nfs)
+      call dv2uv(sd,sz,fuu,fvv,NLAT,NLON,NTRU,NLEV,nfs)
       
       do v = 1, NLEV
         do l = 1, NLAT
           do k = 1, NLON/2
-            gu(2*k-1,l,v) = guu(1,k,l,v)*1.4142135623730951
-            gu(2*k  ,l,v) = guu(2,k,l,v)*1.4142135623730951
-            gv(2*k-1,l,v) = gvv(1,k,l,v)*1.4142135623730951
-            gv(2*k  ,l,v) = gvv(2,k,l,v)*1.4142135623730951
+            fup(2*k-1,l) = fuu(1,k,l,v)
+            fup(2*k  ,l) = fuu(2,k,l,v)
+            fvp(2*k-1,l) = fvv(1,k,l,v)
+            fvp(2*k  ,l) = fvv(2,k,l,v)
           enddo
+        enddo
+        call fc2gp(fup,gup,NLON,NLAT)
+        call fc2gp(fvp,gvp,NLON,NLAT)
+        do l = 1, NLAT
+          gu(:,l,v) = gup(:,l)*rdcostheta(l)
+          gv(:,l,v) = gvp(:,l)*rdcostheta(l)
         enddo
       enddo
       
@@ -1062,15 +1073,14 @@
 !     SUBROUTINE GPVSP
 !     ================
       
-      subroutine gpvsp(gu,gv,sd,sz,NLAT,NLON,NTRU,NLEV,nfs)
+      subroutine gpvsp(gu,gv,costhetadr,sd,sz,NLAT,NLON,NTRU,NLEV,nfs)
       implicit none
       integer :: v, k, l ! Loop index for level
       integer, intent(in ) :: NLEV
       integer, intent(in ) :: NLON
       integer, intent(in ) :: NTRU
       integer, intent(in ) :: NLAT
-      integer, intent(in ) :: nfs
-      
+      integer, intent(in ) :: nfs  
       real (kind=8), intent(out) :: sd((NTRU+1)*(NTRU+2),NLEV)
 !f2py intent(out) :: sd
       real (kind=8), intent(out) :: sz((NTRU+1)*(NTRU+2),NLEV)
@@ -1079,19 +1089,31 @@
 !f2py intent(in ) :: gu
       real (kind=8), intent(in ) :: gv(NLON, NLAT, NLEV)
 !f2py intent(in ) :: gv
+      real (kind=8), intent(in ) :: costhetadr(NLAT) !cos(latitude) / radius
+!f2py intent(in ) :: costhetadr    
 
       real (kind=8) sdd(2, (NTRU+1)*(NTRU+2)/2, NLEV)
       real (kind=8) szz(2, (NTRU+1)*(NTRU+2)/2, NLEV)
       real (kind=8) guu(2, NLON/2, NLAT, NLEV)
       real (kind=8) gvv(2, NLON/2, NLAT, nLEV)
+      real (kind=8) gur(NLON, NLAT)
+      real (kind=8) gvr(NLON, NLAT)
+      real (kind=8) fuu(NLON, NLAT)
+      real (kind=8) fvv(NLON, NLAT)
       
       do v = 1, NLEV
         do l = 1, NLAT
+          gur(:,l) = gu(:,l,v)*costhetadr(l)/1.4142135623730951
+          gvr(:,l) = gv(:,l,v)*costhetadr(l)/1.4142135623730951
+        enddo
+        call gp2fc(gur,fuu,NLON,NLAT)
+        call gp2fc(gvr,fvv,NLON,NLAT)
+        do l = 1, NLAT
           do k = 1, NLON/2
-            guu(1,k,l,v) = gu(2*k-1,l,v)/1.4142135623730951
-            guu(2,k,l,v) = gu(2*k  ,l,v)/1.4142135623730951
-            gvv(1,k,l,v) = gv(2*k-1,l,v)/1.4142135623730951
-            gvv(2,k,l,v) = gv(2*k  ,l,v)/1.4142135623730951
+            guu(1,k,l,v) = fuu(2*k-1,l)
+            guu(2,k,l,v) = fuu(2*k  ,l)
+            gvv(1,k,l,v) = fvv(2*k-1,l)
+            gvv(2,k,l,v) = fvv(2*k  ,l)
           enddo
         enddo
       enddo

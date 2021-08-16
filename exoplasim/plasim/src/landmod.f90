@@ -21,7 +21,10 @@
       integer :: newsurf  = 0     ! (dtcl,dwcl) 1: update from file, 2:reset 
       integer :: nwatcini = 0     ! (0/1) initialize water content of soil
       integer :: nwetsoil = 0     ! (0/1) Soil albedo responds to water content
-      real    :: albland  = 0.2   ! albedo for land
+      real    :: alblandnl  = 0.2   ! albedo for land
+      real    :: albland  = 0.22
+      
+      real  :: dgroundalbnl(2)  = 0.22
                    ! Non-spectral versions
       real    :: albsmin  = 0.4   ! min. albedo for snow
       real    :: albsmax  = 0.8   ! max. albedo for snow
@@ -103,9 +106,9 @@
 !
       real :: dtcl(NHOR,0:13)   =  0.0  ! climatological surface temperature
       real :: dwcl(NHOR,0:13)   = -1.0  ! climatological soil wetness
-      real :: dalbcl(NHOR,0:13) =  0.2  ! climatological background albedo
-      real :: dalbcl1(NHOR,0:13) = 0.2  ! climatological background albedo (<.75 um)
-      real :: dalbcl2(NHOR,0:13) = 0.2  ! climatological background albedo (>.75 um)
+      real :: dalbcl(NHOR,0:13) =  0.22  ! climatological background albedo
+      real :: dalbcl1(NHOR,0:13) = 0.22  ! climatological background albedo (<.75 um)
+      real :: dalbcl2(NHOR,0:13) = 0.22  ! climatological background albedo (>.75 um)
       real :: dtclim(NHOR)      =  0.0  ! climatological surface temperature
       real :: dwclim(NHOR)      =  0.0  ! climatological soil wetness
       real :: dz0clim(NHOR)     =  2.0  ! climatological z0  (total)
@@ -163,6 +166,7 @@
       dsnowt(:)   = tmelt
       dtcl(:,:)   = tmelt
       dtclim(:)   = tmelt
+      
 
       if (mars == 1) then
          wsmax = WSMAX_MARS

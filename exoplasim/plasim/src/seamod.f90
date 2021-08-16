@@ -17,6 +17,7 @@
       real    :: drhssea  = 1.    ! wetness factor sea
       real    :: drhsice  = 1.    !  "         "   ice
       real    :: charnock = 0.018 ! albedo for free ocean
+      
 !
 !     global arrays
 !

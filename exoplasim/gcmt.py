@@ -1,21 +1,351 @@
 import numpy as np
-import netCDF4 as nc
+import pyburn
+import os, glob
+
+def _loadnetcdf(filename):
+    import netCDF4 as nc
+    ncd = nc.Dataset(filename,"r")
+    return ncd,ncd.variables
+    
+def _loadnpsavez(filename):
+    npdata = np.load(filename)    
+    return npdata
+
+def _loadcsv(filename,buffersize=1):
+    import gzip 
+    
+    fileparts = filename.split('.')
+
+    rdataset = {}
+    metadata = {}
+    
+    openfiles = []
+    
+    if "tar" in fileparts[-2:]: #We're dealing with a tarball of some kind
+        import tarfile
+        with tarfile.open(filename,"r") as tarball:
+            members = tarball.getnames()
+            tarball.extractall()
+            
+    else: #filename here should be the name of a directory containing only variable csv/txt/gz files 
+        #Just a collection of CSV/TXT-type files in a subdirectory, which may be individually-compressed.
+        #These files can have .txt, .csv, or .gz file extensions.
+        members = glob.glob(filename+"/*")
+        
+    dimensions = {}
+    for var in members:
+        #with open(var,"r") as csvf:
+            #data = np.loadtxt(csvf,delimiter=',')
+        if var[-3:]==".gz": #gzipped file
+            with gzip.open(var,"rt") as gzf:
+                header = gzf.readline()[1:].split(',')
+        else:
+            with open(var,"r") as txtf:
+                header = txtf.readline()[1:].split(',')
+        dims = []
+        k=0
+        while header[k]!="|||":
+            dims.append(int(header[k]))
+            k+=1
+        k+=1
+        meta = header[k:]
+        dims = tuple(dims)
+        dimensions[meta[0]] = dims
+        #rdataset[meta[0]] = np.reshape(data,dims)
+        metadata[meta[0]] = {}
+        try:
+            metadata[meta[0]]["standard_name"] = meta[1]
+        except:
+            metadata[meta[0]]["standard_name"] = meta[0]
+        try:
+            metadata[meta[0]]["long_name"] = meta[1]
+        except:
+            metadata[meta[0]]["long_name"] = meta[0]
+        try:
+            metadata[meta[0]]["units"] = meta[2]
+        except:
+            metadata[meta[0]]["units"] = "N/A"
+        try:
+            metadata[meta[0]]["code"] = int(meta[3])
+        except:
+            metadata[meta[0]]["code"] = -999
+        openfiles.append(var)
+        
+    if "tar" in fileparts[-2:]:
+        for f in openfiles:
+            os.system("rm -rf %s"%f)
+        os.system("rm -rf %s"%(openfiles[0].split("/")[0]))
+    rdataset = _csvData(filename,shapes=dimensions,buffersize=buffersize)
+    return rdataset,metadata
+    
+def _loadhdf5(filename):
+    import h5py
+    hdfile = h5py.File(filename,"r")
+    return hdfile
+
+class _csvData(dict):
+    '''An iterable dict-like object that supports all native dict methods, but accesses and manages a file archive or directory instead of a dictionary.
+    
+    Parameters
+    ----------
+    archive : str
+        Either a path to a tarball archive or a directory stem with file extension, e.g. MOST.002.csv
+    shapes : dict, optional
+        Dictionary of tuples giving the shapes of each variable in the archive
+    buffersize : int, optional
+        Number of data arrays to store in memory at a time
+    **kwargs : optional
+        Any additional keyword arguments to pass to the parent `dict` object. These will be accessible
+        via the usual dictionary methods.
+    
+    Returns
+    -------
+    iterable
+        Supports all dictionary methods
+    '''
+    def __init__(self,archive,shapes={},buffersize=1,**kwargs):
+        self.archive = archive
+        self.tarball=False
+        self.buffersize=buffersize
+        self.dbuffer = {}
+        self.dbufferkeys = []
+        self.shapes = shapes
+        if "tar" in archive:
+            self.tarball=True
+            import tarfile
+            with tarfile.open(self.archive,"r") as tarball:
+                self.files = tarball.getnames()
+        else:
+            self.files = glob.glob(".".join(archive.split(".")[:-1])+"/*")
+        self.variables = []
+        self.filetree = {}
+        for f in self.files:
+            variable = f.split("_")[-1].split(".")[0]
+            self.filetree[variable] = f
+            self.variables.append(variable)
+        idx0 = list(self.filetree.keys())[0]
+        self.filestem = "_".join(self.filetree[idx0].split("_")[:-1])
+        self.extension = "."+self.filetree[idx0].split(".")[-1]
+        self.permanent = {}
+        dimkeys = ['lat','lon','lev','levp','time']
+        for key in dimkeys:
+            self.permanent[key] = self.__getitem__(key,overridebuffer=True)
+        super(_csvData,self).__init__(**kwargs)
+        for key in self.filetree:
+            super(_csvData,self).__setitem__(key,self.filetree[key])
+            
+    def __getitem__(self,key,overridebuffer=False):
+        '''Retrieve variable from archive
+        
+        Parameters
+        ----------
+        key : str
+            Variable name
+        overridebuffer : bool, optional
+            If True, don't store this variable in the buffer (useful for lat, lon, etc)
+            
+        Returns
+        -------
+        numpy.ndarray
+            Variable data
+        '''
+        if key not in self.filetree: #This must have been passed via **kwargs
+            return super(_csvData,self).__getitem__(key)
+        if key in self.permanent:
+            return self.permanent[key]
+        if key not in self.dbuffer:
+            if self.tarball:
+                import tarfile
+                with tarfile.open(self.archive,"r") as tarball:
+                    tarball.extract(self.filetree[key])
+            with open(self.filetree[key],"r") as csvf:
+                data = np.loadtxt(csvf,delimiter=',')
+            if key in self.shapes:
+                data = np.reshape(data,self.shapes[key])
+            os.system("rm -rf %s"%self.filetree[key])
+            os.system("rm -rf %s"%(self.filetree[key].split("/")[0]))
+            if not overridebuffer:
+                if len(self.dbufferkeys)==self.buffersize:
+                    del self.dbuffer[self.dbufferkeys[0]]
+                    self.dbufferkeys.remove(self.dbufferkeys[0])
+                self.dbuffer[key] = data
+                self.dbufferkeys.append(key)
+        else:
+            data = self.dbuffer[key]
+            if not overridebuffer:
+                self.dbufferkeys.remove(key)
+                self.dbufferkeys.append(key) #Move this key to the end so it's the last to be removed.
+        return data
+    
+    def __setitem__(self,key,value):
+        '''Add array to archive
+        
+        Unless the archive is an uncompressed tarfile that doesn't already have the variable `key`,
+        this will extract the archive, delete the original, write a new file, and re-tar 
+        
+        Parameters
+        ----------
+        key : str 
+            Variable name
+        value : numpy.ndarray
+            Variable data
+        '''
+        if key in self.filetree:
+            if self.tarball:
+                import tarfile
+                with tarfile.open(self.archive,"r") as tarball:
+                    members = tarball.getnames()
+                    tarball.extractall()
+                os.system("rm -rf "+self.archive)
+            print("Writing %8s to %s"%(key,fname))
+            np.savetxt(fname,value.astype("float32"),
+                    header=(','.join(np.array(value.shape).astype(str))+',|||,'
+                            +','.join([key,key,"user","-333"])),delimiter=',')
+            if self.tarball:
+                if "tar.gz" in self.archive or "tar.bz2" in self.archive or "tar.xz" in self.archive:
+                    with tarfile.open(self.archive,"w:%s"%self.archive.split(".")[-1]) as tarball:
+                        for var in members:
+                            varname = var.split("_")[-1].split(".")[0]
+                            tarball.add(var,arcname=varname)
+                else:
+                    with tarfile.open(self.archive,"w") as tarball:
+                        for var in members:
+                            varname = var.split("_")[-1].split(".")[0]
+                            tarball.add(var,arcname=varname)
+                        
+                for var in members:
+                    os.system("rm -rf %s"%var)
+                
+        else:
+            fname = lf.filestem+"_"+key+extension
+            self.variables.append(key)
+            self.filetree[key] = fname
+            print("Writing %8s to %s"%(key,fname))
+            np.savetxt(fname,value.astype("float32"),
+                    header=(','.join(np.array(value.shape).astype(str))+',|||,'
+                            +','.join([key,key,"user","-333"])),delimiter=',')
+            if self.tarball:
+                import tarfile
+                print("Packing %s in %s"%(fname,self.archive))
+                if "tar.gz" in self.archive or "tar.bz2" in self.archive or "tar.xz" in self.archive:
+                    with tarfile.open(self.archive,"r") as tarball:
+                        members = tarball.getnames()
+                        tarball.extractall()
+                    os.system("rm -rf "+self.archive)
+                    with tarfile.open(self.archive,"w:%s"%self.archive.split(".")[-1]) as tarball:
+                        for var in members:
+                            varname = var.split("_")[-1].split(".")[0]
+                            tarball.add(var,arcname=varname)
+                        tarball.add(fname,arcname=key)
+                        for var in members:
+                            os.system("rm -rf %s"%var)
+                        os.system("rm -rf %s"%fname)
+                        os.system("rf -rf %s"%(members[0].split("/")[0]))
+                else:
+                    with tarfile.open(self.archive,"a") as tarball:
+                        tarball.add(fname,arcname=key)
+                        os.system("rm -rf %s"%fname)
+            super(_csvData,self).__setitem__(key,fname)
 
 class _Dataset:
-    def __init__(self,filename):
-        if filename[-3:]==".nc":
-            self.body = nc.Dataset(filename,"r")
-            self.variables=self.body.variables
-        elif filename[-4:]==".npy":
-            self.body = np.load(filename)
-            self.variables = self.body.item()
+    def __init__(self,filename,csvbuffersize=1):
+        self.body=None
+        fileparts = filename.split('.')
+        if fileparts[-1] == "nc":
+            self.body,self.variables = _loadnetcdf(filename)
+            self.metadata = {}
+            for var in self.variables:
+                self.metadata[var] =  {}
+                try:
+                    self.metadata[var]["standard_name"]= self.variables[var].standard_name
+                except:
+                    self.metadata[var]["standard_name"]= var
+                try:
+                    self.metadata[var]["long_name"]= self.variables[var].long_name
+                except:
+                    self.metadata[var]["long_name"] = var
+                try:
+                    self.metadata[var]["units"] = self.variables[var].units
+                except:
+                    self.metadata[var]["units"] = "N/A"
+                try:
+                    self.metadata[var]["code"] = int(self.variables[var].code)
+                except:
+                    self.metadata[var]["code"] = -999
+            
+        elif fileparts[-1] == "npz" or fileparts[-1] == "npy":
+            self.variables=_loadnpsavez(filename)
+            meta = _loadnpsavez(filename[:-4]+"_metadata.npz")
+            self.metadata = {}
+            for var in self.variables:
+                self.metadata[var] =  {}
+                try:
+                    self.metadata[var]["standard_name"]= meta[var][1]
+                except:
+                    self.metadata[var]["standard_name"]= var
+                try:
+                    self.metadata[var]["long_name"]= meta[var][1]
+                except:
+                    self.metadata[var]["long_name"] = var
+                try:
+                    self.metadata[var]["units"] = meta[var][2]
+                except:
+                    self.metadata[var]["units"] = "N/A"
+                try:
+                    self.metadata[var]["code"] = int(meta[var][3])
+                except:
+                    self.metadata[var]["code"] = -999
+            
+        elif (fileparts[-1]=="tar" or \
+                fileparts[-2]+"."+fileparts[-1] in ("tar.gz","tar.bz2","tar.xz")):
+            self.variables,self.metadata =_loadcsv(filename,buffersize=csvbuffersize)
+            self.tarball = True
+        elif (fileparts[-1] in ("csv","txt","gz")):
+            self.variables,self.metadata =_loadcsv(filename,buffersize=csvbuffersize)
+            self.tarball = False
+            
+        elif fileparts[-1] in ("hdf5","h5","he5"):
+            self.variables=_loadhdf5(filename)
+            self.metadata={}
+            for var in self.variables:
+                meta = self.variables.attrs[var]
+                self.metadata[var] = {}
+                try:
+                    self.metadata[var]["standard_name"]= meta[1]
+                except:
+                    self.metadata[var]["standard_name"]= var
+                try:
+                    self.metadata[var]["long_name"]= meta[1]
+                except:
+                    self.metadata[var]["long_name"] = var
+                try:
+                    self.metadata[var]["units"] = meta[2]
+                except:
+                    self.metadata[var]["units"] = "N/A"
+                try:
+                    self.metadata[var]["code"] = int(meta[3])
+                except:
+                    self.metadata[var]["code"] = -999
+                
+                
+            
         else:
-            raise DatafileError("Unknown dataset format")
+            raise DatafileError("Unsupported output format detected. Supported formats are:\n%s"%("\n\t".join(pyburn.SUPPORTED)))
         
     def close(self):
         try:
-            self.body.close()
-        except:
+            if self.body is not None:
+                if type(self.body)==list:
+                    for item in self.body:
+                        if self.tarball:
+                            os.system("rm %s"%item)
+                        else:
+                            pass
+                else:
+                    self.body.close()
+            else:
+                self.variables.close()
+        except: #We have a standard python dictionary for variables, so ignore the error quietly
             pass
 
 class DimensionError(Exception):
@@ -948,7 +1278,7 @@ def tlstream(dataset,plarad=6371.0e3,grav=9.80665,substellar=0.0):
     from scipy.integrate import cumtrapz
     
     if type(dataset)==str:
-        dataset = nc.Dataset(dataset,"r")
+        dataset = _Dataset(dataset,"r")
     lon = dataset.variables['lon'][:]
     lat = dataset.variables['lat'][:]
     lon_TL,lat_TL,ua_TL,va_TL = eq2tl_uv(dataset.variables['ua'][:],
@@ -962,6 +1292,67 @@ def tlstream(dataset,plarad=6371.0e3,grav=9.80665,substellar=0.0):
     stf = prefactor*np.cos(lat_TL[np.newaxis,np.newaxis,:]*np.pi/180.0)*mvadp
     pmid = 0.5*(lev[1:]+lev[:-1])*ps
     return lat_TL,pmid,-stf
+
+
+def load(filename,csvbuffersize=1):
+    '''Open a postprocessed ExoPlaSim output file.
+    
+    Supported formats include netCDF, CSV/TXT (can be compressed), NumPy, and HDF5. If the data
+    archive is a group of files that are not tarballed, such as a directory of CSV/TXT or gzipped
+    files, then the filename should be the name of the directory with the final file extension.
+    
+    For example, if the dataset is a group of CSV files in a folder called "MOST_output.002", then
+    `filename` ought to be "MOST_output.002.csv", even though no such file exists.
+    
+    When accessing a file archive comprised of CSV/TXT files such as that described above, only part
+    of the archive will be extracted/read into memory at once, with the exception of the first read,
+    when the entire archive is extracted to read header information. Dimensional arrays, such as 
+    latitude, longitude, etc will be ready into memory and stored as attributes of the returned
+    object (but are accessed with the usual dictionary pattern). Other data arrays however may need to
+    be extracted and read from the archive. A memory buffer exists to hold recently-accessed arrays
+    in memory, which will prioritize the most recently-accessed variables. The number of variables
+    that can be stored in memory can be set with the `csvbuffersize` keyword. The default is 1. This
+    means that the first time the variable is accessed, access times will be roughly the time it takes
+    to extract the file and read it into memory. Subsequent accesses, however, will use RAM speeds.
+    Once the variable has left the buffer, due to other variables being accessed, the next access will
+    return to file access speeds. This behavior is intended to mimic the npz, netcdf, and hdf5 protocols.
+    
+    Parameters
+    ----------
+    filename : str 
+        Path to the file
+    csvbuffersize : int, optional
+        If the file (or group of files) is a file archive such as a directory, tarball, etc, this is
+        the number of variables to keep in a memory buffer when the archive is accessed.
+        
+    Returns
+    -------
+    object
+        `gmct._Dataset object that can be queried like a netCDF file.
+    '''
+    #fileparts = filename.split('.')
+    #if fileparts[-1] == "nc":
+    if type(csvbuffersize)==str: #This is probably a legacy netcdf load mistake
+        try:
+            csvbuffersize = int(csvbuffersize)
+        except:
+            csvbuffersize = 1
+    output=_Dataset(filename,csvbuffersize=csvbuffersize) #Usually _Dataset calls load(), but _Dataset calls _loadnetcdf
+                                  #directly, so here we're going to defer to _Dataset and make use
+                                  #of the close() functionality
+    #elif fileparts[-1] == "npz" or fileparts[-1] == "npy":
+        #output=_loadnpsavez(filename)
+    #elif (fileparts[-1] in ("csv","txt","gz","tar") or \
+          #fileparts[-2]+"."+fileparts[-1] in ("tar.gz","tar.bz2","tar.xz")):
+        #output,meta,files=_loadcsv(filename)
+    #elif fileparts[-1] in ("hdf5","h5","he5"):
+        #output=_loadhdf5(filename)
+    #else:
+        #raise Exception("Unsupported output format detected. Supported formats are:\n%s"%("\n\t".join(SUPPORTED)))
+    
+    
+    return output
+    
 
 #def rhines(U,lat,lon,plarad=6371.0,daylen=15.0,beta=None):
     #'''Return the nondimensional Rhines length scale L_R/a
