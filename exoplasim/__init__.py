@@ -7,7 +7,9 @@ import sys
 import subprocess
 import numpy as np
 import glob
+import exoplasim.gcmt 
 import exoplasim.gcmt as gcmt
+import exoplasim.pyburn
 import exoplasim.pyburn as pyburn
 import exoplasim.randomcontinents
 import exoplasim.makestellarspec
