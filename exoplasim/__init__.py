@@ -810,6 +810,7 @@ class Model(object):
                         if self.crashtolerant:
                             raise
                         print(e)
+                        raise
                         self._crash()
                 if clean:
                     if timeavg:
@@ -1052,6 +1053,7 @@ class Model(object):
                 return 1
             except Exception as e:
                 print(e)
+                raise
                 if self._configuredpostprocessor[ftype]:
                     extension = self.extensions[ftype]
                 else:

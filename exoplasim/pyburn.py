@@ -3566,6 +3566,7 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=None,mode='
         times = ntimes
     
     if type(times)==int: #A number of time outputs was specified
+        times = max(times,1)
         if ntimes==times: #The number of outputs exactly equals the number provided
             timeaverage = False #This way stdev still gets computed, but over the whole file.
         
