@@ -334,7 +334,7 @@ class Model(object):
         self.crashdir = os.getcwd()+"/"+self.modelname
         self.secondarydir = None
         os.chdir(self.odir)
-    
+        
         
     def run(self,**kwargs):
         """Run the Model's designated run routine.
@@ -484,7 +484,12 @@ class Model(object):
             
             #Run ExoPlaSim
             try:
-                subprocess.run([self._exec+self.executable],check=True)
+                if float(sys.version[:3])>=3.5:
+                    subprocess.run([self._exec+self.executable],check=True)
+                else:
+                    stat = os.system(self._exec+self.executable)
+                    if stat!=0:
+                        raise Exception("runtime crash")
             
                 #Sort, categorize, and arrange the various outputs
                 os.system("[ -e restart_dsnow ] && rm restart_dsnow")
@@ -751,7 +756,12 @@ class Model(object):
             
             #Run ExoPlaSim
             try:
-                subprocess.run([self._exec+self.executable],check=True)
+                if float(sys.version[:3])>=3.5:
+                    subprocess.run([self._exec+self.executable],check=True)
+                else:
+                    stat = os.system(self._exec+self.executable)
+                    if stat!=0:
+                        raise Exception("runtime crash")
             
                 #Sort, categorize, and arrange the various outputs
                 os.system("[ -e restart_dsnow ] && rm restart_dsnow")
