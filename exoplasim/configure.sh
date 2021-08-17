@@ -315,7 +315,7 @@ cat most_info.txt
 make
 
 #Compile pyfft libraries for Python 2
-f2py2 -c -m --f90exec=$MOST_F90 --f90flags="-O3" pyfft pyfft.f90 && mv pyfft.cpython*.so pyfft2.so
+f2py2 -c -m --f90exec=$MOST_F90 --f90flags="-O3" pyfft2 pyfft.f90
 #Compile pyfft libraries for Python 3
 f2py3 -c -m --f90exec=$MOST_F90 --f90flags="-O3" pyfft pyfft.f90 && mv pyfft.cpython*.so pyfft.so
 

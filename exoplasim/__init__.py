@@ -166,6 +166,10 @@ class Model(object):
         
         self.crashtolerant = crashtolerant
         
+        if self.extension not in pyburn.SUPPORTED:
+            raise Exception("Unsupported output format detected. Supported formats are:\n\t\n\t%s"%("\n\t".join(pyburn.SUPPORTED)))
+        
+        
         if not sourcedir: #This means we haven't run yet, and have some post-install work to do
             recompile=True
             os.system('spth=$(python%s -c "import exoplasim as exo; print(exo.__path__)") && echo $spth>sourcepath'%sys.version[0])

@@ -5,7 +5,7 @@ import numpy as np
 import struct
 import exoplasim.gcmt
 import scipy, scipy.integrate, scipy.interpolate
-import os
+import os, sys
 
 '''
 This module is intended to be a near-replacement for the C++ burn7 utility, which in its present
@@ -1685,17 +1685,17 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                         dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                                   mode='grid',substellarlon=substellarlon,
                                                   physfilter=physfilter,zonal=False)
-                        omega = np.zeros(dv.shape)
-                        for t in range(ntime):
-                            for j in range(nlat):
-                                for i in range(nlon):
-                                    omega[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] 
-                                                                  +vv[t,:,j,i]*dpsdy[t,j,i]) 
-                                                      - scipy.integrate.cumtrapz(np.append([0,],
-                                                                             dv[t,:,j,i]
-                                                                             +uu[t,:,j,i]*dpsdx[t,j,i]
-                                                                             +vv[t,:,j,i]*dpsdy[t,j,i]),
-                                                                        x=np.append([0,],(pa[t,:,j,i]))))
+                    omega = np.zeros(dv.shape)
+                    for t in range(ntime):
+                        for j in range(nlat):
+                            for i in range(nlon):
+                                omega[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] 
+                                                            +vv[t,:,j,i]*dpsdy[t,j,i]) 
+                                                - scipy.integrate.cumtrapz(np.append([0,],
+                                                                        dv[t,:,j,i]
+                                                                        +uu[t,:,j,i]*dpsdx[t,j,i]
+                                                                        +vv[t,:,j,i]*dpsdy[t,j,i]),
+                                                                    x=np.append([0,],(pa[t,:,j,i]))))
                 omega,wmeta = _transformvar(omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                                             substellarlon=substellarlon,physfilter=physfilter)
                 if "ta" in rdataset:
