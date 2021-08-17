@@ -7,8 +7,8 @@ import sys
 import subprocess
 import numpy as np
 import glob
-import exoplasim.gcmt
-import exoplasim.pyburn
+import exoplasim.gcmt as gcmt
+import exoplasim.pyburn as pyburn
 import exoplasim.randomcontinents
 import exoplasim.makestellarspec
 import platform
@@ -155,7 +155,7 @@ class Model(object):
     """
     def __init__(self,resolution="T21",layers=10,ncpus=4,precision=8,debug=False,inityear=0,
                 recompile=False,optimization=None,mars=False,workdir="most",source=None,force991=False,
-                modelname="MOST_EXP",burn7=F,outputtype=".npz",crashtolerant=False):
+                modelname="MOST_EXP",burn7=False,outputtype=".npz",crashtolerant=False):
         
         global sourcedir
         
@@ -828,13 +828,13 @@ class Model(object):
                     self._crash() #Bring in the cleaners
                 
     
-    def cfgpostprocessor(self,extension=".npz",namelist=None,variables=list(ilibrary.keys()),mode='grid',
+    def cfgpostprocessor(self,extension=".npz",namelist=None,variables=list(pyburn.ilibrary.keys()),mode='grid',
                          zonal=False, substellarlon=0.0, physfilter=False,timeaverage=True,stdev=False,
                          times=12,interpolatetimes=True):
         '''Configure postprocessor options for pyburn.
         
         Output format is determined by the file extension of outfile. Current supported formats are 
-        NetCDF (*.nc), numpy's `np.savez_compressed` format (*.npz), and CSV format. If NumPy's 
+        NetCDF (*.nc), numpy's ``np.savez_compressed`` format (*.npz), and CSV format. If NumPy's 
         single-array .npy extension is used, .npz will be substituted--this is a compressed ZIP archive 
         containing .npy files. Additionally, the CSV output format can be used in compressed form either
         individually by using the .gz file extension, or collectively via tarballs (compressed or 
@@ -852,17 +852,28 @@ class Model(object):
         separated list, with the first non-dimension item given as the '|||' placeholder. On reading 
         variables from these files, they should be reshaped according to these dimensions. This is true 
         even in tarballs (which contain CSV files).
-        
+  
         A T21 model output with 10 vertical levels, 12 output times, all supported variables in grid 
         mode,and no standard deviation computation will have the following sizes for each format:
         
-            netCDF : 12.8 MiB
-            HDF5 : 17.2 MiB
-            NumPy (default) : 19.3 MiB
-            tar.xz : 33.6 MiB
-            tar.bz2 : 36.8 MiB
-            gzipped : 45.9 MiB
-            uncompressed : 160.2 MiB
+            +----------------+-----------+
+            |Format          | Size      |
+            +================+===========+
+            |netCDF          | 12.8 MiB  |
+            +----------------+-----------+
+            |HDF5            | 17.2 MiB  |
+            +----------------+-----------+
+            |NumPy (default) | 19.3 MiB  |
+            +----------------+-----------+
+            |tar.xz          | 33.6 MiB  |
+            +----------------+-----------+
+            |tar.bz2         | 36.8 MiB  |
+            +----------------+-----------+
+            |gzipped         | 45.9 MiB  |
+            +----------------+-----------+
+            |uncompressed    | 160.2 MiB |
+            +----------------+-----------+
+            
         
         Using the NetCDF (.nc) format requires the netCDF4 python package.
         
@@ -874,12 +885,12 @@ class Model(object):
         Parameters
         ----------
         extension : str, optional
-            Output format to use, specified via file extension. Supported formats are netCDF (`.nc`), 
-            NumPy compressed archives (`.npy`, `.npz`), HDF5 archives (`.hdf5`, `.he5`, `.h5`), or
+            Output format to use, specified via file extension. Supported formats are netCDF (``.nc``), 
+            NumPy compressed archives (``.npy``, ``.npz``), HDF5 archives (``.hdf5``, ``.he5``, ``.h5``), or
             plain-text comma-separated value files, which may be compressed individually or as a
-            tarball (`.csv`, `.gz`, `.txt`, `.tar`, `.tar.gz`, `.tar.xz`, and `.tar.bz2`). If using 
-            netCDF, `netcdf4-python` must be installed. If using HDF5, then `h5py` must be installed. 
-            The default is the numpy compressed format, `.npz`.
+            tarball (``.csv``, ``.gz``, ``.txt``, ``.tar``, ``.tar.gz``, ``.tar.xz``, and ``.tar.bz2``). If using 
+            netCDF, ``netcdf4-python`` must be installed. If using HDF5, then ``h5py`` must be installed. 
+            The default is the numpy compressed format, ``.npz``.
         namelist : str, optional
             Path to a burn7 postprocessor namelist file. If not given, then `variables` must be set. 
         variables : list or dict, optional
@@ -887,7 +898,7 @@ class Model(object):
             variable name (e.g. 'ts' for surface temperature). If a dict is given, each item in the dictionary
             should have the keycode or variable name as the key, and the desired horizontal mode and additional
             options for that variable as a sub-dict. Each member of the subdict should be passable as **kwargs 
-            to :py:func`pyburn.advancedDataset() <exoplasim.pyburn.advancedDataset>`. If None, then `namelist` must be set.
+            to :py:func`pyburn.advancedDataset() <exoplasim.pyburn.advancedDataset>`. If None, then ``namelist`` must be set.
         mode : str, optional
             Horizontal output mode, if modes are not specified for individual variables. Options are 
             'grid', meaning the Gaussian latitude-longitude grid used

@@ -12,6 +12,14 @@ exoplasim.gcmt module
    :undoc-members:
    :show-inheritance:
    
+exoplasim.pyburn module
+-----------------------
+
+.. automodule:: exoplasim.pyburn
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   
 
 exoplasim.randomcontinents module
 ---------------------------------

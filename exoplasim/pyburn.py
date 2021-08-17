@@ -3,7 +3,7 @@ Read raw exoplasim output files and postprocess them into netCDF output files.
 """
 import numpy as np
 import struct
-import gcmt
+import exoplasim.gcmt as gcmt
 import scipy, scipy.integrate, scipy.interpolate
 import os
 
@@ -252,7 +252,7 @@ def _getwordlength(fbuffer,n,en,fmt='i'):
     Parameters
     ----------
     fbuffer : bytes
-        Binary bytes read from a file opened with `mode='rb'` and read with `file.read()`. 
+        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``. 
     n : int
         The index of the byte at which to check. This should be the start of the first word of the 
         variable in question.
@@ -284,7 +284,7 @@ def _getknownwordlength(fbuffer,n,en,ml,mf):
     Parameters
     ----------
     fbuffer : bytes
-        Binary bytes read from a file opened with `mode='rb'` and read with `file.read()`. 
+        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``. 
     n : int
         The index of the word at which to start, in bytes. A 32-bit word has length 4, so the current 
         position in words would be 4*n assuming 4-byte words, or 8*n if 64 bits and 8-byte words.
@@ -328,7 +328,7 @@ def readrecord(fbuffer,n,en,ml,mf):
     Parameters
     ----------
     fbuffer : bytes
-        Binary bytes read from a file opened with `mode='rb'` and read with `file.read()`. 
+        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``. 
     n : int
         The index of the word at which to start, in bytes. A 32-bit word has length 4, so the current 
         position in words would be 4*n assuming 4-byte words, or 8*n if 64 bits and 8-byte words.
@@ -370,10 +370,10 @@ def readvariablecode(fbuffer,kcode,en,ml,mf):
     Parameters
     ----------
     fbuffer : bytes
-        Binary bytes read from a file opened with `mode='rb'` and read with `file.read()`.
+        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``.
     kcode : int
         The integer code associated with the variable. For possible codes, refer to the 
-        `Postprocessor Variable Codes. <postprocessor.html#postprocessor-variable-codes>`_
+        ``Postprocessor Variable Codes. <postprocessor.html#postprocessor-variable-codes>`_
     en : str
         Endianness, denoted by ">" or "<"
     ml : int
@@ -453,7 +453,7 @@ def readallvariables(fbuffer):
     Parameters
     ----------
     fbuffer : bytes
-        Binary bytes read from a file opened with `mode='rb'` and read with `file.read()`.
+        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``.
     
     Returns
     -------
@@ -498,7 +498,7 @@ def refactorvariable(variable,header,nlev=10):
         Can also be the product of a concatenated file assembled with
         :py:func:`readvariable <exoplasim.pyburn.readvariable>`.
     header : array-like
-        The header array extracted from the record associated with `variable`. This header contains
+        The header array extracted from the record associated with ``variable``. This header contains
         dimensional information.
     nlev : int, optional
         The number of vertical levels in the variable. If 1, vertical levels will not be a dimension in
@@ -507,7 +507,7 @@ def refactorvariable(variable,header,nlev=10):
     Returns
     -------
     numpy.ndarray
-        A numpy array with dimensions (time,lat,lon) if `nlevs=1`, or (time,lev,lat,lon) otherwise.
+        A numpy array with dimensions (time,lat,lon) if ``nlevs=1``, or (time,lev,lat,lon) otherwise.
     '''
     dim1 = max(header[4],header[5])
     dim2 = min(header[4],header[5])
@@ -2037,9 +2037,11 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
     variablecodes : dict
         Variables to include. Each member must use the variable name as the key, and contain a sub-dict
         with the horizontal mode, zonal averaging, and physics filtering  options optionall set as 
-        members. For example: `{"ts":{"mode":"grid","zonal":False},
-        "stf":{"mode":"grid","zonal":True,"physfilter":True}}`. Options that are not set take on their
-        default values from :py:func`dataset() <exoplasim.pyburn.dataset>`.
+        members. For example::
+            {"ts":{"mode":"grid","zonal":False},
+             "stf":{"mode":"grid","zonal":True,"physfilter":True}}
+        Options that are not set take on their
+        default values from :py:func:`dataset() <exoplasim.pyburn.dataset>`.
     mode : str, optional
         Horizontal output mode. Can be 'grid', meaning the Gaussian latitude-longitude grid used
         in ExoPlaSim, 'spectral', meaning spherical harmonics, 
@@ -2826,7 +2828,7 @@ def netcdf(rdataset,filename="most_output.nc",append=False,logfile=None):
     Parameters
     ----------
     rdataset : dict
-        A dictionary of outputs as generated from :py:func`pyburn.dataset()<exoplasim.pyburn.dataset>`
+        A dictionary of outputs as generated from :py:func:`pyburn.dataset()<exoplasim.pyburn.dataset>`
     filename : str, optional
         Path to the output file that should be written.
     append : bool, optional
@@ -3030,7 +3032,7 @@ def npsavez(rdataset,filename="most_output.npz",logfile=None):
     Parameters
     ----------
     rdataset : dict
-        A dictionary of outputs as generated from :py:func`pyburn.dataset()<exoplasim.pyburn.dataset>`
+        A dictionary of outputs as generated from :py:func:`pyburn.dataset()<exoplasim.pyburn.dataset>`
     filename : str, optional
         Path to the output file that should be written.
     logfile : str or None, optional
@@ -3156,7 +3158,7 @@ def _writecsvs(filename,variables,meta,extension=None,logfile=None):
 def csv(rdataset,filename="most_output.tar.gz",logfile=None,extracompression=False):
     '''Write a dataset to CSV/TXT-type output, optionally compressed.
     
-    If a tarball format (e.g. *.tar or *.tar.gz) is used, output files will be packed into a tarball.
+    If a tarball format (e.g. \*.tar or \*.tar.gz) is used, output files will be packed into a tarball.
     gzip (.gz), bzip2 (.bz2), and lzma (.xz) compression types are supported. If a tarball format is 
     not used, then accepted file extensions are .csv, .txt, or .gz. All three will produce a directory
     named following the filename pattern, with one file per variable in the directory. If the .gz extension
@@ -3172,7 +3174,7 @@ def csv(rdataset,filename="most_output.tar.gz",logfile=None,extracompression=Fal
     Parameters
     ----------
     rdataset : dict
-        A dictionary of outputs as generated from :py:func`pyburn.dataset()<exoplasim.pyburn.dataset>`
+        A dictionary of outputs as generated from :py:func:`pyburn.dataset()<exoplasim.pyburn.dataset>`
     filename : str, optional
         Path to the output file that should be written. This will be parsed to determine output type.
     logfile : str or None, optional
@@ -3264,7 +3266,7 @@ def hdf5(rdataset,filename="most_output.hdf5",append=False,logfile=None):
     Parameters
     ----------
     rdataset : dict
-        A dictionary of outputs as generated from :py:func`pyburn.dataset()<exoplasim.pyburn.dataset>`
+        A dictionary of outputs as generated from :py:func:`pyburn.dataset()<exoplasim.pyburn.dataset>`
     filename : str, optional
         Path to the output file that should be written.
     append : bool, optional
@@ -3350,12 +3352,12 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibra
     '''Convert a raw output file into a postprocessed formatted file.
     
     Output format is determined by the file extension of outfile. Current supported formats are 
-    NetCDF (*.nc), numpy's `np.savez_compressed` format (*.npz), and CSV format. If NumPy's 
+    NetCDF (\*.nc), HDF5 (\*.hdf5, \*.he5, \*.h5), numpy's ``np.savez_compressed`` format (\*.npz), and CSV format. If NumPy's 
     single-array .npy extension is used, .npz will be substituted--this is a compressed ZIP archive 
     containing .npy files. Additionally, the CSV output format can be used in compressed form either
     individually by using the .gz file extension, or collectively via tarballs (compressed or uncompressed).
     
-    If a tarball format (e.g. *.tar or *.tar.gz) is used, output files will be packed into a tarball.
+    If a tarball format (e.g. \*.tar or \*.tar.gz) is used, output files will be packed into a tarball.
     gzip (.gz), bzip2 (.bz2), and lzma (.xz) compression types are supported. If a tarball format is 
     not used, then accepted file extensions are .csv, .txt, or .gz. All three will produce a directory
     named following the filename pattern, with one file per variable in the directory. If the .gz extension
@@ -3368,9 +3370,30 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibra
     files, they should be reshaped according to these dimensions. This is true even in tarballs (which 
     contain CSV files).
     
+    A T21 model output with 10 vertical levels, 12 output times, all supported variables in grid 
+    mode,and no standard deviation computation will have the following sizes for each format:
+    
+        +----------------+-----------+
+        |Format          | Size      |
+        +================+===========+
+        |netCDF          | 12.8 MiB  |
+        +----------------+-----------+
+        |HDF5            | 17.2 MiB  |
+        +----------------+-----------+
+        |NumPy (default) | 19.3 MiB  |
+        +----------------+-----------+
+        |tar.xz          | 33.6 MiB  |
+        +----------------+-----------+
+        |tar.bz2         | 36.8 MiB  |
+        +----------------+-----------+
+        |gzipped         | 45.9 MiB  |
+        +----------------+-----------+
+        |uncompressed    | 160.2 MiB |
+        +----------------+-----------+
+            
     Using the NetCDF (.nc) format requires the netCDF4 python package.
     
-    Using the HDF4 format (.h5, .hdf5, .he5) requires the h5py python package.
+    Using the HDF5 format (.h5, .hdf5, .he5) requires the h5py python package.
     
     Parameters
     ----------
@@ -3378,8 +3401,8 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibra
         Path to the raw output file
     outfile : str
         Path to the destination output file. The file extension determines the format. Currently,
-        netCDF (*.nc). numpy compressed (*.npz), or CSV-type (*.csv, *.txt, *.gz, *.tar, *.tar.gz,
-        *.tar.bz2, *.tar.xz) are supported. If a format (such as npz) that requires
+        netCDF (\*.nc). numpy compressed (\*.npz), HDF5 (\*.hdf5, \*.he5, \*.h5), or CSV-type (\*.csv, \*.txt, \*.gz, \*.tar, \*.tar.gz,
+        \*.tar.bz2, \*.tar.xz) are supported. If a format (such as npz) that requires
         that metadata be placed in a separate file is chosen, a second file with a '_metadata' suffix will be
         created.
     append : bool, optional
@@ -3389,13 +3412,13 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibra
         If None, log diagnostics will get printed to standard output. Otherwise, the log file
         to which diagnostic output should be written.
     namelist : str, optional
-        Path to a burn7 postprocessor namelist file. If not given, then `variables` must be set. 
+        Path to a burn7 postprocessor namelist file. If not given, then ``variables`` must be set. 
     variables : list or dict, optional
         If a list is given, a list of either variable keycodes (integers or strings), or the abbreviated
         variable name (e.g. 'ts' for surface temperature). If a dict is given, each item in the dictionary
         should have the keycode or variable name as the key, and the desired horizontal mode and additional
         options for that variable as a sub-dict. Each member of the subdict should be passable as **kwargs 
-        to :py:func`advancedDataset() <exoplasim.pyburn.advancedDataset>`. If None, then `namelist` must be set.
+        to :py:func:`advancedDataset() <exoplasim.pyburn.advancedDataset>`. If None, then ``namelist`` must be set.
     mode : str, optional
         Horizontal output mode, if modes are not specified for individual variables. Options are 
         'grid', meaning the Gaussian latitude-longitude grid used

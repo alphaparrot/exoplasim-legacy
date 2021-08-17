@@ -1,5 +1,5 @@
 import numpy as np
-import pyburn
+import exoplasim.pyburn as pyburn
 import os, glob
 
 def _loadnetcdf(filename):
@@ -1328,7 +1328,7 @@ def load(filename,csvbuffersize=1):
     Returns
     -------
     object
-        `gmct._Dataset object that can be queried like a netCDF file.
+        ``gmct._Dataset`` object that can be queried like a netCDF file.
     '''
     #fileparts = filename.split('.')
     #if fileparts[-1] == "nc":
