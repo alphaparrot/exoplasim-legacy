@@ -200,6 +200,7 @@ class Model(object):
                         os.system("cd postprocessor && rm burn7.x && make")
                     os.chdir(cwd)
                     os.system("touch %s/postprocessor/netcdfbuilt"%sourcedir)
+                os.chdir(cwd)
             except PermissionError:
                 raise PermissionError("\nHi! Welcome to ExoPlaSim. It looks like this is the first "+
                                     "time you're using this program since installing, and you "+
