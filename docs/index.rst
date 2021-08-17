@@ -51,14 +51,19 @@ Python 2 and outdated versions of NumPy.
 Requirements
 ------------
     
-* netCDF C libraries
-* netCDF4
 * numpy
 * scipy (only needed for additional utilities)
 * matplotlib (only needed for additional utilities)
 * a Fortran compiler
 * a C compiler
 * (optionally) MPI libraries for those compilers
+
+Optional Requirements
+---------------------
+
+* netCDF4 (for netCDF support)
+* h5py (for HDF5 support)
+* NetCDF-C Library (for legacy ``burn7`` support)
     
 Installation
 ------------
@@ -70,6 +75,22 @@ Installation
 OR::
 
     python setup.py install
+    
+    
+If you know you will want to use NetCDF or HDF5 output formats,
+you can install their dependencies at install-time:
+
+::
+
+    pip install exoplasim[HDF5]
+    
+OR::
+
+    pip install exoplasim[netCDF4]
+    
+OR::
+
+    pip install exoplasim[netCDF4,HDF5]
     
 The first time you import the module and try to create a model
 after either installing or updating, ExoPlaSim will run a 
@@ -88,23 +109,6 @@ are shown by running ``./compile.sh -h``). The postprocessor and its
 libraries can be compiled by entering ``exoplasim/postprocessor/`` and
 running ``./build_init.sh``.
 
-A Note on NetCDF
-----------------
-
-The Burn7 postprocessor requires the ``netcdfcpp.h`` header file. 
-netcdf-cxx distributions later than version 4.2 no longer include
-this file. A patched version of netcdf-cxx4-4.2 is shipped with
-exoplasim, and will be built by default. However, doing so requires
-that ``netcdf.h`` be available, typically from a netcdf C library.
-If you encounter problems on first use, it is likely because the
-C++ compilers can't find ``netcdf.h``, and you may need to adjust
-the system path to include it. In a cluster environment, that may
-involve a command such as ``module load netcdf``. On a personal Linux
-computer, as long as netcdf is installed system-wide, this should
-not be a problem. We have noted some issues building the patched 
-netcdf library on newer versions of Mac OS X. The build process has
-not been fully-tested on other verions of Mac or on Windows.
-
 Most Common Error Modes
 -----------------------
 
@@ -115,39 +119,43 @@ and one is related to numerical stability.
 If the most recent MOST_DIAG file appears to have run to completion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. This can be one of **two** things: either the
+.. netcdf libraries are not properly installed (the first time you tried
+.. to create an ExoPlaSim model, this would have resulted in error output
+.. when the burn7 postprocessor and its custom-patched netcdf library were
+.. being built (the custom library depends on netcdf.h from a standard
+.. netcdf library)), or you have output codes in the postprocessor namelist
+.. that aren't supported. Check the codes first. If that's not it, you
+.. can test whether or not it's a netcdf issue, by going to the run folder:
+.. 
+.. ::
+.. 
+..     ./burn7.x -n<example.nl>burnout MOST.00000 MOST.00000.nc
+.. 
+.. If the problem was with the netcdf libraries, you will get an error
+.. complaining about a missing linked object. If this is the case,
+.. install netcdf (or load the netcdf module if you're in a cluster environment),
+.. and then rebuild the postprocessor as follows:::
+.. 
+..     burndir=$(python -c "import exoplasim; print(exoplasim.__path__)" | tail -c +3 | head -c -3)/postprocessor
+..     cd $burndir
+..     ./build_init.sh
+.. 
+.. This should (if it runs without errors) produce a new, functional ``burn7.x``.
+.. You can test it by copying it to your run's working directory, and trying
+.. the ``./burn7.x`` command given above once again.
+
+
 If in the run folder, diagnostic files are produced that appear to have
 made it all the way to the end of the year (there is a summary tag
 giving time elapsed and that sort of thing), then the problem is likely
-with the postprocessor. This can be one of **two** things: either the
-netcdf libraries are not properly installed (the first time you tried
-to create an ExoPlaSim model, this would have resulted in error output
-when the burn7 postprocessor and its custom-patched netcdf library were
-being built (the custom library depends on netcdf.h from a standard
-netcdf library)), or you have output codes in the postprocessor namelist
-that aren't supported. Check the codes first. If that's not it, you
-can test whether or not it's a netcdf issue, by going to the run folder:
+with the postprocessor. It is likely that the error output will be informative;
+if it is not clear how to resolve, please let me (the developer) know. 
 
-::
-
-    ./burn7.x -n<example.nl>burnout MOST.00000 MOST.00000.nc
-
-If the problem was with the netcdf libraries, you will get an error
-complaining about a missing linked object. If this is the case,
-install netcdf (or load the netcdf module if you're in a cluster environment),
-and then rebuild the postprocessor as follows:::
-
-    burndir=$(python -c "import exoplasim; print(exoplasim.__path__)" | tail -c +3 | head -c -3)/postprocessor
-    cd $burndir
-    ./build_init.sh
-
-This should (if it runs without errors) produce a new, functional ``burn7.x``.
-You can test it by copying it to your run's working directory, and trying
-the ``./burn7.x`` command given above once again.
-
-If netcdf is *not* the problem, then it's likely you somehow passed
-incorrect output codes to the postprocessor. Check the postprocessor
-namelist for any errors. In particular, note that climatology outputs
-are not available if storm climatology was not enabled.
+If the postprocessor itself is *not* the problem, then it's likely you somehow passed
+incorrect output codes to the postprocessor. This is the most common scenario for
+postprocessor-related crashes. Check your inputs for any errors. In particular, note 
+that climatology outputs are not available if storm climatology was not enabled.
 
 If ExoPlaSim crashed almost immediately without producing output
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -176,6 +184,11 @@ or increasing hyperdiffusion. Sometimes it also works to slightly adjust a model
 parameter such as surface pressure by a fraction of a percent or less--just enough
 to nudge the model out of whatever chaotic local minimum it ran into, but not
 enough to qualitatively change the resulting climate. 
+
+New in ExoPlaSim 3.0.0, there is a "crash-tolerant" run mode. With this mode enabled,
+a runtime crash will result in rewinding 10 years and resuming. This deals with many
+of the most frustrating problems related to numerical instability. However, due to
+the potential for infinite loops, this is only recommended for advanced users.
 
 PlaSim Documentation
 --------------------
@@ -220,5 +233,26 @@ output files and rename them after the model name we chose, and delete
 all the intermediate output and configuration files. 
 
 
+A Note on NetCDF and the (deprecated) Burn7 Postprocessor
+---------------------------------------------------------
+
+As of ExoPlaSim 3.0.0, ``burn7`` is deprecated. It is included for
+legacy support, but it has been replaced by ``pyburn`` for recommended
+usage. ``pyburn`` has been designed as a drop-in replacement, so no
+changes to existing codes and scripts are required. 
+
+The Burn7 postprocessor requires the ``netcdfcpp.h`` header file. 
+netcdf-cxx distributions later than version 4.2 no longer include
+this file. A patched version of netcdf-cxx4-4.2 is shipped with
+exoplasim, and will be built by default. However, doing so requires
+that ``netcdf.h`` be available, typically from a netcdf C library.
+If you encounter problems on first use, it is likely because the
+C++ compilers can't find ``netcdf.h``, and you may need to adjust
+the system path to include it. In a cluster environment, that may
+involve a command such as ``module load netcdf``. On a personal Linux
+computer, as long as netcdf is installed system-wide, this should
+not be a problem. We have noted some issues building the patched 
+netcdf library on newer versions of Mac OS X. The build process has
+not been fully-tested on other verions of Mac or on Windows.
 
 
