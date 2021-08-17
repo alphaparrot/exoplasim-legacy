@@ -36,6 +36,7 @@ gases_default = {'pH2': 0.0,
 MARS_GRAV   = 3.728
 MARS_RADIUS = 3400000.0
 MARS_RD     = 189.0
+MARS_MMW    = 43.991866
 
 def _noneparse(text,dtype):
     if text=="None" or text=="none":
@@ -160,9 +161,17 @@ class Model(object):
         global sourcedir
         
         self.burn7 = burn7
+        self.mars = mars
         
         self.extension = outputtype
-        self._configuredpostprocessor = False
+        self.extensions = {"regular"     : self.extension,
+                           "snapshot"    : self.extension,
+                           "highcadence" : self.extension}
+        self._configuredpostprocessor = {"regular":False,"snapshot":False,"highcadence":False}
+        
+        self.postprocessordefaults = {"regular"     : {},
+                                      "snapshot"    : {"times":None,"timeaverage":False,"stdev":False},
+                                      "highcadence" : {"times":None,"timeaverage":False,"stdev":False}}
         
         self.crashtolerant = crashtolerant
         
@@ -314,7 +323,7 @@ class Model(object):
                 extraflags+= "-d "
             if optimization:
                 extraflags+= "-O %s"%optimization
-            if mars:
+            if self.mars:
                 extraflags+= "-m "
             if force991:
                 extraflags+= "-f "
@@ -526,13 +535,13 @@ class Model(object):
                 snapsht=0
                 highcdn=0
                 try:
-                    timeavg=self.postprocess(dataname,"example.nl",
+                    timeavg=self.postprocess(dataname,None,
                                             log="burnout",crashifbroken=crashifbroken)
-                    snapsht=self.postprocess(snapname,"snapshot.nl",
+                    snapsht=self.postprocess(snapname,None,ftype="snapshot",
                                             log="snapout",crashifbroken=crashifbroken)
                     os.system("mv %s%s snapshots/"%(snapname,self.extension))
                     if self.highcadence["toggle"]:
-                        highcdn=self.postprocess(hcname  ,"snapshot.nl",
+                        highcdn=self.postprocess(hcname  ,None,ftype="highcadence",
                                                 log="hcout"  ,crashifbroken=crashifbroken)
                         os.system("mv %s%s highcadence/"%(hcname,self.extension))
                 except Exception as e:
@@ -788,13 +797,13 @@ class Model(object):
                 highcdn=0
                 if postprocess:
                     try:
-                        timeavg=self.postprocess(dataname,"example.nl",
+                        timeavg=self.postprocess(dataname,None,
                                                 log="burnout",crashifbroken=crashifbroken)
-                        snapsht=self.postprocess(snapname,"snapshot.nl",
+                        snapsht=self.postprocess(snapname,None,ftype="snapshot",
                                                 log="snapout",crashifbroken=crashifbroken)
                         os.system("mv %s%s snapshots/"%(snapname,self.extension))
                         if self.highcadence["toggle"]:
-                            highcdn=self.postprocess(hcname  ,"snapshot.nl",
+                            highcdn=self.postprocess(hcname  ,None,ftype="highcadence",
                                                     log="hcout"  ,crashifbroken=crashifbroken)
                             os.system("mv %s%s highcadence/"%(hcname,self.extension))
                     except Exception as e:
@@ -844,9 +853,10 @@ class Model(object):
                     self._crash() #Bring in the cleaners
                 
     
-    def cfgpostprocessor(self,extension=".npz",namelist=None,variables=list(pyburn.ilibrary.keys()),mode='grid',
-                         zonal=False, substellarlon=0.0, physfilter=False,timeaverage=True,stdev=False,
-                         times=12,interpolatetimes=True):
+    def cfgpostprocessor(self,ftype="regular",
+                         extension=".npz",namelist=None,variables=list(pyburn.ilibrary.keys()),
+                         mode='grid',zonal=False, substellarlon=0.0, physfilter=False,
+                         timeaverage=True,stdev=False,times=12,interpolatetimes=True):
         '''Configure postprocessor options for pyburn.
         
         Output format is determined by the file extension of outfile. Current supported formats are 
@@ -900,6 +910,9 @@ class Model(object):
     
         Parameters
         ----------
+        ftype : str, optional
+            Which type of output to set for this--is this a regular output file ('regular'), a
+            snapshot output file ('snapshot'), or high-cadence ('highcadence')?
         extension : str, optional
             Output format to use, specified via file extension. Supported formats are netCDF (``.nc``), 
             NumPy compressed archives (``.npy``, ``.npz``), HDF5 archives (``.hdf5``, ``.he5``, ``.h5``), or
@@ -950,20 +963,21 @@ class Model(object):
             If true, then if the times requested don't correspond to existing timestamps, outputs will be
             linearly interpolated to those times. If false, then nearest-neighbor interpolation will be used.
         '''
-        self._configuredpostprocessor = True
-        self.extension = extension
-        self.postprocessorcfg = {"variables"        : variables,
-                                 "namelist"         : namelist,
-                                 "mode"             : mode,
-                                 "zonal"            : zonal,
-                                 "substellarlon"    : substellarlon,
-                                 "physfilter"       : physfilter,
-                                 "timeaverage"      : timeaverage,
-                                 "stdev"            : stdev,
-                                 "times"            : times,
-                                 "interpolatetimes" : interpolatetimes}
+        self._configuredpostprocessor[ftype] = True
+        self.extensions[ftype] = extension
+        self.postprocessorcfgs[ftype] = {"variables"        : variables,
+                                         "namelist"         : namelist,
+                                         "mode"             : mode,
+                                         "zonal"            : zonal,
+                                         "substellarlon"    : substellarlon,
+                                         "physfilter"       : physfilter,
+                                         "timeaverage"      : timeaverage,
+                                         "stdev"            : stdev,
+                                         "times"            : times,
+                                         "interpolatetimes" : interpolatetimes}
     
-    def postprocess(self,inputfile,variables,log="postprocess.log",crashifbroken=False,**kwargs):
+    def postprocess(self,inputfile,variables,ftype="regular",log="postprocess.log",
+                    crashifbroken=False,**kwargs):
         """    Produce NetCDF output from an input file, using a specified postprocessing namelist. 
 
         Parameters
@@ -975,6 +989,9 @@ class Model(object):
             containing output options for each variable. If None, then a variable set pre-configured with
             :py:func`Model.cfgpostprocessor() <exoplasim.Model.cfgpostprocessor>` will be used. If the
             postprocessor was not pre-configured, this will prompt pyburn to use the default set.
+        ftype : str, optional
+            Which type of output to set for this--is this a regular output file ('regular'), a
+            snapshot output file ('snapshot'), or high-cadence ('highcadence')?
         log : str, optional
             The log file to which burn7 should output standard output and errors
         crashifbroken : bool, optional 
@@ -1015,31 +1032,42 @@ class Model(object):
                 return 0
         else:
             try:
-                if len(kwargs.keys())==0 and self._configuredpostprocessor:
-                    kwargs = self.postprocessorcfg
-                if variables is None and self._configuredpostprocessor:
-                    pyburn.postprocess(inputfile,inputfile+self.extension,logfile=log,
+                if len(kwargs.keys())==0 and self._configuredpostprocessor[ftype]:
+                    kwargs = self.postprocessorcfgs[ftype]
+                if variables is None and self._configuredpostprocessor[ftype]:
+                    pyburn.postprocess(inputfile,inputfile+self.extensions[ftype],logfile=log,
                                        radius=self.radius*6371220.0,
                                        gravity=self.gravity,gascon=self.gascon,**kwargs)
                 else:
+                    if ftype!="regular":
+                        if "times" not in kwargs:
+                            kwargs["times"] = self.postprocessordefaults[ftype]["times"]
+                        if "timeaverage" not in kwargs:
+                            kwargs["timeaverage"] = self.postprocessordefaults[ftype]["timeaverage"]
+                        if "stdev" not in kwargs:
+                            kwargs["stdev"] = self.postprocessordefaults[ftype]["stdev"]
                     pyburn.postprocess(inputfile,inputfile+self.extension,logfile=log,namelist=namelist,
                                        variables=variables,radius=self.radius*6371220.0,
                                        gravity=self.gravity,gascon=self.gascon,**kwargs)
                 return 1
-            except:
-                print(sys.exc_info()[0])
+            except Exception as e:
+                print(e)
+                if self._configuredpostprocessor[ftype]:
+                    extension = self.extensions[ftype]
+                else:
+                    extension = self.extension
                 if crashifbroken:
                     if not self.recursecheck:
-                        if self.integritycheck("%s%s"%(inputfile,self.extension)):
+                        if self.integritycheck("%s%s"%(inputfile,extension)):
                             self.recursecheck=True
                             print("pyburn threw some errors; may want to check %s"%log)
                         else:
-                            raise RuntimeError("Error writing output to %s%s; "%(inputfile,self.extension) +
+                            raise RuntimeError("Error writing output to %s%s; "%(inputfile,extension) +
                                                 "log written to %s"%log)
                     else:
                         raise RuntimeError("An error was encountered, likely with the postprocessor. ExoPlaSim was unable to investigate further due to a recursion trap.")
                 else:
-                    print("Error writing output to %s%s; log written to %s"%(inputfile,self.extension,log))
+                    print("Error writing output to %s%s; log written to %s"%(inputfile,extension,log))
                     raise RuntimeError("Going to stop here just in case......")
                 return 0
         
@@ -1325,7 +1353,7 @@ class Model(object):
             pKr=None,pH2O=None,gascon=None,pressure=None,pressurebroaden=True,
             vtype=0,rotationperiod=1.0,synchronous=False,substellarlon=180.0,
             year=None,glaciers={"toggle":False,"mindepth":2.0,"initialh":-1.0},
-            restartfile=None,gravity=9.80665,radius=1.0,eccentricity=None,
+            restartfile=None,gravity=None,radius=None,eccentricity=None,
             obliquity=None,lonvernaleq=None,fixedorbit=False,orography=None,
             seaice=True,co2weathering=False,evolveco2=False,physicsfilter=None,
             filterkappa=8.0,filterpower=8,filterLHN0=15.0,diffusionwaven=None,
@@ -1746,7 +1774,10 @@ References
                 #self.pressure=0.0
                 #for gas in self.pgases:
                     #self.pressure+=self.pgases[gas] #in bars
-                self.pressure = 1.011
+                if self.mars:
+                    self.pressure = 6.36e-3
+                else:
+                    self.pressure = 1.011
             else:
                 self.pressure = pressure
         
@@ -1762,7 +1793,10 @@ References
         for gas in gasesvx:
             self.mmw += gasesvx[gas]*smws['m'+gas]
         if self.mmw==0:
-            self.mmw = 28.970253
+            if self.mars:
+                self.mmw = MARS_MMW #43.991866
+            else:
+                self.mmw = 28.970253
         self.gascon = 8314.46261815324 / self.mmw
         
         if gascon:
@@ -1828,11 +1862,21 @@ References
             os.system("rm %s/plasim_restart"%self.workdir)
         self.restartfile=restartfile
         
+        if gravity is None:
+            if self.mars:
+                gravity = MARS_GRAV
+            else:
+                gravity = 9.80665
         self._edit_namelist("planet_namelist","GA",str(gravity))
         self._edit_postnamelist("example.nl","gravity",str(gravity))
         self._edit_postnamelist("snapshot.nl","gravity",str(gravity))
         self.gravity=gravity
         
+        if radius is None:
+            if self.mars:
+                radius=MARS_RADIUS/6371220.0
+            else:
+                radius=1.0
         self._edit_namelist("planet_namelist","PLARAD",str(radius*6371220.0))
         self._edit_postnamelist("example.nl","radius",str(radius*6371220.0))
         self._edit_postnamelist("snapshot.nl","radius",str(radius*6371220.0))

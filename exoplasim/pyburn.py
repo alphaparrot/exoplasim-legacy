@@ -3641,7 +3641,7 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibra
                else:
                    interpolation = "nearest"
                    _log(logfile,"\nSelecting %d timestamps from %d ..."%(times,ntimes))
-               newtimes = np.linspace(0.,1.,num=times)*dtimes[-1] #We can't extrapolate; only interpolate
+               newtimes = np.linspace(dtimes[0],dtimes[-1],num=times) #We can't extrapolate; only interpolate
                varkeys = list(data.keys())
                varkeys.remove("time")
                varkeys.remove("lat")
@@ -3665,7 +3665,7 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibra
             if not interpolatetimes: #We will always round down to the nearest neighbor
                 _log(logfile,
                      "Interpolation disabled, so bin edges are being selected via nearest-neighbor.")
-                indices = np.digitize(np.array(times)*dtimes[-1],dtimes)-1
+                indices = np.digitize(np.array(times)*(dtimes[-1]-dtimes[0])+dtimes[0],dtimes)-1
                 counts = np.diff(indices)
                 varkeys = list(data.keys())
                 varkeys.remove("time")
@@ -3695,7 +3695,7 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibra
             else: #First we'll interpolate to high time resolution, then compute average via binning
                 _log(logfile,"Interpolating to find bin edges....")
                 ttimes = np.linspace(dtimes[0],dtimes[-1],num=10*ntimes)
-                indices = np.digitize(np.array(times)*dtimes[-1],ttimes)-1
+                indices = np.digitize(np.array(times)*(dtimes[-1]-dtimes[0])+dtimes[0],ttimes)-1
                 counts = np.diff(indices)
                 varkeys = list(data.keys())
                 varkeys.remove("time")
@@ -3727,7 +3727,7 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibra
                 data["time"][0] = newtimes
                     
         else:
-            newtimes = np.array(times)*dtimes[-1] #Convert to timestamps
+            newtimes = np.array(times)*(dtimes[-1]-dtimes[0])+dtimes[0] #Convert to timestamps
             if interpolatetimes:
                 interpolation = "linear"
                 _log(logfile,"\nInterpolating from %d timestamps to %d ..."%(ntimes,len(times)))
