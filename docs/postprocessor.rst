@@ -435,7 +435,8 @@ and as a backup in case of problems with the ``pyburn`` postprocessor, but as it
 unsupported netCDF-C and netCDF-C++ libraries, compilation can be tricky. For the most part, ``pyburn``
 provides all the same features and more, with smaller output files, more output formats, and more
 postprocessor options. Documentation for the ``burn7`` postprocessor is however included below for
-legacy users who wish to continue using ``burn7``.
+legacy users who wish to continue using ``burn7``. To use ``burn7`` instead of ``pyburn``, pass
+``burn7=True`` when instantiating a :py:class:`Model <exoplasim.Model>`.
 
 Building and Compiling
 **********************

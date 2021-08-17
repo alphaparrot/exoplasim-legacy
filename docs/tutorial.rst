@@ -7,12 +7,16 @@ In this tutorial, we will model the habitable zone terrestrial planet TOI 700 d,
 Setting Up 
 ==========
 
-First thing's first: we want to import ExoPlaSim, and instantiate our :py:mod:`Model <exoplasim.Model>` instance. We want to create our model run in the folder "toi700d_run", and run it at T21 resolution on 4 CPUs.
+First thing's first: we want to import ExoPlaSim, and instantiate our :py:mod:`Model <exoplasim.Model>` instance. We want to create our model run in the folder "toi700d_run", and run it at T21 resolution on 4 CPUs. We tell ExoPlaSim to use NumPy's compressed archive format for postprocessed output. Note that
+a large number of output formats are supported, including netCDF and HDF5, but those two formats require
+the additional installation of the ``netCDF4`` and ``h5py`` Python libraries (which can be done at 
+install-time as optional dependencies for ExoPlaSim).
 
 >>> import exoplasim as exo
->>> toi700d = exo.Model(workdir="toi700d_run",modelname="TOI-700d",ncpus=4,resolution="T21")
+>>> toi700d = exo.Model(workdir="toi700d_run",modelname="TOI-700d",
+>>>                     ncpus=4,resolution="T21",outputtype=".npz")
 
-If the appropriate executable does not yet exist, it will be compiled now. If this is the first time an ExoPlaSim model has been created, then a configuration script will be run first to locate the necessary compilers, and the NetCDF postprocessor will be built and compiled as well. We assign the model a descriptive name through the ``modelname`` argument, which is not strictly necessary, but will prove useful later.
+If the appropriate executable does not yet exist, it will be compiled now. If this is the first time an ExoPlaSim model has been created, then a configuration script will be run first to locate the necessary compilers. We assign the model a descriptive name through the ``modelname`` argument, which is not strictly necessary, but will prove useful later.
 
 Configuring the model for TOI-700d
 ----------------------------------

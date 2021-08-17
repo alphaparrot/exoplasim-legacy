@@ -850,6 +850,7 @@ class Model(object):
                     os.system("rm plasim_snapshot")
                     self.currentyear+=1
                 else:
+                    raise
                     print(e)
                     self._crash() #Bring in the cleaners
                 
