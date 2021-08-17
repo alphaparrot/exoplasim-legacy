@@ -2026,11 +2026,11 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                         
             _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],variable.shape[0]))
           
-    rdataset["lat"] = [lat,["lat","latitude","deg"] ]
-    rdataset["lon"] = [lon,["lon","longitude","deg"]]
-    rdataset["lev"] = [lev,["lev","sigma_coordinate","nondimensional"]       ]
-    rdataset["levp"] = [levp,["levp","half_sigma_coordinate","nondimensional"]]
-    rdataset["time"] = [time,["time","timestep_of_year","timesteps"]         ]      
+    rdataset["lat"] = [np.array(lat),["lat","latitude","deg"] ]
+    rdataset["lon"] = [np.array(lon),["lon","longitude","deg"]]
+    rdataset["lev"] = [np.array(lev),["lev","sigma_coordinate","nondimensional"]       ]
+    rdataset["levp"] = [np.array(levp),["levp","half_sigma_coordinate","nondimensional"]]
+    rdataset["time"] = [np.array(time),["time","timestep_of_year","timesteps"]         ]      
     
     return rdataset
 
@@ -2822,11 +2822,11 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                         
             _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],variable.shape[0]))
           
-    rdataset["lat"] = [lat,["lat","latitude","deg"] ]
-    rdataset["lon"] = [lon,["lon","longitude","deg"]]
-    rdataset["lev"] = [lev,["lev","sigma_coordinate","nondimensional"]       ]
-    rdataset["levp"] = [levp,["levp","half_sigma_coordinate","nondimensional"]]
-    rdataset["time"] = [time,["time","timestep_of_year","timesteps"]         ]      
+    rdataset["lat"] = [np.array(lat),["lat","latitude","deg"] ]
+    rdataset["lon"] = [np.array(lon),["lon","longitude","deg"]]
+    rdataset["lev"] = [np.array(lev),["lev","sigma_coordinate","nondimensional"]       ]
+    rdataset["levp"] = [np.array(levp),["levp","half_sigma_coordinate","nondimensional"]]
+    rdataset["time"] = [np.array(time),["time","timestep_of_year","timesteps"]         ]      
     
     return rdataset
 
