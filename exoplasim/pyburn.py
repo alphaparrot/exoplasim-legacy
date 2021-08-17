@@ -3355,7 +3355,7 @@ def hdf5(rdataset,filename="most_output.hdf5",append=False,logfile=None):
     return hdfile
              
 
-def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibrary.keys()),mode='grid',
+def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=None,mode='grid',
                 zonal=False, substellarlon=0.0, physfilter=False,timeaverage=True,stdev=False,
                 times=12,interpolatetimes=True,radius=1.0,gravity=9.80665,gascon=287.0,mars=False):
     '''Convert a raw output file into a postprocessed formatted file.
@@ -3498,7 +3498,7 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=list(ilibra
     
     if namelist is None:
         if variables is None:
-            raise Exception("Must specify either a burn7 namelist or provide a list or dict of variables")
+            variables = list(ilibrary.keys())
         if mars:
             radius = MARS_RADIUS/6371220.0
             gascon = MARS_RD
