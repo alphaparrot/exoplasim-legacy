@@ -547,7 +547,10 @@ def readfile(filename):
         Dictionary of model variables, indexed by numerical code
     '''
     
-    import exoplasim.pyfft
+    if sys.version[0]=="2":
+        import exoplasim.pyfft2 as pyfft
+    else:
+        import exoplasim.pyfft as pyfft
     
     with open(filename,"rb") as fb:
         fbuffer = fb.read()
@@ -638,7 +641,10 @@ def _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
         Transformed array
     '''
     
-    import exoplasim.pyfft
+    if sys.version[0]=="2":
+        import exoplasim.pyfft2 as pyfft
+    else:
+        import exoplasim.pyfft as pyfft
     
     if nlev in variable.shape:
         levd = "lev"
@@ -924,7 +930,10 @@ def _transformvectorvar(uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,mode='gr
         Transformed array
     '''
     
-    import exoplasim.pyfft
+    if sys.version[0]=="2":
+        import exoplasim.pyfft2 as pyfft
+    else:
+        import exoplasim.pyfft as pyfft
     
     if np.nanmax(lats)>10: #Dealing with degrees, not radians
         rlats = lats*np.pi/180.0
