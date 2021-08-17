@@ -810,7 +810,6 @@ class Model(object):
                         if self.crashtolerant:
                             raise
                         print(e)
-                        raise
                         self._crash()
                 if clean:
                     if timeavg:
@@ -850,7 +849,6 @@ class Model(object):
                     os.system("rm plasim_snapshot")
                     self.currentyear+=1
                 else:
-                    raise
                     print(e)
                     self._crash() #Bring in the cleaners
                 
@@ -1054,7 +1052,6 @@ class Model(object):
                 return 1
             except Exception as e:
                 print(e)
-                raise
                 if self._configuredpostprocessor[ftype]:
                     extension = self.extensions[ftype]
                 else:
