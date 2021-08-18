@@ -594,12 +594,16 @@ def readfile(filename):
 
     return data
 
-def _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
+def _transformvar(lon,lat,variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                   substellarlon=0.0,physfilter=False,zonal=False):
     '''Ensure a variable is in a given horizontal mode.
     
     Parameters
     ----------
+    lon : array-like
+        Longitude array, in degrees
+    lat : array-like
+        Latitude array, in degrees
     variable : array-like
         Data array from dataset
     meta : list
@@ -881,12 +885,16 @@ def _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
     return (outvar,meta)
     
 
-def _transformvectorvar(uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,mode='grid',
+def _transformvectorvar(lon,lat,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,mode='grid',
                         substellarlon=0.0,physfilter=False,zonal=False,radius=6371220.0):
     '''Ensure a variable is in a given horizontal mode.
     
     Parameters
     ----------
+    lon : array-like
+        Longitude array, in degrees
+    lat : array-like
+        Latitude array, in degrees
     uvar : array-like
         U-axis data array from dataset (e.g. divergence, or u-wind)
     vvar : array-like
@@ -1331,7 +1339,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
     rlon = lon*np.pi/180.0
     colat = np.cos(rlat)
     
-    gridlnps,lnpsmeta = _transformvar(rawdata[str(lnpscode)][:],ilibrary[str(lnpscode)][:],nlat,nlon,
+    gridlnps,lnpsmeta = _transformvar(lon[:],lat[:],rawdata[str(lnpscode)][:],ilibrary[str(lnpscode)][:],nlat,nlon,
                                       nlev,ntru,ntime,mode='grid',substellarlon=substellarlon,
                                       physfilter=physfilter,zonal=False)
     dpsdx = np.zeros(gridlnps.shape)
@@ -1405,7 +1413,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
         #_log(logfile,meta,derived,rawdata.keys())
         if not derived:
             #_log(logfile,"Found variable; no need to derive: %s"%meta[0])
-            variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+            variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
             rdataset[meta[0]]= [variable,meta]
@@ -1427,7 +1435,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     umeta = ilibrary[key][:]
                     umeta.append(key)
                     vmeta = ilibrary[str(vcode)][:]
-                    ua,va,meta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                    ua,va,meta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
                                                             radius=radius)
@@ -1444,7 +1452,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[key][:]
                     vmeta.append(key)
-                    ua,va,umeta,meta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                    ua,va,umeta,meta = _transformvectorvar(lon[:],lat[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
                                                             radius=radius)
@@ -1460,7 +1468,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     vort = rawdata[str(vortcode)][:]
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[str(vcode)][:]
-                    ua,va,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                    ua,va,umeta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
                                                             radius=radius)
@@ -1475,7 +1483,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = gridps*dpsdx
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1484,7 +1492,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = gridps*dpsdy
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1494,7 +1502,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["142"][:]+rawdata["143"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1504,7 +1512,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["178"][:]+rawdata["179"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1514,7 +1522,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["176"][:]+rawdata["177"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1525,7 +1533,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta.append(key)
                 variable = (rawdata["218"][:]*L_TIMES_RHOH2O +rawdata["176"][:] + rawdata["177"][:]
                            +rawdata["146"][:] + rawdata["147"][:])
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1535,7 +1543,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["182"][:] - rawdata["160"][:] + rawdata["142"][:] + rawdata["143"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1545,7 +1553,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["178"][:] - rawdata["176"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1555,7 +1563,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["179"][:] - rawdata["177"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1565,7 +1573,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["178"][:] - rawdata["176"][:] + rawdata["179"][:] - rawdata["177"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1575,7 +1583,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["182"][:] - rawdata["221"][:] + rawdata["142"][:] + rawdata["143"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1584,7 +1592,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["142"][:] + rawdata["143"][:] + rawdata["182"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1596,23 +1604,23 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 #get pa
                 #if "ps" in rdataset:
-                    #ps,pmeta = _transformvar(rdataset["ps"][0][:],rdataset["ps"][1][:],nlat,nlon,nlev,
+                    #ps,pmeta = _transformvar(lon[:],lat[:],rdataset["ps"][0][:],rdataset["ps"][1][:],nlat,nlon,nlev,
                                              #ntru,ntime,mode='grid',substellarlon=substellarlon,
                                              #physfilter=physfilter,zonal=False)
                 #else:
-                    #ps,pmeta = _transformvar(gridps,ilibrary["134"],nlat,nlon,nlev,
+                    #ps,pmeta = _transformvar(lon[:],lat[:],gridps,ilibrary["134"],nlat,nlon,nlev,
                                              #ntru,ntime,mode='grid',substellarlon=substellarlon,
                                              #physfilter=physfilter,zonal=False)
                 #pa = ps[:,np.newaxis,:,:]*lev[np.newaxis,:,np.newaxis,np.newaxis]
                 #We already got pa
                   
                 if not windless:
-                    uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta[:],vmeta[:],lat,
+                    uu,vv,umeta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta[:],vmeta[:],lat,
                                                             nlon,nlev,ntru,
                                                             ntime,mode='grid',radius=radius,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False)
-                    dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                    dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                              mode='grid',substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                 else:
@@ -1620,11 +1628,11 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     vort = rawdata[str(vortcode)][:]
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[str(vcode)][:]
-                    uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                    uu,vv,umeta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode='grid',radius=radius,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False)
-                    dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                    dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                              mode='grid',substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                     
@@ -1641,7 +1649,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                                                                        x=np.append([0,],pa[t,:,j,i])))
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]] = [variable*1.0e-2,meta] #transform to hPa/s
@@ -1651,11 +1659,11 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 #get pa
                 #if "ps" in rdataset:
-                    #ps,pmeta = _transformvar(rdataset["ps"][0][:],rdataset["ps"][1][:],nlat,nlon,nlev,
+                    #ps,pmeta = _transformvar(lon[:],lat[:],rdataset["ps"][0][:],rdataset["ps"][1][:],nlat,nlon,nlev,
                                              #ntru,ntime,mode='grid',substellarlon=substellarlon,
                                              #physfilter=physfilter,zonal=False)
                 #else:
-                    #ps,pmeta = _transformvar(gridps,ilibrary["134"],nlat,nlon,nlev,
+                    #ps,pmeta = _transformvar(lon[:],lat[:],gridps,ilibrary["134"],nlat,nlon,nlev,
                                              #ntru,ntime,mode='grid',substellarlon=substellarlon,
                                              #physfilter=physfilter,zonal=False)
                 #pa = ps[:,np.newaxis,:,:]*lev[np.newaxis,:,np.newaxis,np.newaxis]
@@ -1665,12 +1673,12 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     omega = rdataset["wap"][0]
                 else:
                     if not windless:
-                        uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta[:],vmeta[:],
+                        uu,vv,umeta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta[:],vmeta[:],
                                                                 lat,nlon,nlev,ntru,
                                                                 ntime,mode='grid',radius=radius,
                                                                 substellarlon=substellarlon,
                                                                 physfilter=physfilter,zonal=False)
-                        dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                        dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                                   mode='grid',substellarlon=substellarlon,
                                                   physfilter=physfilter,zonal=False)
                     else:
@@ -1678,11 +1686,11 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                         vort = rawdata[str(vortcode)][:]
                         umeta = ilibrary[str(ucode)][:]
                         vmeta = ilibrary[str(vcode)][:]
-                        uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                        uu,vv,umeta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                                 ntime,mode='grid',radius=radius,
                                                                 substellarlon=substellarlon,
                                                                 physfilter=physfilter,zonal=False)
-                        dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                        dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                                   mode='grid',substellarlon=substellarlon,
                                                   physfilter=physfilter,zonal=False)
                     omega = np.zeros(dv.shape)
@@ -1696,14 +1704,14 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                                                                         +uu[t,:,j,i]*dpsdx[t,j,i]
                                                                         +vv[t,:,j,i]*dpsdy[t,j,i]),
                                                                     x=np.append([0,],(pa[t,:,j,i]))))
-                omega,wmeta = _transformvar(omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
+                omega,wmeta = _transformvar(lon[:],lat[:],omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                                             substellarlon=substellarlon,physfilter=physfilter)
                 if "ta" in rdataset:
-                    ta,tameta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                    ta,tameta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
                                               nlev,ntru,ntime,mode='grid',substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    ta,tameta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
+                    ta,tameta = _transformvar(lon[:],lat[:],rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
                                               nlat,nlon,nlev,ntru,ntime,mode='grid',
                                               substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
@@ -1712,7 +1720,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 wa = -omega*gascon*ta / (gravity*pa)
                 meta = ilibrary[key][:]
                 meta.append(key)
-                wa,meta = _transformvar(wa,meta,nlat,nlon,
+                wa,meta = _transformvar(lon[:],lat[:],wa,meta,nlat,nlon,
                                         nlev,ntru,ntime,mode=mode,
                                         substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]] = [wa,meta]
@@ -1720,7 +1728,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
             elif key==str(pscode): #surface pressure
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(gridps,meta,nlat,nlon,
+                variable,meta = _transformvar(lon[:],lat[:],gridps,meta,nlat,nlon,
                                               nlev,ntru,ntime,
                                               mode=mode,substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=zonal)
@@ -1729,7 +1737,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
             elif key==str(vpotcode): #Velocity potential (psi)
                 meta = ilibrary[key][:]
                 meta.append(key)
-                vdiv,vmeta = _transformvar(rawdata[str(divcode)][:],
+                vdiv,vmeta = _transformvar(lon[:],lat[:],rawdata[str(divcode)][:],
                                            meta,nlat,nlon,
                                            nlev,ntru,ntime,mode='spectral',substellarlon=substellarlon,
                                            physfilter=physfilter,zonal=False) #Need it to be spectral
@@ -1743,13 +1751,13 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(vpot,meta,
+                variable,meta = _transformvar(lon[:],lat[:],vpot,meta,
                                               nlat,nlon,nlev,ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(stfcode): #Streamfunction (stf)
-                svort,smeta = _transformvar(rawdata[str(vortcode)][:],
+                svort,smeta = _transformvar(lon[:],lat[:],rawdata[str(vortcode)][:],
                                             ilibrary[str(vortcode)][:],nlat,
                                             nlon,nlev,ntru,ntime,mode='spectral',
                                             substellarlon=substellarlon,physfilter=physfilter,
@@ -1764,7 +1772,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(stf,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],stf,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1772,13 +1780,13 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
             elif key==str(slpcode): #Sea-level pressure (slp)
                 
                 if "sg" in rdataset:
-                    geopot,gmeta = _transformvar(rdataset["sg"][0][:],
+                    geopot,gmeta = _transformvar(lon[:],lat[:],rdataset["sg"][0][:],
                                                  ilibrary[str(geopotcode)][:],nlat,
                                                  nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 else:
-                    geopot,gmeta = _transformvar(rawdata[str(geopotcode)][:],
+                    geopot,gmeta = _transformvar(lon[:],lat[:],rawdata[str(geopotcode)][:],
                                                  ilibrary[str(geopotcode)][:],
                                                  nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
@@ -1787,11 +1795,11 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 #temp should be bottom layer of atmospheric temperature
                 
                 if "ta" in rdataset:
-                    tta,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                    tta,tmeta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    tta,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                    tta,tmeta = _transformvar(lon[:],lat[:],rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
                                               nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
@@ -1821,7 +1829,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(slp,meta,nlat,nlon,
+                variable,meta = _transformvar(lon[:],lat[:],slp,meta,nlat,nlon,
                                               nlev,ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1829,12 +1837,12 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
             elif key==str(geopotzcode): #Geopotential height 
                 #we need temperature, humidity, half-level pressure
                 if "hus" in rdataset:
-                    qq,qmeta = _transformvar(rdataset["hus"][0][:],
+                    qq,qmeta = _transformvar(lon[:],lat[:],rdataset["hus"][0][:],
                                              ilibrary[str(humcode)][:],nlat,nlon,
                                              nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                 else:
-                    qq,qmeta = _transformvar(rawdata[str(humcode)][:],ilibrary[str(humcode)][:],nlat,
+                    qq,qmeta = _transformvar(lon[:],lat[:],rawdata[str(humcode)][:],ilibrary[str(humcode)][:],nlat,
                                              nlon,nlev,ntru,ntime,mode="grid",
                                              substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
@@ -1842,22 +1850,22 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 
                 if "ta" in rdataset:
-                    temp,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                    temp,tmeta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    temp,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                    temp,tmeta = _transformvar(lon[:],lat[:],rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
                                                nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 
                 if "sg" in rdataset:
-                    oro,gmeta = _transformvar(rdataset["sg"][0][:],ilibrary[str(geopotcode)][:],nlat,
+                    oro,gmeta = _transformvar(lon[:],lat[:],rdataset["sg"][0][:],ilibrary[str(geopotcode)][:],nlat,
                                                  nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 else:
-                    oro,gmeta = _transformvar(rawdata[str(geopotcode)][:],ilibrary[str(geopotcode)][:],
+                    oro,gmeta = _transformvar(lon[:],lat[:],rawdata[str(geopotcode)][:],ilibrary[str(geopotcode)][:],
                                                  nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
@@ -1888,7 +1896,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(gz,meta,
+                variable,meta = _transformvar(lon[:],lat[:],gz,meta,
                                               nlat,nlon,nlev,ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1904,21 +1912,21 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 rdbrv  = gascon / rv
                 
                 if "ta" in rdataset:
-                    temp,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                    temp,tmeta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    temp,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                    temp,tmeta = _transformvar(lon[:],lat[:],rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
                                                nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 
                 if "hus" in rdataset:
-                    qq,qmeta = _transformvar(rdataset["hus"][0][:],ilibrary[str(humcode)][:],nlat,nlon,
+                    qq,qmeta = _transformvar(lon[:],lat[:],rdataset["hus"][0][:],ilibrary[str(humcode)][:],nlat,nlon,
                                              nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                 else:
-                    qq,qmeta = _transformvar(rawdata[str(humcode)][:],ilibrary[str(humcode)][:],nlat,
+                    qq,qmeta = _transformvar(lon[:],lat[:],rawdata[str(humcode)][:],ilibrary[str(humcode)][:],nlat,
                                              nlon,nlev,ntru,ntime,mode="grid",
                                              substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
@@ -1936,7 +1944,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(rh,meta,nlat,nlon,nlev,
+                variable,meta = _transformvar(lon[:],lat[:],rh,meta,nlat,nlon,nlev,
                                               ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1945,7 +1953,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(hpa,meta,nlat,nlon,
+                variable,meta = _transformvar(lon[:],lat[:],hpa,meta,nlat,nlon,
                                               nlev,ntru,ntime,mode=mode,
                                            substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1954,7 +1962,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(pa,meta,
+                variable,meta = _transformvar(lon[:],lat[:],pa,meta,
                                               nlat,nlon,nlev,ntru,ntime,mode=mode,
                                           substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -1965,35 +1973,35 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     if key==str(thetahcode):
                         meta = ilibrary[key][:]
                         meta.append(key)
-                        variable,meta = _transformvar(thetah,meta,nlat,nlon,nlev,ntru,
+                        variable,meta = _transformvar(lon[:],lat[:],thetah,meta,nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
                         rdataset[meta[0]]= [variable,meta]
                     elif key==str(thetafcode):
-                        variable,meta = _transformvar(theta,meta,nlat,nlon,nlev,ntru,
+                        variable,meta = _transformvar(lon[:],lat[:],theta,meta,nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
                         rdataset[meta[0]]= [variable,meta]
                 else:
                     
                     if "ta" in rdataset:
-                        ta,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,
+                        ta,tmeta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,
                                                  nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,
                                                  physfilter=physfilter,zonal=False)
                     else:
-                        ta,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
+                        ta,tmeta = _transformvar(lon[:],lat[:],rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
                                                  nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                     
                     if "ts" in rdataset:
-                        tsurf,tsmeta = _transformvar(rdataset["ts"][0][:],ilibrary[str(tscode)][:],nlat,
+                        tsurf,tsmeta = _transformvar(lon[:],lat[:],rdataset["ts"][0][:],ilibrary[str(tscode)][:],nlat,
                                                      nlon,nlev,ntru,ntime,mode="grid",
                                                      substellarlon=substellarlon,
                                                      physfilter=physfilter,zonal=False)
                     else:
-                        tsurf,tsmeta = _transformvar(rawdata[str(tscode)][:],ilibrary[str(tscode)][:],
+                        tsurf,tsmeta = _transformvar(lon[:],lat[:],rawdata[str(tscode)][:],ilibrary[str(tscode)][:],
                                                      nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                      substellarlon=substellarlon,physfilter=physfilter,
                                                      zonal=False)
@@ -2012,13 +2020,13 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
                     meta = ilibrary[key][:]
                     meta.append(key)
                     if key==str(thetahcode):
-                        variable,meta = _transformvar(thetah,meta,
+                        variable,meta = _transformvar(lon[:],lat[:],thetah,meta,
                                                       nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
                         rdataset[meta[0]]= [variable,meta]
                     elif key==str(thetafcode):
-                        variable,meta = _transformvar(theta,meta,
+                        variable,meta = _transformvar(lon[:],lat[:],theta,meta,
                                                       nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
@@ -2112,7 +2120,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
     rlon = lon*np.pi/180.0
     colat = np.cos(rlat)
     
-    gridlnps,lnpsmeta = _transformvar(rawdata[str(lnpscode)][:],ilibrary[str(lnpscode)][:],nlat,nlon,
+    gridlnps,lnpsmeta = _transformvar(lon[:],lat[:],rawdata[str(lnpscode)][:],ilibrary[str(lnpscode)][:],nlat,nlon,
                                       nlev,ntru,ntime,mode='grid',substellarlon=substellarlon,
                                       physfilter=physfilter,zonal=False)
     dpsdx = np.zeros(gridlnps.shape)
@@ -2193,7 +2201,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 zonal=variablecodes[key]["zonal"]
             if "physfilter" in variablecodes[key]:
                 physfilter=variablecodes[key]["physfilter"]
-            variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+            variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
             rdataset[meta[0]]= [variable,meta]
@@ -2223,7 +2231,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                     umeta = ilibrary[key][:]
                     umeta.append(key)
                     vmeta = ilibrary[str(vcode)][:]
-                    ua,va,meta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                    ua,va,meta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
                                                             radius=radius)
@@ -2240,7 +2248,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[key][:]
                     vmeta.append(key)
-                    ua,va,umeta,meta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                    ua,va,umeta,meta = _transformvectorvar(lon[:],lat[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
                                                             radius=radius)
@@ -2256,7 +2264,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                     vort = rawdata[str(vortcode)][:]
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[str(vcode)][:]
-                    ua,va,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                    ua,va,umeta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
                                                             radius=radius)
@@ -2271,7 +2279,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = gridps*dpsdx
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2280,7 +2288,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = gridps*dpsdy
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2290,7 +2298,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["142"][:]+rawdata["143"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2300,7 +2308,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["178"][:]+rawdata["179"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2310,7 +2318,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["176"][:]+rawdata["177"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2321,7 +2329,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta.append(key)
                 variable = (rawdata["218"][:]*L_TIMES_RHOH2O +rawdata["176"][:] + rawdata["177"][:]
                            +rawdata["146"][:] + rawdata["147"][:])
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2331,7 +2339,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["182"][:] - rawdata["160"][:] + rawdata["142"][:] + rawdata["143"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2341,7 +2349,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["178"][:] - rawdata["176"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2351,7 +2359,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["179"][:] - rawdata["177"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2361,7 +2369,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["178"][:] - rawdata["176"][:] + rawdata["179"][:] - rawdata["177"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2371,7 +2379,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["182"][:] - rawdata["221"][:] + rawdata["142"][:] + rawdata["143"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2380,7 +2388,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["142"][:] + rawdata["143"][:] + rawdata["182"][:]
-                variable,meta = _transformvar(variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2392,23 +2400,23 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 
                 #get pa
                 #if "ps" in rdataset:
-                    #ps,pmeta = _transformvar(rdataset["ps"][0][:],rdataset["ps"][1][:],nlat,nlon,nlev,
+                    #ps,pmeta = _transformvar(lon[:],lat[:],rdataset["ps"][0][:],rdataset["ps"][1][:],nlat,nlon,nlev,
                                              #ntru,ntime,mode='grid',substellarlon=substellarlon,
                                              #physfilter=physfilter,zonal=False)
                 #else:
-                    #ps,pmeta = _transformvar(gridps,ilibrary["134"],nlat,nlon,nlev,
+                    #ps,pmeta = _transformvar(lon[:],lat[:],gridps,ilibrary["134"],nlat,nlon,nlev,
                                              #ntru,ntime,mode='grid',substellarlon=substellarlon,
                                              #physfilter=physfilter,zonal=False)
                 #pa = ps[:,np.newaxis,:,:]*lev[np.newaxis,:,np.newaxis,np.newaxis]
                 #We already got pa
                   
                 if not windless:
-                    uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta[:],vmeta[:],lat,
+                    uu,vv,umeta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta[:],vmeta[:],lat,
                                                             nlon,nlev,ntru,
                                                             ntime,mode='grid',radius=radius,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False)
-                    dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                    dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                              mode='grid',substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                 else:
@@ -2416,11 +2424,11 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                     vort = rawdata[str(vortcode)][:]
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[str(vcode)][:]
-                    uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                    uu,vv,umeta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode='grid',radius=radius,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False)
-                    dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                    dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                              mode='grid',substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                     
@@ -2437,7 +2445,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                                                                        x=np.append([0,],pa[t,:,j,i])))
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]] = [variable*1.0e-2,meta] #transform to hPa/s
@@ -2447,11 +2455,11 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 
                 #get pa
                 #if "ps" in rdataset:
-                    #ps,pmeta = _transformvar(rdataset["ps"][0][:],rdataset["ps"][1][:],nlat,nlon,nlev,
+                    #ps,pmeta = _transformvar(lon[:],lat[:],rdataset["ps"][0][:],rdataset["ps"][1][:],nlat,nlon,nlev,
                                              #ntru,ntime,mode='grid',substellarlon=substellarlon,
                                              #physfilter=physfilter,zonal=False)
                 #else:
-                    #ps,pmeta = _transformvar(gridps,ilibrary["134"],nlat,nlon,nlev,
+                    #ps,pmeta = _transformvar(lon[:],lat[:],gridps,ilibrary["134"],nlat,nlon,nlev,
                                              #ntru,ntime,mode='grid',substellarlon=substellarlon,
                                              #physfilter=physfilter,zonal=False)
                 #pa = ps[:,np.newaxis,:,:]*lev[np.newaxis,:,np.newaxis,np.newaxis]
@@ -2461,12 +2469,12 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                     omega = rdataset["wap"][0]
                 else:
                     if not windless:
-                        uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta[:],vmeta[:],
+                        uu,vv,umeta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta[:],vmeta[:],
                                                                 lat,nlon,nlev,ntru,
                                                                 ntime,mode='grid',radius=radius,
                                                                 substellarlon=substellarlon,
                                                                 physfilter=physfilter,zonal=False)
-                        dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                        dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                                   mode='grid',substellarlon=substellarlon,
                                                   physfilter=physfilter,zonal=False)
                     else:
@@ -2474,11 +2482,11 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                         vort = rawdata[str(vortcode)][:]
                         umeta = ilibrary[str(ucode)][:]
                         vmeta = ilibrary[str(vcode)][:]
-                        uu,vv,umeta,vmeta = _transformvectorvar(div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
+                        uu,vv,umeta,vmeta = _transformvectorvar(lon[:],lat[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                                 ntime,mode='grid',radius=radius,
                                                                 substellarlon=substellarlon,
                                                                 physfilter=physfilter,zonal=False)
-                        dv,dmeta = _transformvar(div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                        dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                                   mode='grid',substellarlon=substellarlon,
                                                   physfilter=physfilter,zonal=False)
                         omega = np.zeros(dv.shape)
@@ -2492,14 +2500,14 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                                                                              +uu[t,:,j,i]*dpsdx[t,j,i]
                                                                              +vv[t,:,j,i]*dpsdy[t,j,i]),
                                                                         x=np.append([0,],(pa[t,:,j,i]))))
-                omega,wmeta = _transformvar(omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
+                omega,wmeta = _transformvar(lon[:],lat[:],omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                                             substellarlon=substellarlon,physfilter=physfilter)
                 if "ta" in rdataset:
-                    ta,tameta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                    ta,tameta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
                                               nlev,ntru,ntime,mode='grid',substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    ta,tameta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
+                    ta,tameta = _transformvar(lon[:],lat[:],rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
                                               nlat,nlon,nlev,ntru,ntime,mode='grid',
                                               substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
@@ -2508,7 +2516,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 wa = -omega*gascon*ta / (gravity*pa)
                 meta = ilibrary[key][:]
                 meta.append(key)
-                wa,meta = _transformvar(wa,meta,nlat,nlon,
+                wa,meta = _transformvar(lon[:],lat[:],wa,meta,nlat,nlon,
                                         nlev,ntru,ntime,mode=mode,
                                         substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]] = [wa,meta]
@@ -2516,7 +2524,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
             elif key==str(pscode): #surface pressure
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(gridps,meta,nlat,nlon,
+                variable,meta = _transformvar(lon[:],lat[:],gridps,meta,nlat,nlon,
                                               nlev,ntru,ntime,
                                               mode=mode,substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=zonal)
@@ -2525,7 +2533,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
             elif key==str(vpotcode): #Velocity potential (psi)
                 meta = ilibrary[key][:]
                 meta.append(key)
-                vdiv,vmeta = _transformvar(rawdata[str(divcode)][:],
+                vdiv,vmeta = _transformvar(lon[:],lat[:],rawdata[str(divcode)][:],
                                            meta,nlat,nlon,
                                            nlev,ntru,ntime,mode='spectral',substellarlon=substellarlon,
                                            physfilter=physfilter,zonal=False) #Need it to be spectral
@@ -2539,13 +2547,13 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(vpot,meta,
+                variable,meta = _transformvar(lon[:],lat[:],vpot,meta,
                                               nlat,nlon,nlev,ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(stfcode): #Streamfunction (stf)
-                svort,smeta = _transformvar(rawdata[str(vortcode)][:],
+                svort,smeta = _transformvar(lon[:],lat[:],rawdata[str(vortcode)][:],
                                             ilibrary[str(vortcode)][:],nlat,
                                             nlon,nlev,ntru,ntime,mode='spectral',
                                             substellarlon=substellarlon,physfilter=physfilter,
@@ -2560,7 +2568,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(stf,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+                variable,meta = _transformvar(lon[:],lat[:],stf,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2568,13 +2576,13 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
             elif key==str(slpcode): #Sea-level pressure (slp)
                 
                 if "sg" in rdataset:
-                    geopot,gmeta = _transformvar(rdataset["sg"][0][:],
+                    geopot,gmeta = _transformvar(lon[:],lat[:],rdataset["sg"][0][:],
                                                  ilibrary[str(geopotcode)][:],nlat,
                                                  nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 else:
-                    geopot,gmeta = _transformvar(rawdata[str(geopotcode)][:],
+                    geopot,gmeta = _transformvar(lon[:],lat[:],rawdata[str(geopotcode)][:],
                                                  ilibrary[str(geopotcode)][:],
                                                  nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
@@ -2583,11 +2591,11 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 #temp should be bottom layer of atmospheric temperature
                 
                 if "ta" in rdataset:
-                    tta,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                    tta,tmeta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    tta,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                    tta,tmeta = _transformvar(lon[:],lat[:],rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
                                               nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
@@ -2617,7 +2625,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(slp,meta,nlat,nlon,
+                variable,meta = _transformvar(lon[:],lat[:],slp,meta,nlat,nlon,
                                               nlev,ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2625,12 +2633,12 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
             elif key==str(geopotzcode): #Geopotential height 
                 #we need temperature, humidity, half-level pressure
                 if "hus" in rdataset:
-                    qq,qmeta = _transformvar(rdataset["hus"][0][:],
+                    qq,qmeta = _transformvar(lon[:],lat[:],rdataset["hus"][0][:],
                                              ilibrary[str(humcode)][:],nlat,nlon,
                                              nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                 else:
-                    qq,qmeta = _transformvar(rawdata[str(humcode)][:],ilibrary[str(humcode)][:],nlat,
+                    qq,qmeta = _transformvar(lon[:],lat[:],rawdata[str(humcode)][:],ilibrary[str(humcode)][:],nlat,
                                              nlon,nlev,ntru,ntime,mode="grid",
                                              substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
@@ -2638,22 +2646,22 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 
                 
                 if "ta" in rdataset:
-                    temp,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                    temp,tmeta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    temp,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                    temp,tmeta = _transformvar(lon[:],lat[:],rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
                                                nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 
                 if "sg" in rdataset:
-                    oro,gmeta = _transformvar(rdataset["sg"][0][:],ilibrary[str(geopotcode)][:],nlat,
+                    oro,gmeta = _transformvar(lon[:],lat[:],rdataset["sg"][0][:],ilibrary[str(geopotcode)][:],nlat,
                                                  nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 else:
-                    oro,gmeta = _transformvar(rawdata[str(geopotcode)][:],ilibrary[str(geopotcode)][:],
+                    oro,gmeta = _transformvar(lon[:],lat[:],rawdata[str(geopotcode)][:],ilibrary[str(geopotcode)][:],
                                                  nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
@@ -2684,7 +2692,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(gz,meta,
+                variable,meta = _transformvar(lon[:],lat[:],gz,meta,
                                               nlat,nlon,nlev,ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2700,21 +2708,21 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 rdbrv  = gascon / rv
                 
                 if "ta" in rdataset:
-                    temp,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
+                    temp,tmeta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                 else:
-                    temp,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
+                    temp,tmeta = _transformvar(lon[:],lat[:],rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],nlat,
                                                nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                 
                 if "hus" in rdataset:
-                    qq,qmeta = _transformvar(rdataset["hus"][0][:],ilibrary[str(humcode)][:],nlat,nlon,
+                    qq,qmeta = _transformvar(lon[:],lat[:],rdataset["hus"][0][:],ilibrary[str(humcode)][:],nlat,nlon,
                                              nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                 else:
-                    qq,qmeta = _transformvar(rawdata[str(humcode)][:],ilibrary[str(humcode)][:],nlat,
+                    qq,qmeta = _transformvar(lon[:],lat[:],rawdata[str(humcode)][:],ilibrary[str(humcode)][:],nlat,
                                              nlon,nlev,ntru,ntime,mode="grid",
                                              substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
@@ -2732,7 +2740,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(rh,meta,nlat,nlon,nlev,
+                variable,meta = _transformvar(lon[:],lat[:],rh,meta,nlat,nlon,nlev,
                                               ntru,ntime,mode=mode,
                                     substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2741,7 +2749,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(hpa,meta,nlat,nlon,
+                variable,meta = _transformvar(lon[:],lat[:],hpa,meta,nlat,nlon,
                                               nlev,ntru,ntime,mode=mode,
                                            substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2750,7 +2758,7 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
-                variable,meta = _transformvar(pa,meta,
+                variable,meta = _transformvar(lon[:],lat[:],pa,meta,
                                               nlat,nlon,nlev,ntru,ntime,mode=mode,
                                           substellarlon=substellarlon,physfilter=physfilter,zonal=zonal)
                 rdataset[meta[0]]= [variable,meta]
@@ -2761,35 +2769,35 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                     if key==str(thetahcode):
                         meta = ilibrary[key][:]
                         meta.append(key)
-                        variable,meta = _transformvar(thetah,meta,nlat,nlon,nlev,ntru,
+                        variable,meta = _transformvar(lon[:],lat[:],thetah,meta,nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
                         rdataset[meta[0]]= [variable,meta]
                     elif key==str(thetafcode):
-                        variable,meta = _transformvar(theta,meta,nlat,nlon,nlev,ntru,
+                        variable,meta = _transformvar(lon[:],lat[:],theta,meta,nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
                         rdataset[meta[0]]= [variable,meta]
                 else:
                     
                     if "ta" in rdataset:
-                        ta,tmeta = _transformvar(rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,
+                        ta,tmeta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,
                                                  nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,
                                                  physfilter=physfilter,zonal=False)
                     else:
-                        ta,tmeta = _transformvar(rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
+                        ta,tmeta = _transformvar(lon[:],lat[:],rawdata[str(tempcode)][:],ilibrary[str(tempcode)][:],
                                                  nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                  substellarlon=substellarlon,physfilter=physfilter,
                                                  zonal=False)
                     
                     if "ts" in rdataset:
-                        tsurf,tsmeta = _transformvar(rdataset["ts"][0][:],ilibrary[str(tscode)][:],nlat,
+                        tsurf,tsmeta = _transformvar(lon[:],lat[:],rdataset["ts"][0][:],ilibrary[str(tscode)][:],nlat,
                                                      nlon,nlev,ntru,ntime,mode="grid",
                                                      substellarlon=substellarlon,
                                                      physfilter=physfilter,zonal=False)
                     else:
-                        tsurf,tsmeta = _transformvar(rawdata[str(tscode)][:],ilibrary[str(tscode)][:],
+                        tsurf,tsmeta = _transformvar(lon[:],lat[:],rawdata[str(tscode)][:],ilibrary[str(tscode)][:],
                                                      nlat,nlon,nlev,ntru,ntime,mode="grid",
                                                      substellarlon=substellarlon,physfilter=physfilter,
                                                      zonal=False)
@@ -2808,13 +2816,13 @@ def advancedDataset(filename, variablecodes, substellarlon=0.0,
                     meta = ilibrary[key][:]
                     meta.append(key)
                     if key==str(thetahcode):
-                        variable,meta = _transformvar(thetah,meta,
+                        variable,meta = _transformvar(lon[:],lat[:],thetah,meta,
                                                       nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
                         rdataset[meta[0]]= [variable,meta]
                     elif key==str(thetafcode):
-                        variable,meta = _transformvar(theta,meta,
+                        variable,meta = _transformvar(lon[:],lat[:],theta,meta,
                                                       nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
