@@ -868,7 +868,7 @@ class Model(object):
     
     def cfgpostprocessor(self,ftype="regular",
                          extension=".npz",namelist=None,variables=list(pyburn.ilibrary.keys()),
-                         mode='grid',zonal=False, substellarlon=0.0, physfilter=False,
+                         mode='grid',zonal=False, substellarlon=180.0, physfilter=False,
                          timeaverage=True,stdev=False,times=12,interpolatetimes=True):
         '''Configure postprocessor options for pyburn.
         

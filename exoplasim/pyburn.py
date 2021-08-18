@@ -595,7 +595,7 @@ def readfile(filename):
     return data
 
 def _transformvar(lon,lat,variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
-                  substellarlon=0.0,physfilter=False,zonal=False):
+                  substellarlon=180.0,physfilter=False,zonal=False):
     '''Ensure a variable is in a given horizontal mode.
     
     Parameters
@@ -721,7 +721,7 @@ def _transformvar(lon,lat,variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                 dims = ["time",levd,"lat","lon"]
         if meta[0]=="hus":
             gridvar[gridvar<0] = 0.0
-        lon,lat,tlgridvar = gcmt.eq2tl(gridvar,lon,lat,substellar=(substellarlon+180.0)%360.0,
+        lon,lat,tlgridvar = gcmt.eq2tl(gridvar,lon,lat,substellar=substellarlon,
                                        polemethod='interp') #fine bc all vectors are derived
         
         if zonal:
@@ -842,7 +842,7 @@ def _transformvar(lon,lat,variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
         if zonal:
             gridvar = np.nanmean(gridvar,axis=-1)
             dims.remove("lon")
-        lon,lat,tlgridvar = gcmt.eq2tl(gridvar,lon,lat,substellar=(substellarlon+180.0)%360.0,
+        lon,lat,tlgridvar = gcmt.eq2tl(gridvar,lon,lat,substellar=substellarlon,
                                        polemethod='interp') #fine bc all vectors are derived
         #Next we want to reshape things so that parallel meridians link up to form circles.
         #This will leave us with half the longitudes, and twice the latitudes.
@@ -886,7 +886,7 @@ def _transformvar(lon,lat,variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
     
 
 def _transformvectorvar(lon,lat,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,mode='grid',
-                        substellarlon=0.0,physfilter=False,zonal=False,radius=6371220.0):
+                        substellarlon=180.0,physfilter=False,zonal=False,radius=6371220.0):
     '''Ensure a variable is in a given horizontal mode.
     
     Parameters
@@ -1045,8 +1045,7 @@ def _transformvectorvar(lon,lat,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,
                 dims = ["time","lat","lon"]
             else:
                 dims = ["time",levd,"lat","lon"]
-        lon,lat,tlgriduvar,tlgridvvar = gcmt.eq2tl_uv(griduvar,gridvvar,lon,lat,
-                                                      substellar=(substellarlon+180.0)%360.0)
+        lon,lat,tlgriduvar,tlgridvvar = gcmt.eq2tl_uv(griduvar,gridvvar,lon,lat,substellar=substellarlon)
         
         if zonal:
             tlgriduvar = np.nanmean(tlgriduvar,axis=-1)
@@ -1212,8 +1211,7 @@ def _transformvectorvar(lon,lat,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,
                 dims = ["time","lat","lon"]
             else:
                 dims = ["time",levd,"lat","lon"]
-        lon,lat,tlgriduvar,tlgridvvar = gcmt.eq2tl_uv(griduvar,gridvvar,lon,lat,
-                                                      substellar=(substellarlon+180.0)%360.0)
+        lon,lat,tlgriduvar,tlgridvvar = gcmt.eq2tl_uv(griduvar,gridvvar,lon,lat,substellar=substellarlon)
         #Next we want to reshape things so that parallel meridians link up to form circles.
         #This will leave us with half the longitudes, and twice the latitudes.
         
@@ -1268,7 +1266,7 @@ def _transformvectorvar(lon,lat,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,
     return (outuvar,outvvar,umeta,vmeta)
     
 
-def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0, physfilter=False,
+def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180.0, physfilter=False,
             radius=1.0,gravity=9.80665,gascon=287.0,logfile=None):
     '''Read a raw output file, and construct a dataset.
     
@@ -2045,7 +2043,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=0.0
     return rdataset
 
 
-def advancedDataset(filename, variablecodes, substellarlon=0.0,
+def advancedDataset(filename, variablecodes, substellarlon=180.0,
                     radius=1.0,gravity=9.80665,gascon=287.0,logfile=None):
     '''Read a raw output file, and construct a dataset.
     
@@ -3366,7 +3364,7 @@ def hdf5(rdataset,filename="most_output.hdf5",append=False,logfile=None):
              
 
 def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=None,mode='grid',
-                zonal=False, substellarlon=0.0, physfilter=False,timeaverage=True,stdev=False,
+                zonal=False, substellarlon=180.0, physfilter=False,timeaverage=True,stdev=False,
                 times=12,interpolatetimes=True,radius=1.0,gravity=9.80665,gascon=287.0,mars=False):
     '''Convert a raw output file into a postprocessed formatted file.
     
