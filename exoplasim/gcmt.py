@@ -1,6 +1,6 @@
 import numpy as np
-import exoplasim.pyburn
-import exoplasim.pyburn as pyburn
+import exoplasim.filesupport
+from exoplasim.filesupport import SUPPORTED
 import os, glob
 
 def _loadnetcdf(filename):
@@ -331,7 +331,7 @@ class _Dataset:
                 
             
         else:
-            raise DatafileError("Unsupported output format detected. Supported formats are:\n%s"%("\n\t".join(pyburn.SUPPORTED)))
+            raise DatafileError("Unsupported output format detected. Supported formats are:\n%s"%("\n\t".join(SUPPORTED)))
         
     def close(self):
         try:

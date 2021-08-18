@@ -9,6 +9,8 @@ import numpy as np
 import glob
 import exoplasim.gcmt 
 import exoplasim.pyburn
+import exoplasim.filesupport
+from exoplasim.filesupport import SUPPORTED
 import exoplasim.randomcontinents
 import exoplasim.makestellarspec
 import platform

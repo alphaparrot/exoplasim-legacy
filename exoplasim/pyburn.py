@@ -5,6 +5,8 @@ import numpy as np
 import struct
 import exoplasim.gcmt
 import exoplasim.gcmt as gcmt
+import exoplasim.filesupport
+from exoplasim.filesupport import SUPPORTED
 import scipy, scipy.integrate, scipy.interpolate
 import os, sys
 
@@ -197,21 +199,7 @@ MARS_RD     = 189.0
 L_TIMES_RHOH2O = -333700000.0
 RLAPSE      = 0.0065    #International Standard Atmosphere temperature lapse rate in K/m
 RH2O        = 1000 * 1.380658e-23*6.0221367e+23 / 18.0153
-SUPPORTED = [".nc"        , #NetCDF
-             ".npz"       , #NumPy
-             ".npy"       , #Synonym for NumPy
-             ".csv"       , #CSV/TXT
-             ".txt"       , #CSV/TXT
-             ".gz"        , #CSV/TXT (compressed)
-             ".tar"       , #Tarballed CSV/TXT (uncompressed)
-             ".tar.gz"    , #Tarballed CSV/TXT (with gzip  compression)
-             ".tar.xz"    , #Tarballed CSV/TXT (with bzip2 compression)
-             ".tar.bz2"   , #Tarballed CSV/TXT (with lzma  compression)
-             ".hdf5"      , #HDF5
-             ".h5"        , #Synonym for HDF5
-             ".he5"       , #Synonym for HDF5
-             ]
-             #Future support: parallelized writes
+
 
 def _getEndian(fbuffer):
     '''Determine Endian-ness of the buffer'''
