@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-global sourcedir
-sourcedir = None
+#global sourcedir
+#sourcedir = None
 
 import os
 import sys
@@ -183,31 +183,33 @@ class Model(object):
         if self.extension not in pyburn.SUPPORTED:
             raise Exception("Unsupported output format detected. Supported formats are:\n\t\n\t%s"%("\n\t".join(pyburn.SUPPORTED)))
         
+        sourcedir = "/".join(__file__.split("/")[:-1]) #Get the absolute path for the module
         
-        if not sourcedir: #This means we haven't run yet, and have some post-install work to do
+        if not os.path.isfile(sourcedir+"/firstrun"): #This means we haven't run yet, and have some post-install work to do
             recompile=True
-            os.system('spth=$(python%s -c "import exoplasim as exo; print(exo.__path__)") && echo $spth>sourcepath'%sys.version[0])
-            with open("sourcepath","r") as spf:
-                sourcedir = spf.read().strip()
-                if sourcedir[0]=="[":
-                    sourcedir=sourcedir[1:]
-                if sourcedir[-1]=="]":
-                    sourcedir=sourcedir[:-1]
-                if sourcedir[0]=="'":
-                    sourcedir=sourcedir[1:]
-                if sourcedir[-1]=="'":
-                    sourcedir=sourcedir[:-1]
-            os.system("rm sourcepath")
-            with open("%s/__init__.py"%sourcedir,"r") as sourcef:
-                sourcecode = sourcef.read().split('\n')
-            sourcecode[2] = 'sourcedir = "%s"'%sourcedir
-            sourcecode = '\n'.join(sourcecode)
+            #os.system('spth=$(python%s -c "import exoplasim as exo; print(exo.__path__)") && echo $spth>sourcepath'%sys.version[0])
+            #with open("sourcepath","r") as spf:
+                #sourcedir = spf.read().strip()
+                #if sourcedir[0]=="[":
+                    #sourcedir=sourcedir[1:]
+                #if sourcedir[-1]=="]":
+                    #sourcedir=sourcedir[:-1]
+                #if sourcedir[0]=="'":
+                    #sourcedir=sourcedir[1:]
+                #if sourcedir[-1]=="'":
+                    #sourcedir=sourcedir[:-1]
+            #os.system("rm sourcepath")
+            #with open("%s/__init__.py"%sourcedir,"r") as sourcef:
+                #sourcecode = sourcef.read().split('\n')
+            #sourcecode[2] = 'sourcedir = "%s"'%sourcedir
+            #sourcecode = '\n'.join(sourcecode)
             #os.system("cp %s/__init__.py %s/preinit.py"%(sourcedir,sourcedir))
             try:
-                with open("%s/__init__.py"%sourcedir,"w") as sourcef:
-                    sourcef.write(sourcecode)
+                #with open("%s/__init__.py"%sourcedir,"w") as sourcef:
+                    #sourcef.write(sourcecode)
                 cwd = os.getcwd()
                 os.chdir(sourcedir)
+                os.system("touch firstrun")
                 os.system("./configure.sh")
                 if self.burn7:
                     os.system("nc-config --version > ncversion.tmp")

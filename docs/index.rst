@@ -110,6 +110,18 @@ to not use the Python API, by entering the exoplasim/ directory
 and running first configure.sh, then compile.sh (compilation flags
 are shown by running ``./compile.sh -h``). 
 
+.. **NOTE ON INSTALLING EXOPLASIM FOR MULTIPLE PYTHON 3 VERSIONS:**
+.. 
+.. ExoPlaSim needs to know where its Fortran source code is to compile the model,
+.. along with the Python bindings for the ``pyfft`` Fortran library. It uses
+.. a shell command with ``python3`` to query the module's absolute path
+.. to do this. If you have installed ExoPlaSim for multiple versions of
+.. Python 3, this means compilation will only happen in the directory
+.. corresponding to the system's default version of Python 3. This can
+.. lead to crashes. If you must do this, you can run ``./configure.sh``
+.. manually in the ExoPlaSim package directory for the non-default version
+.. of Python 3.
+
 .. The postprocessor and its
 .. libraries can be compiled by entering ``exoplasim/postprocessor/`` and
 .. running ``./build_init.sh``.
