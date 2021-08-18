@@ -1,0 +1,2 @@
+#!/bin/bash
+gfortran -O3 -cpp -fcheck=all -ffixed-line-length-132 -ffpe-trap=invalid,zero,overflow -ffpe-summary=none -finit-real=zero -fdefault-real-8 buildice.f90 -o ../bin/buildice.x

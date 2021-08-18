@@ -1,0 +1,11 @@
+GPlaSim Glacier Model
+
+Adiv Paradise -- 07.14.2017
+
+Since we can grow our own glaciers and ice sheets, you
+don't want PlaSim's default prescribed ice-related 
+elevation for Antarctica and Greenland. The surface
+file in this folder has their elevations decreased by 
+~few km, so they're still above sea level, but not
+by that much. If you put 3 km of ice on them, they'll
+be back to normal elevation.
