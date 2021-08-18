@@ -50,7 +50,8 @@ Python 2 and outdated versions of NumPy.
 
 Requirements
 ------------
-    
+
+* Python (including development libraries, e.g. python-dev or python3.9-dev on Ubuntu)
 * numpy
 * scipy (only needed for additional utilities)
 * matplotlib (only needed for additional utilities)

@@ -100,7 +100,10 @@ class Model(object):
         The directory in which to construct the model.
     source : str, optional
         The directory in which to look for executables, namelists, 
-        boundary conditions, etc. If not set, will default to exoplasim/plasim/run/.        
+        boundary conditions, etc. If not set, will default to exoplasim/plasim/run/.
+    force991 : bool, optional
+        Force the use of the FFT991 library instead of the default FFT library. Recommended for advanced
+        use only.
     modelname : str, optional 
         The name to use for the model and its output files when finished.
     burn7 : bool, optional
@@ -172,7 +175,7 @@ class Model(object):
         self.postprocessordefaults = {"regular"     : {},
                                       "snapshot"    : {"times":None,"timeaverage":False,"stdev":False},
                                       "highcadence" : {"times":None,"timeaverage":False,"stdev":False}}
-        
+        self.postprocessorcfgs = {"regular":{},"snapshot":{},"highcadence":{}}
         self.crashtolerant = crashtolerant
         
         if self.extension not in pyburn.SUPPORTED:
@@ -313,7 +316,8 @@ class Model(object):
         
         self.executable = source+"/most_plasim_t%d_l%d_p%d.x"%(self.nsp,self.layers,ncpus)
         
-        burnsource = "%s/postprocessor"%sourcedir
+        if self.burn7:
+            burnsource = "%s/postprocessor"%sourcedir
         
         print("Checking for %s...."%self.executable)
         
@@ -335,7 +339,8 @@ class Model(object):
                     "cd $cwd")
         
         os.system("cp %s/* %s/"%(source,self.workdir))
-        os.system("cp %s/burn7.x %s/"%(burnsource,self.workdir))
+        if self.burn7:
+            os.system("cp %s/burn7.x %s/"%(burnsource,self.workdir))
         
         #Copy the executable to the working directory, and then CD there
         os.system("cp %s %s"%(self.executable,self.workdir))
@@ -757,6 +762,7 @@ class Model(object):
             
 
         """
+        odir = os.getcwd()
         if os.getcwd()!=self.workdir:
             os.chdir(self.workdir)
         os.system("mkdir snapshots")
@@ -857,6 +863,7 @@ class Model(object):
                 else:
                     print(e)
                     self._crash() #Bring in the cleaners
+        os.chdir(odir)
                 
     
     def cfgpostprocessor(self,ftype="regular",
