@@ -721,7 +721,7 @@ def _transformvar(lon,lat,variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                 dims = ["time",levd,"lat","lon"]
         if meta[0]=="hus":
             gridvar[gridvar<0] = 0.0
-        lon,lat,tlgridvar = gcmt.eq2tl(gridvar,lon,lat,substellar=substellarlon,
+        lon,lat,tlgridvar = gcmt.eq2tl(gridvar,lon,lat,substellar=(substellarlon+180.0)%360.0,
                                        polemethod='interp') #fine bc all vectors are derived
         
         if zonal:
@@ -842,7 +842,7 @@ def _transformvar(lon,lat,variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
         if zonal:
             gridvar = np.nanmean(gridvar,axis=-1)
             dims.remove("lon")
-        lon,lat,tlgridvar = gcmt.eq2tl(gridvar,lon,lat,substellar=substellarlon,
+        lon,lat,tlgridvar = gcmt.eq2tl(gridvar,lon,lat,substellar=(substellarlon+180.0)%360.0,
                                        polemethod='interp') #fine bc all vectors are derived
         #Next we want to reshape things so that parallel meridians link up to form circles.
         #This will leave us with half the longitudes, and twice the latitudes.
@@ -1045,7 +1045,8 @@ def _transformvectorvar(lon,lat,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,
                 dims = ["time","lat","lon"]
             else:
                 dims = ["time",levd,"lat","lon"]
-        lon,lat,tlgriduvar,tlgridvvar = gcmt.eq2tl_uv(griduvar,gridvvar,lon,lat,substellar=substellarlon)
+        lon,lat,tlgriduvar,tlgridvvar = gcmt.eq2tl_uv(griduvar,gridvvar,lon,lat,
+                                                      substellar=(substellarlon+180.0)%360.0)
         
         if zonal:
             tlgriduvar = np.nanmean(tlgriduvar,axis=-1)
@@ -1211,7 +1212,8 @@ def _transformvectorvar(lon,lat,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,
                 dims = ["time","lat","lon"]
             else:
                 dims = ["time",levd,"lat","lon"]
-        lon,lat,tlgriduvar,tlgridvvar = gcmt.eq2tl_uv(griduvar,gridvvar,lon,lat,substellar=substellarlon)
+        lon,lat,tlgriduvar,tlgridvvar = gcmt.eq2tl_uv(griduvar,gridvvar,lon,lat,
+                                                      substellar=(substellarlon+180.0)%360.0)
         #Next we want to reshape things so that parallel meridians link up to form circles.
         #This will leave us with half the longitudes, and twice the latitudes.
         
