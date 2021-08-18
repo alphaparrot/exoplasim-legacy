@@ -95,19 +95,23 @@ OR::
 The first time you import the module and try to create a model
 after either installing or updating, ExoPlaSim will run a 
 configuration script, write the install directory into its 
-source code, and compile the burn7 NetCDF postprocessor. You must 
-have NetCDF libraries available in the path when this happens.
-The burn7 compilation process will build and compile a patched
-version of the NetCDF libraries necessary for burn7--burn7 makes
-use of features anachronistic to a particular version of NetCDF
-that no longer exists.
+source code, and compile the `pyfft` library.
+
+.. burn7 NetCDF postprocessor. You must 
+.. have NetCDF libraries available in the path when this happens.
+.. The burn7 compilation process will build and compile a patched
+.. version of the NetCDF libraries necessary for burn7--burn7 makes
+.. use of features anachronistic to a particular version of NetCDF
+.. that no longer exists.
 
 You may also configure and compile the model manually if you wish
 to not use the Python API, by entering the exoplasim/ directory
 and running first configure.sh, then compile.sh (compilation flags
-are shown by running ``./compile.sh -h``). The postprocessor and its
-libraries can be compiled by entering ``exoplasim/postprocessor/`` and
-running ``./build_init.sh``.
+are shown by running ``./compile.sh -h``). 
+
+.. The postprocessor and its
+.. libraries can be compiled by entering ``exoplasim/postprocessor/`` and
+.. running ``./build_init.sh``.
 
 Most Common Error Modes
 -----------------------
