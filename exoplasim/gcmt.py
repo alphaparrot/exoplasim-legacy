@@ -545,7 +545,7 @@ def spatialmath(variable,lat=None,lon=None,file=None,mean=True,time=None,
             raise DimensionError("Need to provide latitude and longitude data")
         ln=lon
         lt=lat
-    variable = make2d(variable,time=time,lev=lev,ignoreNaNs=ignoreNaNs)
+    variable = make2d(variable,time=time,lev=lev,ignoreNaNs=ignoreNaNs,longitudes=ln,latitudes=lt)
     
     lt1 = np.zeros(len(lt)+1)
     lt1[0] = 90
@@ -785,7 +785,8 @@ def cspatialmath(variable,lat=None,lon=None,file=None,mean=True,time=None,
             raise DimensionError("Need to provide latitude and longitude data")
         ln=lon
         lt=lat
-    variable = make2d(variable,time=time,lev=lev,ignoreNaNs=ignoreNaNs)
+    variable = make2d(variable,time=time,lev=lev,ignoreNaNs=ignoreNaNs,
+                      latitudes=lt,longitudes=ln)
     
     lt1 = np.zeros(len(lt)+1)
     dlt1 = abs(np.diff(lt)[0])
@@ -834,31 +835,61 @@ def streamfxn(file,time=None):
     '''Deprecated. Passes args to eqstream().'''
     return eqstream(file,time=time)
     
-def eqstream(file,time=None):
-    '''Return the streamfunction
-
+def eqstream(file,radius=6.371e6,gravity=9.80665):
+    '''Compute the tidally-locked streamfunction
+    
     Parameters
     ----------
-    file : str
-        Path to an ExoPlaSim NetCDF output file.
-        
+    dataset : str or ExoPlaSim Dataset
+        Either path to ExoPlaSim Dataset of model output or an instance of the dataset.
+    plarad : float, optional
+        Planetary radius [m]
+    grav : float, optional
+        Surface gravity [m/s^2]
+            
     Returns
     -------
-    numpy.ndarray
-        The streamfunction for the given file.
+    numpy.ndarray(1D), numpy.ndarray(1D), numpy.ndarray(2D)
+        tidally-locked latitude, layer interface pressures, and TL streamfunction
     '''
-    ln,lt,levs=parse(file,"lev")
-    plevs = levs*spatialmath("ps",file=file,time=time)
-    ln,lt,va = parse(file,"va")
-    va = make2d(va,lon="mean",time=time)
-    strf = np.zeros(va.shape)
-    pref = 2*np.pi*6.371e6*np.cos(lt*np.pi/180.0)/9.81
-    ps = np.array([0.0,]+list(plevs))
-    vas = np.zeros(np.array(va.shape)+np.array((1,0)))
-    vas[1:,:] = va[:,:]
-    for k in range(0,len(plevs)):
-        strf[k,:] = pref[:]*np.trapz(vas[0:k+1,:],x=ps[0:k+1],axis=0)
-    return strf
+    from scipy.integrate import cumtrapz
+    
+    if type(dataset)==str:
+        dataset = _Dataset(dataset,"r")
+    lon = dataset.variables['lon'][:]
+    lat = dataset.variables['lat'][:]
+    
+    #mva = np.nanmean(va_TL,axis=3) #tidally-locked meridional wind
+    #ps = spatialmath(dataset.variables['ps'][:],lon=lon,lat=lat)
+    lev = dataset.variables['lev'][:]
+    pa = dataset.variables['ps'][:,np.newaxis,:,:] * lev[np.newaxis,:,np.newaxis,np.newaxis] * 100.0
+    
+    va = dataset.variables['va'][:]
+    
+    nlon = len(lon)
+    nlat = len(lat)
+    ntime = pa.shape[0]
+    nlev = len(lev)
+
+    vadp = np.zeros(va.shape)
+    for nt in range(ntime):
+        for jlat in range(nlat):
+            for jlon in range(nlon):
+                vadp[nt,:jlat,jlon] = cumtrapz(va[nt,:,jlat,jlon],
+                                               x=pa[nt,:,jlat,jlon],
+                                               initial=0.0)
+        
+    prefactor = 2*np.pi*radius/gravity*np.cos(lat*np.pi/180.0)
+    sign = 1 #-1 for synchronous, 1 for equatorial
+    stf = sign*prefactor[np.newaxis,np.newaxis,:,np.newaxis]*vadp
+    
+    psurf = spatialmath(dataset.variables['ps'][:],lon=lon,lat=lat)
+    
+    #mvadp = cumtrapz(mva,x=lev[:]*ps*100.0,axis=1) #integrate in Pa not hPa
+    #prefactor = 2*np.pi*plarad/grav #2piR/g
+    #stf = prefactor*np.cos(lat_TL[np.newaxis,np.newaxis,:]*np.pi/180.0)*mvadp
+    #pmid = 0.5*(lev[1:]+lev[:-1])*ps
+    return lat,psurf*lev,stf
 
 
 def adist(lon1,lat1,lon2,lat2):
@@ -1261,8 +1292,8 @@ def tlstream(dataset,plarad=6371.0e3,grav=9.80665,substellar=0.0):
     
     Parameters
     ----------
-    dataset : str or netCDF4.Dataset
-        Either path to netCDF4 Dataset of model output or an instance of the dataset.
+    dataset : str or ExoPlaSim Dataset
+        Either path to ExoPlaSim Dataset of model output or an instance of the dataset.
     plarad : float, optional
         Planetary radius [m]
     grav : float, optional
@@ -1284,14 +1315,36 @@ def tlstream(dataset,plarad=6371.0e3,grav=9.80665,substellar=0.0):
     lon_TL,lat_TL,ua_TL,va_TL = eq2tl_uv(dataset.variables['ua'][:],
                                          dataset.variables['va'][:],
                                          lon,lat,substellar=substellar)
-    mva = np.nanmean(va_TL,axis=3) #tidally-locked meridional wind
-    ps = spatialmath(dataset.variables['ps'][:],lon=lon,lat=lat)
+    
+    #mva = np.nanmean(va_TL,axis=3) #tidally-locked meridional wind
+    #ps = spatialmath(dataset.variables['ps'][:],lon=lon,lat=lat)
     lev = dataset.variables['lev'][:]
-    mvadp = cumtrapz(mva,x=lev[:]*ps*100.0,axis=1) #integrate in Pa not hPa
-    prefactor = 2*np.pi*plarad/grav #2piR/g
-    stf = prefactor*np.cos(lat_TL[np.newaxis,np.newaxis,:]*np.pi/180.0)*mvadp
-    pmid = 0.5*(lev[1:]+lev[:-1])*ps
-    return lat_TL,pmid,-stf
+    pa = dataset.variables['ps'][:,np.newaxis,:,:] * lev[np.newaxis,:,np.newaxis,np.newaxis] * 100.0
+
+    nlon = len(lon)
+    nlat = len(lat)
+    ntime = pa.shape[0]
+    nlev = len(lev)
+
+    vadp = np.zeros(va_TL.shape)
+    for nt in range(ntime):
+        for jlat in range(nlat):
+            for jlon in range(nlon):
+                vadp[nt,:jlat,jlon] = cumtrapz(va_TL[nt,:,jlat,jlon],
+                                               x=pa[nt,:,jlat,jlon],
+                                               initial=0.0)
+        
+    prefactor = 2*np.pi*radius/gravity*np.cos(lat*np.pi/180.0)
+    sign = -1 #-1 for synchronous, 1 for equatorial
+    stf = sign*prefactor[np.newaxis,np.newaxis,:,np.newaxis]*vadp
+    
+    psurf = spatialmath(dataset.variables['ps'][:],lon=lon,lat=lat)
+    
+    #mvadp = cumtrapz(mva,x=lev[:]*ps*100.0,axis=1) #integrate in Pa not hPa
+    #prefactor = 2*np.pi*plarad/grav #2piR/g
+    #stf = prefactor*np.cos(lat_TL[np.newaxis,np.newaxis,:]*np.pi/180.0)*mvadp
+    #pmid = 0.5*(lev[1:]+lev[:-1])*ps
+    return lat_TL,psurf*lev,stf
 
 
 def load(filename,csvbuffersize=1):
