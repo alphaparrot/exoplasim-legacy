@@ -3,6 +3,7 @@ Read raw exoplasim output files and postprocess them into netCDF output files.
 """
 import numpy as np
 import struct
+import exoplasim.gcmt
 import exoplasim.gcmt as gcmt
 import scipy, scipy.integrate, scipy.interpolate
 import os, sys

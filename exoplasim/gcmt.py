@@ -1,4 +1,5 @@
 import numpy as np
+import exoplasim.pyburn
 import exoplasim.pyburn as pyburn
 import os, glob
 

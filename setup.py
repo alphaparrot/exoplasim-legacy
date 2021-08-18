@@ -3,7 +3,7 @@ import os
  
 setup(
     name='exoplasim',
-    version='3.0.0a9',
+    version='3.0.0a10',
     packages=['exoplasim',],
     zip_safe=False,
     install_requires=["numpy","matplotlib","scipy"],
@@ -13,7 +13,7 @@ setup(
     author='Adiv Paradise',
     author_email='paradise.astro@gmail.com',
     license='GNU General Public License',
-    license_files="LICENSE.TXT",
+    license_files=["LICENSE.TXT",],
     url='https://github.com/alphaparrot/ExoPlaSim',
     description='Exoplanet GCM',
     long_description_content_type='text/x-rst',
