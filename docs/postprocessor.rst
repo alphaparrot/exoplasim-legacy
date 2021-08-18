@@ -75,8 +75,8 @@ which produce a folder containing one file per variable. The file you specify sh
 determine the desired output format. So, for example, to create an archive consisting of a folder full
 of CSV files for the raw output file ``MOST.00127``, one would use ``MOST.00127.csv``. The surface
 temperature variable, ``ts``, would then be found in ``MOST.00127/MOST.00127_ts.csv``. 
-**This same combined-format fictional filestring can be passed to **
-:py:func:`gcmt.load() <exoplasim.gcmt.load>`**.** The object returned by that function will access the
+**This same combined-format fictional filestring can be passed to** 
+:py:func:`gcmt.load(). <exoplasim.gcmt.load>` The object returned by that function will access the
 data in the archive just as if it were a bound archive, such as a tarball, netCDF file, or HDF5 file.
     
 A T21 model output with 10 vertical levels, 12 output times, all supported variables in grid 
