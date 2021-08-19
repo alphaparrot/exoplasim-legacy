@@ -210,7 +210,7 @@ class Model(object):
                 cwd = os.getcwd()
                 os.chdir(sourcedir)
                 os.system("touch firstrun")
-                os.system("./configure.sh")
+                os.system("./configure.sh %s"%(sys.version[0:3]))
                 if self.burn7:
                     os.system("nc-config --version > ncversion.tmp")
                     with open("ncversion.tmp","r") as ncftmpf:
