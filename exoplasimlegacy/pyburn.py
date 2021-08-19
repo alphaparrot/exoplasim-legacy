@@ -1799,7 +1799,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                 for nt in range(ntime):
                     for jlat in range(nlat):
                         for jlon in range(nlon):
-                            vadp[nt,:jlat,jlon] = scipy.integrate.cumtrapz(va[nt,:,jlat,jlon],
+                            vadp[nt,:,jlat,jlon] = scipy.integrate.cumtrapz(va[nt,:,jlat,jlon],
                                                                            x=pa[nt,:,jlat,jlon],
                                                                            initial=0.0)
                     
@@ -2590,18 +2590,57 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                 rdataset[meta[0]]= [variable,meta]
                 
             elif key==str(stfcode): #Streamfunction (stf)
-                svort,smeta = _transformvar(lon[:],lat[:],rawdata[str(vortcode)][:],
-                                            ilibrary[str(vortcode)][:],nlat,
-                                            nlon,nlev,ntru,ntime,mode='spectral',
-                                            substellarlon=substellarlon,physfilter=physfilter,
-                                            zonal=False) #Need it to be spectral
-                svortshape = list(svort.shape[:-1])
-                svortshape[-1]*=2
-                svortshape = tuple(svortshape)
-                svort = np.reshape(svort,svortshape)
-                stf = np.zeros(svort.shape)
-                modes = np.resize(specmodes,svort.shape)
-                stf[...,2:] = svort[...,2:] * radius**2/(modes**2+modes)[...,2:]
+                if mode in ("fourier","spectral","syncfourier"):
+                    if mode in ("fourier","spectral"):
+                        tempmode = "grid"
+                    else:
+                        tempmode = "synchronous"
+                else:
+                    tempmode = mode
+                if windless:
+                    div  = rawdata[str(divcode)][:]
+                    vort = rawdata[str(vortcode)][:]
+                    umeta = ilibrary[str(ucode)][:]
+                    vmeta = ilibrary[str(vcode)][:]
+                    ua,va,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,
+                                                            lat,nlon,nlev,ntru,
+                                                            ntime,mode=tempmode,
+                                                            substellarlon=substellarlon,
+                                                            physfilter=physfilter,zonal=False,
+                                                            radius=radius)
+                    windless = False
+                else:
+                    ua,va,umeta2,vmeta2 = _transformvectorvar(lon[:],div,vort,umeta,vmeta,
+                                                              lat,nlon,nlev,ntru,
+                                                              ntime,mode=tempmode,
+                                                              substellarlon=substellarlon,
+                                                              physfilter=physfilter,zonal=False,
+                                                              radius=radius)
+                                                              
+                #svort,smeta = _transformvar(lon[:],lat[:],rawdata[str(vortcode)][:],
+                                            #ilibrary[str(vortcode)][:],nlat,
+                                            #nlon,nlev,ntru,ntime,mode='spectral',
+                                            #substellarlon=substellarlon,physfilter=physfilter,
+                                            #zonal=False) #Need it to be spectral
+                #svortshape = list(svort.shape[:-1])
+                #svortshape[-1]*=2
+                #svortshape = tuple(svortshape)
+                #svort = np.reshape(svort,svortshape)
+                #stf = np.zeros(svort.shape)
+                #modes = np.resize(specmodes,svort.shape)
+                #stf[...,2:] = svort[...,2:] * radius**2/(modes**2+modes)[...,2:]
+                
+                vadp = np.zeros(va.shape)
+                for nt in range(ntime):
+                    for jlat in range(nlat):
+                        for jlon in range(nlon):
+                            vadp[nt,:,jlat,jlon] = scipy.integrate.cumtrapz(va[nt,:,jlat,jlon],
+                                                                           x=pa[nt,:,jlat,jlon],
+                                                                           initial=0.0)
+                    
+                prefactor = 2*np.pi*radius/gravity*colat
+                sign = 1 - 2*(tempmode=="synchronous") #-1 for synchronous, 1 for equatorial
+                stf = sign*prefactor[np.newaxis,np.newaxis,:,np.newaxis]*vadp
                 
                 meta = ilibrary[key][:]
                 meta.append(key)
