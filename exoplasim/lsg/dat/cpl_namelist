@@ -1,8 +1,0 @@
-&CPLPAR
-nroffc=1,
-cfacsst=1.,
-cfacice=1.,
-cfactau=1.
-cfacfresh=1.,
-&END
-

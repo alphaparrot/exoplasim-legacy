@@ -1,3 +1,0 @@
-rm -f plasim/bld/*
-rm -f plasim/bin/*
-rm -f -r plasim/run/*
