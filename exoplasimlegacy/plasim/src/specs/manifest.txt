@@ -1,0 +1,15 @@
+basaltsolid     rock.igneous.basic.solid.all.ward34.jpl.nicolet.spectrum.txt
+andesitefine    rock.igneous.intermediate.fine.all.andesite_h4.jhu.becknic.spectrum.txt
+andesitesolid   rock.igneous.intermediate.solid.all.andesite_h4.jhu.becknic.spectrum.txt
+frost           water.frost.none.fine.all.frost_snw_.jhu.becknic.spectrum.txt
+clearice        water.ice.none.solid.all.ice_dat_.jhu.becknic.spectrum.txt
+seawater        water.seawater.none.liquid.tir.seawater.jhu.becknic.spectrum.txt
+coarsesnow      water.snow.coarsegranular.coarse.all.coarse_snw_.jhu.becknic.spectrum.txt
+finesnow        water.snow.finegranular.fine.all.fine_snw_.jhu.becknic.spectrum.txt
+mediumsnow      water.snow.mediumgranular.medium.all.medgran_snw_.jhu.becknic.spectrum.txt
+tapwater        water.tapwater.none.liquid.all.tapwater.jhu.becknic.spectrum.txt
+yellowloam	soil.aridisol.calciorthid.none.all.79p1536.jhu.becknic.spectrum.txt
+yellowsand	soil.aridisol.camborthid.none.all.89p1772.jhu.becknic.spectrum.txt
+brownsand	soil.entisol.quartzipsamment.none.all.87p706.jhu.becknic.spectrum.txt
+dunesand	soil.entisol.torripsamment.none.all.0015.jhu.becknic.spectrum.txt
+seafoam 	water.seawater.none.liquid.tir.seafoam.jhu.becknic.spectrum.txt 	

@@ -1,7 +1,7 @@
-exoplasim
-=========
+exoplasimlegacy
+===============
 
 .. toctree::
    :maxdepth: 4
 
-   exoplasim
+   exoplasimlegacy

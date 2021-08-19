@@ -1,0 +1,28 @@
+ &plasim_nl
+ NOUTPUT     =     1
+ NGUI        =     0
+ N_START_YEAR=     1
+ N_DAYS_PER_YEAR=   360
+ N_RUN_YEARS =     1
+ N_RUN_MONTHS=     0
+ N_RUN_DAYS  =     0
+ KICK        =     1
+ MPSTEP  =  45.0
+ NADV        =     1
+ NDIAG       =     0
+ NGUIDBG     =     0
+ NQSPEC      =     1
+ NVEG        =     0
+ NWPD        =     0
+ NLOWIO      =     1
+ NSTPW  =  160 
+ NPRINT      =     0
+ NSYNC       =     1
+ NSNAPSHOT = 1 
+ NSTPS = 480 
+ NFILTER = 0
+ NGPTFILTER = 1
+ NSPVFILTER = 1
+ PSURF = 100040 
+ SYNCSTR     =     0
+ /END

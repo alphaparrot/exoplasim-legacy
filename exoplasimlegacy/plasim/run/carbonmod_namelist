@@ -1,0 +1,12 @@
+ &carbonmod_nl
+ NCARBON     =     1
+ VOLCANCO2   =     1.0
+ KACT        =     0.09
+ KRUN        =     0.045
+ BETA        =     0.5
+ FREQUENCY   =     4
+ PEARTH      =    79.0
+ NSUPPLY     =     0
+ WMAX        =    80.9
+ ZETA        =     0.0
+ /END
