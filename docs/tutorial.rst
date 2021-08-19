@@ -12,7 +12,7 @@ a large number of output formats are supported, including netCDF and HDF5, but t
 the additional installation of the ``netCDF4`` and ``h5py`` Python libraries (which can be done at 
 install-time as optional dependencies for ExoPlaSim).
 
->>> import exoplasim as exo
+>>> import exoplasimlegacy as exo
 >>> toi700d = exo.Model(workdir="toi700d_run",modelname="TOI-700d",
 >>>                     ncpus=4,resolution="T21",outputtype=".npz")
 

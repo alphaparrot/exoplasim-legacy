@@ -3,9 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-==================================
-ExoPlaSim Python API Documentation
-==================================   
+=========================================
+ExoPlaSim-Legacy Python API Documentation
+=========================================
 
 .. figure:: ../mixplanets.png
   :width: 100%
@@ -33,7 +33,7 @@ Contents
    
    tutorial.rst
    postprocessor.rst
-   source/exoplasim
+   source/exoplasim_legacy
 ..    :caption: Contents:
 
 
@@ -71,7 +71,7 @@ Installation
 
 ::
 
-    pip install exoplasim
+    pip install exoplasim-legacy
     
 OR::
 
@@ -83,15 +83,15 @@ you can install their dependencies at install-time:
 
 ::
 
-    pip install exoplasim[HDF5]
+    pip install exoplasim-legacy[HDF5]
     
 OR::
 
-    pip install exoplasim[netCDF4]
+    pip install exoplasim-legacy[netCDF4]
     
 OR::
 
-    pip install exoplasim[netCDF4,HDF5]
+    pip install exoplasim-legacy[netCDF4,HDF5]
     
 The first time you import the module and try to create a model
 after either installing or updating, ExoPlaSim will run a 
@@ -222,7 +222,7 @@ modify method, and then run it.
 
 Basic example:::
 
-    import exoplasim as exo
+    import exoplasimlegacy as exo
     mymodel = exo.Model(workdir="mymodel_testrun",modelname="mymodel",resolution="T21",layers=10,ncpus=8)
     mymodel.configure()
     mymodel.exportcfg()

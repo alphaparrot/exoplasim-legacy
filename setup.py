@@ -2,9 +2,9 @@ from setuptools import setup
 import os
  
 setup(
-    name='exoplasim',
+    name='exoplasim-legacy',
     version='3.0.0a12',
-    packages=['exoplasim',],
+    packages=['exoplasimlegacy',],
     zip_safe=False,
     install_requires=["numpy","matplotlib","scipy"],
     extras_require = {"netCDF4": ["netCDF4"],
