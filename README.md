@@ -1,14 +1,14 @@
-EXOPLASIM
-======
+EXOPLASIM-LEGACY
+================
 
 ![Two rows of planets, progressing from yellow to blue from top left to bottom right. The top row appears to represent tidally-locked planets, while the bottom row appears to represent Earth-like planets.](mixplanets.png "Two rows of planets, progressing from yellow to blue from top left to bottom right. The top row appears to represent tidally-locked planets, while the bottom row appears to represent Earth-like planets.")
 *A range of planets modeled by ExoPlaSim, and postprocessed with SBDART. The top row consists of tidally-locked aquaplanets at T21 orbiting stars ranging from 2500 K to 4000 K, with orbital periods increasing with stellar mass. The bottom row consists of aquaplanets with 24-hour rotation at T42, orbiting stars ranging from 4000 K to 8000 K.*
 
 The PlaSim 3D general climate model, extended for terrestrial planets. This model contains the PlaSim GCM, as well as all necessary modifications to run tidally-locked planets, planets with substantially different surface pressures than Earth, planets orbiting stars with different effective temperatures, super-Earths, and more. This model also includes the ability to compute carbon-silicate weathering, dynamic orography through the glacier module (though only accumulation and ablation/evaporation/melting are included; glacial flow and spreading are not), and storm climatology. Future features will include support for multiple celestial light sources (e.g. for a habitable moon orbiting a Jovian planet, or circumbinary planets), coupling with N-body integrators such as REBOUND, and CO2 condensation.
 
-This model ships with a Python API, described below. Full documentation of the API is available at <http://exoplasim.readthedocs.io>.
+This model ships with a Python API, described below. Full documentation of the API is available at <http://exoplasim-legacy.readthedocs.io>.
 
-Documentation of the original PlaSim model is found in exoplasim/plasim/doc.
+Documentation of the original PlaSim model is found in exoplasimlegacy/plasim/doc.
 
 [![DOI](https://zenodo.org/badge/97154456.svg)](https://zenodo.org/badge/latestdoi/97154456) [![Documentation Status](https://readthedocs.org/projects/exoplasim/badge/?version=stable)](https://exoplasim.readthedocs.io/en/stable/?badge=stable)
 
@@ -37,7 +37,7 @@ Requirements
 Installation
 ------------
 
-    pip install exoplasim
+    pip install exoplasim-legacy
 
 OR:
 
@@ -53,21 +53,21 @@ postprocessor. If you wish to use HDF5 or NetCDF output formats, you
 will need the netCDF4-python and h5py libraries, respectively. You
 can ensure these are included at install-time by specifying them:
 
-    pip install exoplasim[netCDF4]
+    pip install exoplasim-legacy[netCDF4]
     
 OR:
 
-    pip install exoplasim[HDF5]
+    pip install exoplasim-legacy[HDF5]
     
 OR:
 
-    pip install exoplasim[netCDF4,HDF5]
+    pip install exoplasim-legacy[netCDF4,HDF5]
 
 You may also configure and compile the model manually if you wish to not
 use the Python API, by entering the exoplasim/ directory and running
 first configure.sh, then compile.sh (compilation flags are shown by
 running `./compile.sh -h`). The postprocessor and its libraries can be
-compiled by entering `exoplasim/postprocessor/` and running
+compiled by entering `exoplasimlegacy/postprocessor/` and running
 `./build_init.sh`.
 
 burn7 compilation
@@ -93,7 +93,7 @@ method, and then run it.
 
 Basic example::
 
-    import exoplasim as exo
+    import exoplasimlegacy as exo
     mymodel = exo.Model(workdir="mymodel_testrun",modelname="mymodel",resolution="T21",layers=10,ncpus=8)
     mymodel.configure()
     mymodel.exportcfg()

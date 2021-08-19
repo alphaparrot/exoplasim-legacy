@@ -1,8 +1,8 @@
 .. -*- coding:utf-8 -*-
 
-===========================
-ExoPlaSim Python API README
-===========================
+==================================
+ExoPlaSim-Legacy Python API README
+==================================
 
 Created by Adiv Paradise
 
@@ -30,7 +30,7 @@ Installation
 
 ::
 
-    pip install exoplasim
+    pip install exoplasim-legacy
     
 OR::
 
@@ -47,19 +47,19 @@ will need the netCDF4-python and h5py libraries, respectively. You
 can ensure these are included at install-time by specifying them:
 
 ::
-    pip install exoplasim[netCDF4]
+    pip install exoplasim-legacy[netCDF4]
     
 OR::
-    pip install exoplasim[HDF5]
+    pip install exoplasim-legacy[HDF5]
     
 OR::
-    pip install exoplasim[netCDF4,HDF5]
+    pip install exoplasim-legacy[netCDF4,HDF5]
 
 You may also configure and compile the model manually if you wish
 to not use the Python API, by entering the exoplasim/ directory
 and running first configure.sh, then compile.sh (compilation flags
 are shown by running ``./compile.sh -h``). The postprocessor and its
-libraries can be compiled by entering ``exoplasim/postprocessor/`` and
+libraries can be compiled by entering ``exoplasimlegacy/postprocessor/`` and
 running ``./build_init.sh``.
 
 burn7 compilation
@@ -86,7 +86,7 @@ modify method, and then run it.
 
 Basic example:::
 
-    import exoplasim as exo
+    import exoplasimlegacy as exo
     mymodel = exo.Model(workdir="mymodel_testrun",modelname="mymodel",resolution="T21",layers=10,ncpus=8)
     mymodel.configure()
     mymodel.exportcfg()
