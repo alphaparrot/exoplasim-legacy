@@ -314,16 +314,24 @@ echo >> most_info.txt "C       Compiler: $MOST_CC"
 cat most_info.txt
 make
 
+#On Sunnyvale, the Python/NumPy stack was built with gcc/g++. Even if we would *like* to use 
+#Intel compilers, on this machine we can't. This is likely going to be true on most systems,
+#so we'll hard-code this, because there probably isn't a way to check this.
+
+#If you're reading this and that's a problem, I'm so sorry. Blame compiler programmers who don't
+#talk to each other. Or blame the NumPy devs for having zero cross-version compatibility in f2py.
+oldcc=$CC
+oldcpp=$CXX
+export CC=gcc
+export CXX=g++
 #Compile pyfft libraries for Python 2
-f2py2 -c -m --f90exec=$MOST_F90 --f90flags="-O3" pyfft2 pyfft.f90
+f2py2 -c -m --f90exec=gfortran --f77exec=gfortran --f90flags="-O3" pyfft2 pyfft.f90 || f2py -c -m --f90exec=gfortran --f77exec=gfortran --f90flags="-O3" pyfft2 pyfft.f90
 
 #Compile pyfft libraries for Python 3
-if [[ -z "$1" ]]
-then
-    f2py$1 -c -m --f90exec=$MOST_F90 --f90flags="-O3" pyfft pyfft.f90 && mv pyfft.cpython*.so pyfft.so
-else
-    f2py3 -c -m --f90exec=$MOST_F90 --f90flags="-O3" pyfft pyfft.f90 && mv pyfft.cpython*.so pyfft.so
-fi
+f2py$pyversion -c -m --f90exec=gfortran --f77exec=gfortran --f90flags="-O3" pyfft pyfft.f90 && mv pyfft.cpython*.so pyfft.so
+    
+export CC=$oldcc
+export CXX=$oldcpp
     
 
 echo

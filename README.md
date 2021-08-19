@@ -28,8 +28,8 @@ Requirements
 -   numpy
 -   scipy
 -   matplotlib (only needed for additional utilities)
--   a Fortran compiler
--   a C compiler
+-   GNU C (gcc/g++) and Fortran (gfortran) compilers (for Python utilities)
+-   (optionally) Other compilers whose use you prefer for the model itself
 -   (optionally) MPI libraries for those compilers
 -   netCDF4 (optional)
 -   h5py (optional)

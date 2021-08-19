@@ -3,10 +3,10 @@ import os
  
 setup(
     name='exoplasim-legacy',
-    version='3.0.0a17',
+    version='3.0.0a18',
     packages=['exoplasimlegacy',],
     zip_safe=False,
-    install_requires=["numpy","matplotlib","scipy"],
+    install_requires=["numpy>=1.16","matplotlib","scipy"],
     extras_require = {"netCDF4": ["netCDF4"],
                       "HDF5": ["h5py"]},
     include_package_data=True,
