@@ -1053,7 +1053,7 @@ class Model(object):
                     kwargs = self.postprocessorcfgs[ftype]
                 if variables is None and self._configuredpostprocessor[ftype]:
                     pyburn.postprocess(inputfile,inputfile+self.extensions[ftype],logfile=log,
-                                       radius=self.radius*6371220.0,
+                                       radius=self.radius,
                                        gravity=self.gravity,gascon=self.gascon,**kwargs)
                 else:
                     if ftype!="regular":
@@ -1064,7 +1064,7 @@ class Model(object):
                         if "stdev" not in kwargs:
                             kwargs["stdev"] = self.postprocessordefaults[ftype]["stdev"]
                     pyburn.postprocess(inputfile,inputfile+self.extension,logfile=log,namelist=namelist,
-                                       variables=variables,radius=self.radius*6371220.0,
+                                       variables=variables,radius=self.radius,
                                        gravity=self.gravity,gascon=self.gascon,**kwargs)
                 return 1
             except Exception as e:

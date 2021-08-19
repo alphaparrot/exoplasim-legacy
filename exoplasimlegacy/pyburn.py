@@ -1312,7 +1312,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
         Dictionary of extracted variables
     '''
     
-    radius *= 6371220.0 #convert Earth radii to metres
+    plarad = radius*6371220.0 #convert Earth radii to metres
     
     rawdata = readfile(filename)
     
@@ -1342,8 +1342,8 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                                       physfilter=physfilter,zonal=False)
     dpsdx = np.zeros(gridlnps.shape)
     for jlat in range(nlat):
-        dpsdx[...,jlat,:] = np.gradient(gridlnps[...,jlat,:],rlon*radius*colat[jlat],axis=-1)
-    dpsdy = np.gradient(gridlnps,rlat*radius,axis=-2)
+        dpsdx[...,jlat,:] = np.gradient(gridlnps[...,jlat,:],rlon*plarad*colat[jlat],axis=-1)
+    dpsdy = np.gradient(gridlnps,rlat*plarad,axis=-2)
     gridps = np.exp(gridlnps)
     
     levp = np.zeros(nlev+1)
@@ -1436,7 +1436,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                     ua,va,meta,vmeta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
-                                                            radius=radius)
+                                                            plarad=plarad)
                     windless = False
                 else:
                     meta=umeta[:-1]
@@ -1453,7 +1453,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                     ua,va,umeta,meta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
-                                                            radius=radius)
+                                                            plarad=plarad)
                     windless = False
                 else:
                     meta=vmeta[:-1]
@@ -1469,7 +1469,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                     ua,va,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
-                                                            radius=radius)
+                                                            plarad=plarad)
                     windless = False
                 meta = ilibrary[key][:]
                 meta.append(key)
@@ -1615,7 +1615,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                 if not windless:
                     uu,vv,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta[:],vmeta[:],lat,
                                                             nlon,nlev,ntru,
-                                                            ntime,mode='grid',radius=radius,
+                                                            ntime,mode='grid',plarad=plarad,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False)
                     dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -1627,7 +1627,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[str(vcode)][:]
                     uu,vv,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
-                                                            ntime,mode='grid',radius=radius,
+                                                            ntime,mode='grid',plarad=plarad,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False)
                     dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -1673,7 +1673,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                     if not windless:
                         uu,vv,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta[:],vmeta[:],
                                                                 lat,nlon,nlev,ntru,
-                                                                ntime,mode='grid',radius=radius,
+                                                                ntime,mode='grid',plarad=plarad,
                                                                 substellarlon=substellarlon,
                                                                 physfilter=physfilter,zonal=False)
                         dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -1685,7 +1685,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                         umeta = ilibrary[str(ucode)][:]
                         vmeta = ilibrary[str(vcode)][:]
                         uu,vv,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
-                                                                ntime,mode='grid',radius=radius,
+                                                                ntime,mode='grid',plarad=plarad,
                                                                 substellarlon=substellarlon,
                                                                 physfilter=physfilter,zonal=False)
                         dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -1745,7 +1745,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                 vdiv = np.reshape(vdiv,vdivshape)
                 vpot = np.zeros(vdiv.shape)
                 modes = np.resize(specmodes,vdiv.shape)
-                vpot[...,2:] = vdiv[...,2:] * radius**2/(modes**2+modes)[...,2:]
+                vpot[...,2:] = vdiv[...,2:] * plarad**2/(modes**2+modes)[...,2:]
 
                 meta = ilibrary[key][:]
                 meta.append(key)
@@ -1772,7 +1772,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                                                             ntime,mode=tempmode,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False,
-                                                            radius=radius)
+                                                            plarad=plarad)
                     windless = False
                 else:
                     ua,va,umeta2,vmeta2 = _transformvectorvar(lon[:],div,vort,umeta,vmeta,
@@ -1780,7 +1780,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                                                               ntime,mode=tempmode,
                                                               substellarlon=substellarlon,
                                                               physfilter=physfilter,zonal=False,
-                                                              radius=radius)
+                                                              plarad=plarad)
                                                               
                 #svort,smeta = _transformvar(lon[:],lat[:],rawdata[str(vortcode)][:],
                                             #ilibrary[str(vortcode)][:],nlat,
@@ -1793,7 +1793,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                 #svort = np.reshape(svort,svortshape)
                 #stf = np.zeros(svort.shape)
                 #modes = np.resize(specmodes,svort.shape)
-                #stf[...,2:] = svort[...,2:] * radius**2/(modes**2+modes)[...,2:]
+                #stf[...,2:] = svort[...,2:] * plarad**2/(modes**2+modes)[...,2:]
                 
                 vadp = np.zeros(va.shape)
                 for nt in range(ntime):
@@ -1803,7 +1803,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                                                                            x=pa[nt,:,jlat,jlon],
                                                                            initial=0.0)
                     
-                prefactor = 2*np.pi*radius/gravity*colat
+                prefactor = 2*np.pi*plarad/gravity*colat
                 sign = 1 - 2*(tempmode=="synchronous") #-1 for synchronous, 1 for equatorial
                 stf = sign*prefactor[np.newaxis,np.newaxis,:,np.newaxis]*vadp
             
@@ -2132,7 +2132,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
         Dictionary of extracted variables
     '''
     
-    radius *= 6371220.0 #convert Earth radii to metres
+    plarad = radius*6371220.0 #convert Earth radii to metres
     
     rawdata = readfile(filename)
     
@@ -2162,8 +2162,8 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                                       physfilter=physfilter,zonal=False)
     dpsdx = np.zeros(gridlnps.shape)
     for jlat in range(nlat):
-        dpsdx[...,jlat,:] = np.gradient(gridlnps[...,jlat,:],rlon*radius*colat[jlat],axis=-1)
-    dpsdy = np.gradient(gridlnps,rlat*radius,axis=-2)
+        dpsdx[...,jlat,:] = np.gradient(gridlnps[...,jlat,:],rlon*plarad*colat[jlat],axis=-1)
+    dpsdy = np.gradient(gridlnps,rlat*plarad,axis=-2)
     gridps = np.exp(gridlnps)
     
     levp = np.zeros(nlev+1)
@@ -2271,7 +2271,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                     ua,va,meta,vmeta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
-                                                            radius=radius)
+                                                            plarad=plarad)
                     windless = False
                 else:
                     meta=umeta[:-1]
@@ -2288,7 +2288,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                     ua,va,umeta,meta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
-                                                            radius=radius)
+                                                            plarad=plarad)
                     windless = False
                 else:
                     meta=vmeta[:-1]
@@ -2304,7 +2304,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                     ua,va,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
                                                             ntime,mode=mode,substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=zonal,
-                                                            radius=radius)
+                                                            plarad=plarad)
                     windless = False
                 meta = ilibrary[key][:]
                 meta.append(key)
@@ -2450,7 +2450,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                 if not windless:
                     uu,vv,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta[:],vmeta[:],lat,
                                                             nlon,nlev,ntru,
-                                                            ntime,mode='grid',radius=radius,
+                                                            ntime,mode='grid',plarad=plarad,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False)
                     dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -2462,7 +2462,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                     umeta = ilibrary[str(ucode)][:]
                     vmeta = ilibrary[str(vcode)][:]
                     uu,vv,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
-                                                            ntime,mode='grid',radius=radius,
+                                                            ntime,mode='grid',plarad=plarad,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False)
                     dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -2508,7 +2508,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                     if not windless:
                         uu,vv,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta[:],vmeta[:],
                                                                 lat,nlon,nlev,ntru,
-                                                                ntime,mode='grid',radius=radius,
+                                                                ntime,mode='grid',plarad=plarad,
                                                                 substellarlon=substellarlon,
                                                                 physfilter=physfilter,zonal=False)
                         dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -2520,7 +2520,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                         umeta = ilibrary[str(ucode)][:]
                         vmeta = ilibrary[str(vcode)][:]
                         uu,vv,umeta,vmeta = _transformvectorvar(lon[:],div,vort,umeta,vmeta,lat,nlon,nlev,ntru,
-                                                                ntime,mode='grid',radius=radius,
+                                                                ntime,mode='grid',plarad=plarad,
                                                                 substellarlon=substellarlon,
                                                                 physfilter=physfilter,zonal=False)
                         dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
@@ -2580,7 +2580,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                 vdiv = np.reshape(vdiv,vdivshape)
                 vpot = np.zeros(vdiv.shape)
                 modes = np.resize(specmodes,vdiv.shape)
-                vpot[...,2:] = vdiv[...,2:] * radius**2/(modes**2+modes)[...,2:]
+                vpot[...,2:] = vdiv[...,2:] * plarad**2/(modes**2+modes)[...,2:]
 
                 meta = ilibrary[key][:]
                 meta.append(key)
@@ -2607,7 +2607,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                                                             ntime,mode=tempmode,
                                                             substellarlon=substellarlon,
                                                             physfilter=physfilter,zonal=False,
-                                                            radius=radius)
+                                                            plarad=plarad)
                     windless = False
                 else:
                     ua,va,umeta2,vmeta2 = _transformvectorvar(lon[:],div,vort,umeta,vmeta,
@@ -2615,7 +2615,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                                                               ntime,mode=tempmode,
                                                               substellarlon=substellarlon,
                                                               physfilter=physfilter,zonal=False,
-                                                              radius=radius)
+                                                              plarad=plarad)
                                                               
                 #svort,smeta = _transformvar(lon[:],lat[:],rawdata[str(vortcode)][:],
                                             #ilibrary[str(vortcode)][:],nlat,
@@ -2628,7 +2628,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                 #svort = np.reshape(svort,svortshape)
                 #stf = np.zeros(svort.shape)
                 #modes = np.resize(specmodes,svort.shape)
-                #stf[...,2:] = svort[...,2:] * radius**2/(modes**2+modes)[...,2:]
+                #stf[...,2:] = svort[...,2:] * plarad**2/(modes**2+modes)[...,2:]
                 
                 vadp = np.zeros(va.shape)
                 for nt in range(ntime):
@@ -2638,7 +2638,7 @@ def advancedDataset(filename, variablecodes, substellarlon=180.0,
                                                                            x=pa[nt,:,jlat,jlon],
                                                                            initial=0.0)
                     
-                prefactor = 2*np.pi*radius/gravity*colat
+                prefactor = 2*np.pi*plarad/gravity*colat
                 sign = 1 - 2*(tempmode=="synchronous") #-1 for synchronous, 1 for equatorial
                 stf = sign*prefactor[np.newaxis,np.newaxis,:,np.newaxis]*vadp
                 
