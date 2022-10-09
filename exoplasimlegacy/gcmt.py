@@ -26,7 +26,26 @@ def _loadcsv(filename,buffersize=1):
         import tarfile
         with tarfile.open(filename,"r") as tarball:
             members = tarball.getnames()
-            tarball.extractall()
+            def is_within_directory(directory, target):
+                
+                abs_directory = os.path.abspath(directory)
+                abs_target = os.path.abspath(target)
+            
+                prefix = os.path.commonprefix([abs_directory, abs_target])
+                
+                return prefix == abs_directory
+            
+            def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+            
+                for member in tar.getmembers():
+                    member_path = os.path.join(path, member.name)
+                    if not is_within_directory(path, member_path):
+                        raise Exception("Attempted Path Traversal in Tar File")
+            
+                tar.extractall(path, members, numeric_owner=numeric_owner) 
+                
+            
+            safe_extract(tarball)
             
     else: #filename here should be the name of a directory containing only variable csv/txt/gz files 
         #Just a collection of CSV/TXT-type files in a subdirectory, which may be individually-compressed.
@@ -196,7 +215,26 @@ class _csvData(dict):
                 import tarfile
                 with tarfile.open(self.archive,"r") as tarball:
                     members = tarball.getnames()
-                    tarball.extractall()
+                    def is_within_directory(directory, target):
+                        
+                        abs_directory = os.path.abspath(directory)
+                        abs_target = os.path.abspath(target)
+                    
+                        prefix = os.path.commonprefix([abs_directory, abs_target])
+                        
+                        return prefix == abs_directory
+                    
+                    def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                    
+                        for member in tar.getmembers():
+                            member_path = os.path.join(path, member.name)
+                            if not is_within_directory(path, member_path):
+                                raise Exception("Attempted Path Traversal in Tar File")
+                    
+                        tar.extractall(path, members, numeric_owner=numeric_owner) 
+                        
+                    
+                    safe_extract(tarball)
                 os.system("rm -rf "+self.archive)
             print("Writing %8s to %s"%(key,fname))
             np.savetxt(fname,value.astype("float32"),
@@ -231,7 +269,26 @@ class _csvData(dict):
                 if "tar.gz" in self.archive or "tar.bz2" in self.archive or "tar.xz" in self.archive:
                     with tarfile.open(self.archive,"r") as tarball:
                         members = tarball.getnames()
-                        tarball.extractall()
+                        def is_within_directory(directory, target):
+                            
+                            abs_directory = os.path.abspath(directory)
+                            abs_target = os.path.abspath(target)
+                        
+                            prefix = os.path.commonprefix([abs_directory, abs_target])
+                            
+                            return prefix == abs_directory
+                        
+                        def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                        
+                            for member in tar.getmembers():
+                                member_path = os.path.join(path, member.name)
+                                if not is_within_directory(path, member_path):
+                                    raise Exception("Attempted Path Traversal in Tar File")
+                        
+                            tar.extractall(path, members, numeric_owner=numeric_owner) 
+                            
+                        
+                        safe_extract(tarball)
                     os.system("rm -rf "+self.archive)
                     with tarfile.open(self.archive,"w:%s"%self.archive.split(".")[-1]) as tarball:
                         for var in members:
